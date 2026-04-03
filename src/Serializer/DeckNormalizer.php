@@ -49,9 +49,20 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
 
         foreach ($data['deckCards'] as &$deckCard) {
             $ref = $deckCard['cardReference'] ?? null;
-            if ($ref && isset($cardsData[$ref])) {
-                $deckCard['card'] = $cardsData[$ref];
+            if (!$ref || !isset($cardsData[$ref])) {
+                continue;
             }
+
+            $cg = $cardsData[$ref]['cardGroup'] ?? [];
+
+            $deckCard['cardGroup'] = [
+                'slug'              => $cg['slug'] ?? null,
+                'name'              => $cg['name'] ?? null,
+                'factionCode'       => $cg['faction']['code'] ?? null,
+                'cardTypeReference' => $cg['cardType']['reference'] ?? null,
+                'mainCost'          => $cg['mainCost'] ?? null,
+                'imagePath'         => $cardsData[$ref]['imagePath'] ?? null,
+            ];
         }
         unset($deckCard);
 

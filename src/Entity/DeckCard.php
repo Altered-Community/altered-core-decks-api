@@ -26,6 +26,10 @@ class DeckCard
      */
     #[ORM\Column(length: 100)]
     #[Assert\NotBlank]
+    #[Assert\Regex(
+        pattern: '/^ALT_[A-Z0-9]+_[A-Z0-9]+_[A-Z]+_\d+_[A-Z0-9]+(_\d+)?$/',
+        message: 'Invalid card reference format. Expected format: ALT_CORE_B_AX_01_C',
+    )]
     #[Groups(['deck:read:detail', 'deck:write'])]
     private string $cardReference;
 

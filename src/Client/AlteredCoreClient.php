@@ -14,6 +14,11 @@ class AlteredCoreClient
         private readonly string              $alteredCoreUrl,
     ) {}
 
+    public function getBaseUrl(): string
+    {
+        return $this->alteredCoreUrl;
+    }
+
     /**
      * Fetch card data for a list of references from altered-core.
      * Results are cached per reference for 1 hour.

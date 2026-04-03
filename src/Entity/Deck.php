@@ -83,6 +83,7 @@ class Deck
     private User $user;
 
     #[ORM\OneToMany(targetEntity: DeckCard::class, mappedBy: 'deck', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[Assert\Valid]
     #[Groups(['deck:read:detail', 'deck:write'])]
     private Collection $deckCards;
 
