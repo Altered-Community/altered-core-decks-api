@@ -17,13 +17,18 @@ services:
     App\Security\KeycloakAuthenticator:
         arguments:
             $keycloakBaseUrl: '%keycloak_base_url%'
-            \$keycloakRealm: '%keycloak_realm%'\n            \$appSecret: '%env(APP_SECRET)%'\n            \$appEnv: '%env(APP_ENV)%'\n\n    App\\Controller\\DevAuthController:\n        arguments:\n            \$appSecret: '%env(APP_SECRET)%'\n            \$appEnv: '%env(APP_ENV)%'
+            $keycloakRealm: '%keycloak_realm%'
+            $appSecret: '%env(APP_SECRET)%'
+            $appEnv: '%env(APP_ENV)%'
+
+    App\Controller\DevAuthController:
+        arguments:
+            $appSecret: '%env(APP_SECRET)%'
+            $appEnv: '%env(APP_ENV)%'
 
     App\Client\AlteredCoreClient:
         arguments:
             $alteredCoreUrl: '%env(ALTERED_CORE_URL)%'
-
-    App\Validator\Format\DeckFormatValidatorInterface: ~
 
     App\Validator\Format\DeckFormatValidatorFactory:
         arguments:

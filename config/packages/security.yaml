@@ -17,8 +17,9 @@ security:
                 - App\Security\KeycloakAuthenticator
 
     access_control:
-        - { path: ^/api/dev/auth, roles: PUBLIC_ACCESS }\n        - { path: ^/api/docs, roles: PUBLIC_ACCESS }
-        - { path: ^/api,      roles: ROLE_USER }
+        - { path: ^/api/dev/auth, roles: PUBLIC_ACCESS }
+        - { path: ^/api/docs,     roles: PUBLIC_ACCESS }
+        - { path: ^/api,          roles: ROLE_USER }
 
 when@test:
     security:
