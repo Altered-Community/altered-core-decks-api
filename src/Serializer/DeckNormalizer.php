@@ -48,6 +48,7 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
         $cardsData  = $this->alteredCoreClient->getCardsByReferences($references, $locale);
 
         $cards = [];
+        $tmp = [];
         foreach ($data['deckCards'] as $deckCard) {
             $ref      = $deckCard['cardReference'] ?? null;
             $card     = $cardsData[$ref] ?? [];
