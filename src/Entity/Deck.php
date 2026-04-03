@@ -27,6 +27,8 @@ use Symfony\Component\Validator\Constraints as Assert;
     operations: [
         new GetCollection(
             normalizationContext: ['groups' => ['deck:read']],
+            paginationClientItemsPerPage: true,
+            paginationMaximumItemsPerPage: 1000,
         ),
         new Get(
             normalizationContext: ['groups' => ['deck:read', 'deck:read:detail']],

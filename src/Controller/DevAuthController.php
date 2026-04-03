@@ -13,13 +13,13 @@ class DevAuthController extends AbstractController
 {
     public function __construct(
         private readonly string $appSecret,
-        private readonly string $appEnv,
+        private readonly bool   $devAuthEnabled,
     ) {}
 
     #[Route('/api/dev/auth', name: 'dev_auth', methods: ['POST'])]
     public function __invoke(Request $request): JsonResponse
     {
-        if ($this->appEnv !== 'dev') {
+        if (!$this->devAuthEnabled) {
             throw new NotFoundHttpException();
         }
 

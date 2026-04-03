@@ -19,12 +19,12 @@ services:
             $keycloakBaseUrl: '%keycloak_base_url%'
             $keycloakRealm: '%keycloak_realm%'
             $appSecret: '%env(APP_SECRET)%'
-            $appEnv: '%env(APP_ENV)%'
+            $devAuthEnabled: '%env(bool:DEV_AUTH_ENABLED)%'
 
     App\Controller\DevAuthController:
         arguments:
             $appSecret: '%env(APP_SECRET)%'
-            $appEnv: '%env(APP_ENV)%'
+            $devAuthEnabled: '%env(bool:DEV_AUTH_ENABLED)%'
 
     App\Client\AlteredCoreClient:
         arguments:

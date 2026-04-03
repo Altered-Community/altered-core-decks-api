@@ -14,7 +14,6 @@ class DeckCard
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['deck:read:detail'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Deck::class, inversedBy: 'deckCards')]

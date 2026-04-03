@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Altered Deck API</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: '#8b5cf6',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        pre { scrollbar-width: thin; scrollbar-color: #4b5563 transparent; }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans antialiased">
+
+    <!-- Hero -->
+    <div class="border-b border-gray-800 bg-gray-900">
+        <div class="max-w-6xl mx-auto px-6 py-16">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="bg-violet-500/20 text-violet-400 text-xs font-semibold px-3 py-1 rounded-full border border-violet-500/30">v1</span>
+                <span class="text-gray-500 text-sm">REST · JSON · API Platform · JWT</span>
+            </div>
+            <h1 class="text-5xl font-bold text-white mb-4">Altered Deck API</h1>
+            <p class="text-xl text-gray-400 max-w-2xl mb-8">
+                Manage your Altered TCG decks. Create, update and share decks with per-format validation and automatic stats computation.
+            </p>
+        </div>
+    </div>
+
+    <div class="max-w-6xl mx-auto px-6 py-16 space-y-20">
+
+        <!-- Endpoints overview -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {% set tiles = [
+                { method: 'GET',    path: 'GET /api/decks' },
+                { method: 'GET',    path: 'GET /api/decks/{id}' },
+                { method: 'POST',   path: 'POST /api/decks' },
+                { method: 'PATCH',  path: 'PATCH /api/decks/{id}' },
+            ] %}
+            {% for tile in tiles %}
+            <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+                <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Endpoint</div>
+                <div class="text-violet-400 font-mono text-xs font-semibold">{{ tile.path }}</div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Auth -->
+        <section>
+            <h2 class="text-2xl font-bold text-white mb-2">Authentication</h2>
+            <p class="text-gray-400 mb-6">
+                All write endpoints require a <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">Bearer</code> JWT token in the
+                <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">Authorization</code> header.
+                In dev mode, generate a token with the <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">POST /api/dev/auth</code> helper.
+            </p>
+            <div class="rounded-xl overflow-hidden border border-gray-800">
+                <div class="flex items-center gap-2 bg-gray-800 px-4 py-2.5 border-b border-gray-700">
+                    <span class="bg-amber-500/15 text-amber-400 text-xs font-bold px-2 py-0.5 rounded font-mono">POST</span>
+                    <span class="text-xs text-gray-300 font-mono">/api/dev/auth</span>
+                    <span class="ml-auto text-xs text-gray-500 italic">dev only</span>
+                </div>
+                <pre class="bg-gray-900 p-5 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed"><span class="text-violet-400">curl</span> <span class="text-green-400">-X POST</span> <span class="text-green-400">-H</span> <span class="text-yellow-300">"Content-Type: application/json"</span> \
+  <span class="text-green-400">-d</span> <span class="text-yellow-300">'{"sub":"user-1","username":"john","email":"john@example.com"}'</span> \
+  <span class="text-yellow-300">"http://localhost/api/dev/auth"</span></pre>
+            </div>
+            <div class="mt-4 rounded-xl overflow-hidden border border-gray-800">
+                <div class="flex items-center gap-2 bg-gray-800 px-4 py-2.5 border-b border-gray-700">
+                    <span class="text-xs text-gray-400 font-mono">response</span>
+                    <span class="ml-auto text-xs text-emerald-400 font-semibold">200 OK</span>
+                </div>
+                <pre class="bg-gray-900 p-5 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed">{
+  <span class="text-violet-300">"token"</span>:      <span class="text-yellow-300">"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."</span>,
+  <span class="text-violet-300">"expires_in"</span>: <span class="text-emerald-400">3600</span>
+}</pre>
+            </div>
+            <p class="mt-4 text-sm text-gray-500">
+                Use the token: <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded">Authorization: Bearer &lt;token&gt;</code>
+            </p>
+        </section>
+
+        <!-- GET /api/decks -->
+        <section id="list-decks">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="bg-emerald-500/15 text-emerald-400 text-sm font-bold px-3 py-1 rounded font-mono">GET</span>
+                <h2 class="text-2xl font-bold text-white">/api/decks</h2>
+            </div>
+            <p class="text-gray-400 mb-4">
+                Returns a paginated list of decks. Results are scoped to the authenticated user. Supports filtering by
+                <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">format</code> and
+                <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">isPublic</code>,
+                and ordering by <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">createdAt</code>,
+                <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">updatedAt</code>,
+                <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">name</code>.
+            </p>
+
+            <!-- Filter examples -->
+            <div class="mb-6 bg-gray-900 border border-gray-800 rounded-xl p-5">
+                <div class="text-xs text-gray-500 mb-3 uppercase tracking-wider">Filter &amp; sort examples</div>
+                <div class="flex flex-wrap gap-2">
+                    {% for param in ['format=standard', 'format=nuc', 'isPublic=true', 'order[createdAt]=desc', 'order[name]=asc', 'itemsPerPage=50'] %}
+                    <span class="font-mono text-xs bg-gray-800 text-gray-300 px-2.5 py-1 rounded border border-gray-700">?{{ param }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- curl -->
+            <div class="rounded-xl overflow-hidden border border-gray-800 mb-4">
+                <div class="flex items-center gap-2 bg-gray-800 px-4 py-2.5 border-b border-gray-700">
+                    <div class="w-3 h-3 rounded-full bg-red-500/70"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500/70"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500/70"></div>
+                    <span class="ml-2 text-xs text-gray-400 font-mono">curl</span>
+                </div>
+                <pre class="bg-gray-900 p-5 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed"><span class="text-violet-400">curl</span> <span class="text-green-400">-H</span> <span class="text-yellow-300">"Authorization: Bearer &lt;token&gt;"</span> \
+  <span class="text-green-400">-H</span> <span class="text-yellow-300">"Accept: application/json"</span> \
+  <span class="text-yellow-300">"http://localhost/api/decks?format=standard&amp;order[createdAt]=desc"</span></pre>
+            </div>
+
+            <!-- response -->
+            <div class="rounded-xl overflow-hidden border border-gray-800">
+                <div class="flex items-center gap-2 bg-gray-800 px-4 py-2.5 border-b border-gray-700">
+                    <span class="text-xs text-gray-400 font-mono">response</span>
+                    <span class="ml-auto text-xs text-emerald-400 font-semibold">200 OK</span>
+                </div>
+                <pre class="bg-gray-900 p-5 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed">{
+  <span class="text-violet-300">"member"</span>: [
+    {
+      <span class="text-violet-300">"id"</span>:          <span class="text-yellow-300">"018e4c2a-1234-7000-8000-abcdef012345"</span>,
+      <span class="text-violet-300">"name"</span>:        <span class="text-yellow-300">"Mon deck Axiom"</span>,
+      <span class="text-violet-300">"description"</span>: <span class="text-yellow-300">"Deck aggro standard"</span>,
+      <span class="text-violet-300">"format"</span>:      <span class="text-yellow-300">"standard"</span>,
+      <span class="text-violet-300">"isPublic"</span>:    <span class="text-emerald-400">false</span>,
+      <span class="text-violet-300">"user"</span>: { <span class="text-violet-300">"id"</span>: <span class="text-yellow-300">"018e4c2a-aaaa-7000-8000-000000000001"</span> },
+      <span class="text-violet-300">"stats"</span>: {
+        <span class="text-violet-300">"totalCards"</span>: <span class="text-emerald-400">39</span>,
+        <span class="text-violet-300">"hero"</span>: {
+          <span class="text-violet-300">"reference"</span>: <span class="text-yellow-300">"ALT_CORE_B_AX_03_C"</span>,
+          <span class="text-violet-300">"name"</span>:      <span class="text-yellow-300">"Héros Axiom"</span>,
+          <span class="text-violet-300">"imagePath"</span>: <span class="text-yellow-300">"/images/cards/ALT_CORE_B_AX_03_C.jpg"</span>
+        },
+        <span class="text-violet-300">"byRarity"</span>: { <span class="text-violet-300">"C"</span>: <span class="text-emerald-400">24</span>, <span class="text-violet-300">"R"</span>: <span class="text-emerald-400">12</span>, <span class="text-violet-300">"U"</span>: <span class="text-emerald-400">3</span>, <span class="text-violet-300">"E"</span>: <span class="text-emerald-400">0</span> }
+      },
+      <span class="text-violet-300">"createdAt"</span>:  <span class="text-yellow-300">"2024-11-01T10:00:00+00:00"</span>,
+      <span class="text-violet-300">"updatedAt"</span>:  <span class="text-yellow-300">"2024-11-10T14:30:00+00:00"</span>
+    }
+  ],
+  <span class="text-violet-300">"totalItems"</span>: <span class="text-emerald-400">1</span>
+}</pre>
+            </div>
+        </section>
+
+        <!-- GET /api/decks/{id} -->
+        <section id="get-deck">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="bg-emerald-500/15 text-emerald-400 text-sm font-bold px-3 py-1 rounded font-mono">GET</span>
+                <h2 class="text-2xl font-bold text-white">/api/decks/{id}</h2>
+            </div>
+            <p class="text-gray-400 mb-6">
+                Returns full detail of a single deck including the
+                <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">deckCards</code> list
+                (only exposed on this endpoint via the <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">deck:read:detail</code> group).
+            </p>
+
+            <!-- curl -->
+            <div class="rounded-xl overflow-hidden border border-gray-800 mb-4">
+                <div class="flex items-center gap-2 bg-gray-800 px-4 py-2.5 border-b border-gray-700">
+                    <div class="w-3 h-3 rounded-full bg-red-500/70"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500/70"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500/70"></div>
+                    <span class="ml-2 text-xs text-gray-400 font-mono">curl</span>
+                </div>
+                <pre class="bg-gray-900 p-5 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed"><span class="text-violet-400">curl</span> <span class="text-green-400">-H</span> <span class="text-yellow-300">"Authorization: Bearer &lt;token&gt;"</span> \
+  <span class="text-green-400">-H</span> <span class="text-yellow-300">"Accept: application/json"</span> \
+  <span class="text-yellow-300">"http://localhost/api/decks/018e4c2a-1234-7000-8000-abcdef012345"</span></pre>
+            </div>
+
+            <!-- response -->
+            <div class="rounded-xl overflow-hidden border border-gray-800">
+                <div class="flex items-center gap-2 bg-gray-800 px-4 py-2.5 border-b border-gray-700">
+                    <span class="text-xs text-gray-400 font-mono">response</span>
+                    <span class="ml-auto text-xs text-emerald-400 font-semibold">200 OK</span>
+                </div>
+                <pre class="bg-gray-900 p-5 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed">{
+  <span class="text-violet-300">"id"</span>:          <span class="text-yellow-300">"018e4c2a-1234-7000-8000-abcdef012345"</span>,
+  <span class="text-violet-300">"name"</span>:        <span class="text-yellow-300">"Mon deck Axiom"</span>,
+  <span class="text-violet-300">"description"</span>: <span class="text-yellow-300">"Deck aggro standard"</span>,
+  <span class="text-violet-300">"format"</span>:      <span class="text-yellow-300">"standard"</span>,
+  <span class="text-violet-300">"isPublic"</span>:    <span class="text-emerald-400">false</span>,
+  <span class="text-violet-300">"user"</span>: { <span class="text-violet-300">"id"</span>: <span class="text-yellow-300">"018e4c2a-aaaa-7000-8000-000000000001"</span> },
+  <span class="text-violet-300">"deckCards"</span>: [
+    { <span class="text-violet-300">"cardReference"</span>: <span class="text-yellow-300">"ALT_CORE_B_AX_01_C"</span>, <span class="text-violet-300">"quantity"</span>: <span class="text-emerald-400">3</span> },
+    { <span class="text-violet-300">"cardReference"</span>: <span class="text-yellow-300">"ALT_CORE_B_AX_02_R1"</span>, <span class="text-violet-300">"quantity"</span>: <span class="text-emerald-400">2</span> },
+    { <span class="text-violet-300">"cardReference"</span>: <span class="text-yellow-300">"ALT_CORE_B_AX_03_U"</span>, <span class="text-violet-300">"quantity"</span>: <span class="text-emerald-400">1</span> }
+  ],
+  <span class="text-violet-300">"stats"</span>: {
+    <span class="text-violet-300">"totalCards"</span>: <span class="text-emerald-400">39</span>,
+    <span class="text-violet-300">"hero"</span>: {
+      <span class="text-violet-300">"reference"</span>: <span class="text-yellow-300">"ALT_CORE_B_AX_03_C"</span>,
+      <span class="text-violet-300">"name"</span>:      <span class="text-yellow-300">"Héros Axiom"</span>,
+      <span class="text-violet-300">"imagePath"</span>: <span class="text-yellow-300">"/images/cards/ALT_CORE_B_AX_03_C.jpg"</span>
+    },
+    <span class="text-violet-300">"byRarity"</span>: { <span class="text-violet-300">"C"</span>: <span class="text-emerald-400">24</span>, <span class="text-violet-300">"R"</span>: <span class="text-emerald-400">12</span>, <span class="text-violet-300">"U"</span>: <span class="text-emerald-400">3</span>, <span class="text-violet-300">"E"</span>: <span class="text-emerald-400">0</span> }
+  },
+  <span class="text-violet-300">"createdAt"</span>: <span class="text-yellow-300">"2024-11-01T10:00:00+00:00"</span>,
+  <span class="text-violet-300">"updatedAt"</span>: <span class="text-yellow-300">"2024-11-10T14:30:00+00:00"</span>
+}</pre>
+            </div>
+        </section>
+
+        <!-- POST /api/decks -->
+        <section id="create-deck">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="bg-blue-500/15 text-blue-400 text-sm font-bold px-3 py-1 rounded font-mono">POST</span>
+                <h2 class="text-2xl font-bold text-white">/api/decks</h2>
+            </div>
+            <p class="text-gray-400 mb-4">
+                Creates a new deck for the authenticated user. The deck is automatically validated against the chosen
+                <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">format</code> and
+                stats are computed on save.
+            </p>
+
+            <!-- Formats -->
+            <div class="mb-6 grid grid-cols-3 gap-3">
+                {% for fmt in [
+                    { code: 'standard',  desc: '39 cards, hero + 38 deck cards' },
+                    { code: 'nuc',       desc: 'No Unique Cards variant' },
+                    { code: 'singleton', desc: 'Max 1 copy of each card' },
+                ] %}
+                <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                    <div class="text-violet-400 font-mono text-sm font-semibold mb-1">{{ fmt.code }}</div>
+                    <div class="text-xs text-gray-500">{{ fmt.desc }}</div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- curl request -->
+            <div class="rounded-xl overflow-hidden border border-gray-800 mb-4">
+                <div class="flex items-center gap-2 bg-gray-800 px-4 py-2.5 border-b border-gray-700">
+                    <div class="w-3 h-3 rounded-full bg-red-500/70"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500/70"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500/70"></div>
+                    <span class="ml-2 text-xs text-gray-400 font-mono">curl</span>
+                </div>
+                <pre class="bg-gray-900 p-5 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed"><span class="text-violet-400">curl</span> <span class="text-green-400">-X POST</span> \
+  <span class="text-green-400">-H</span> <span class="text-yellow-300">"Authorization: Bearer &lt;token&gt;"</span> \
+  <span class="text-green-400">-H</span> <span class="text-yellow-300">"Content-Type: application/json"</span> \
+  <span class="text-green-400">-H</span> <span class="text-yellow-300">"Accept: application/json"</span> \
+  <span class="text-green-400">-d</span> <span class="text-yellow-300">'{ ... payload ... }'</span> \
+  <span class="text-yellow-300">"http://localhost/api/decks"</span></pre>
+            </div>
+
+            <!-- payload -->
+            <div class="rounded-xl overflow-hidden border border-gray-800 mb-4">
+                <div class="flex items-center gap-2 bg-gray-800 px-4 py-2.5 border-b border-gray-700">
+                    <span class="text-xs text-gray-400 font-mono">payload</span>
+                    <span class="ml-auto text-xs text-blue-400 font-semibold">application/json</span>
+                </div>
+                <pre class="bg-gray-900 p-5 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed">{
+  <span class="text-violet-300">"name"</span>:        <span class="text-yellow-300">"Mon deck Axiom"</span>,
+  <span class="text-violet-300">"description"</span>: <span class="text-yellow-300">"Deck aggro standard"</span>,
+  <span class="text-violet-300">"format"</span>:      <span class="text-yellow-300">"standard"</span>,
+  <span class="text-violet-300">"isPublic"</span>:    <span class="text-emerald-400">false</span>,
+  <span class="text-violet-300">"deckCards"</span>: [
+    { <span class="text-violet-300">"cardReference"</span>: <span class="text-yellow-300">"ALT_CORE_B_AX_01_C"</span>,  <span class="text-violet-300">"quantity"</span>: <span class="text-emerald-400">3</span> },
+    { <span class="text-violet-300">"cardReference"</span>: <span class="text-yellow-300">"ALT_CORE_B_AX_02_R1"</span>, <span class="text-violet-300">"quantity"</span>: <span class="text-emerald-400">2</span> },
+    { <span class="text-violet-300">"cardReference"</span>: <span class="text-yellow-300">"ALT_CORE_B_AX_03_U"</span>,  <span class="text-violet-300">"quantity"</span>: <span class="text-emerald-400">1</span> }
+  ]
+}</pre>
+            </div>
+
+            <!-- response -->
+            <div class="rounded-xl overflow-hidden border border-gray-800">
+                <div class="flex items-center gap-2 bg-gray-800 px-4 py-2.5 border-b border-gray-700">
+                    <span class="text-xs text-gray-400 font-mono">response</span>
+                    <span class="ml-auto text-xs text-emerald-400 font-semibold">201 Created</span>
+                </div>
+                <pre class="bg-gray-900 p-5 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed">{
+  <span class="text-violet-300">"id"</span>:          <span class="text-yellow-300">"018e4c2a-1234-7000-8000-abcdef012345"</span>,
+  <span class="text-violet-300">"name"</span>:        <span class="text-yellow-300">"Mon deck Axiom"</span>,
+  <span class="text-violet-300">"format"</span>:      <span class="text-yellow-300">"standard"</span>,
+  <span class="text-violet-300">"isPublic"</span>:    <span class="text-emerald-400">false</span>,
+  <span class="text-violet-300">"stats"</span>: {
+    <span class="text-violet-300">"totalCards"</span>: <span class="text-emerald-400">6</span>,
+    <span class="text-violet-300">"hero"</span>: <span class="text-emerald-400">null</span>,
+    <span class="text-violet-300">"byRarity"</span>: { <span class="text-violet-300">"C"</span>: <span class="text-emerald-400">3</span>, <span class="text-violet-300">"R"</span>: <span class="text-emerald-400">2</span>, <span class="text-violet-300">"U"</span>: <span class="text-emerald-400">1</span>, <span class="text-violet-300">"E"</span>: <span class="text-emerald-400">0</span> }
+  },
+  <span class="text-violet-300">"createdAt"</span>: <span class="text-yellow-300">"2024-11-01T10:00:00+00:00"</span>,
+  <span class="text-violet-300">"updatedAt"</span>:  <span class="text-emerald-400">null</span>
+}</pre>
+            </div>
+        </section>
+
+        <!-- PATCH /api/decks/{id} -->
+        <section id="update-deck">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="bg-amber-500/15 text-amber-400 text-sm font-bold px-3 py-1 rounded font-mono">PATCH</span>
+                <h2 class="text-2xl font-bold text-white">/api/decks/{id}</h2>
+            </div>
+            <p class="text-gray-400 mb-4">
+                Partially updates a deck. Only the fields present in the payload are modified.
+                When <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">deckCards</code> is sent, the
+                entire card list is <strong class="text-white">replaced</strong> (not merged) and stats are recomputed.
+            </p>
+
+            <!-- curl -->
+            <div class="rounded-xl overflow-hidden border border-gray-800 mb-4">
+                <div class="flex items-center gap-2 bg-gray-800 px-4 py-2.5 border-b border-gray-700">
+                    <div class="w-3 h-3 rounded-full bg-red-500/70"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500/70"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500/70"></div>
+                    <span class="ml-2 text-xs text-gray-400 font-mono">curl</span>
+                </div>
+                <pre class="bg-gray-900 p-5 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed"><span class="text-violet-400">curl</span> <span class="text-green-400">-X PATCH</span> \
+  <span class="text-green-400">-H</span> <span class="text-yellow-300">"Authorization: Bearer &lt;token&gt;"</span> \
+  <span class="text-green-400">-H</span> <span class="text-yellow-300">"Content-Type: application/merge-patch+json"</span> \
+  <span class="text-green-400">-H</span> <span class="text-yellow-300">"Accept: application/json"</span> \
+  <span class="text-green-400">-d</span> <span class="text-yellow-300">'{ ... payload ... }'</span> \
+  <span class="text-yellow-300">"http://localhost/api/decks/018e4c2a-1234-7000-8000-abcdef012345"</span></pre>
+            </div>
+
+            <!-- payload examples tabs -->
+            <div class="space-y-4">
+                <!-- rename only -->
+                <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wider mb-2">Example — rename &amp; toggle visibility</p>
+                    <div class="rounded-xl overflow-hidden border border-gray-800">
+                        <div class="flex items-center gap-2 bg-gray-800 px-4 py-2.5 border-b border-gray-700">
+                            <span class="text-xs text-gray-400 font-mono">payload</span>
+                            <span class="ml-auto text-xs text-amber-400 font-semibold">application/merge-patch+json</span>
+                        </div>
+                        <pre class="bg-gray-900 p-5 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed">{
+  <span class="text-violet-300">"name"</span>:     <span class="text-yellow-300">"Mon deck Axiom v2"</span>,
+  <span class="text-violet-300">"isPublic"</span>: <span class="text-emerald-400">true</span>
+}</pre>
+                    </div>
+                </div>
+
+                <!-- update card list -->
+                <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wider mb-2">Example — replace card list</p>
+                    <div class="rounded-xl overflow-hidden border border-gray-800">
+                        <div class="flex items-center gap-2 bg-gray-800 px-4 py-2.5 border-b border-gray-700">
+                            <span class="text-xs text-gray-400 font-mono">payload</span>
+                            <span class="ml-auto text-xs text-amber-400 font-semibold">application/merge-patch+json</span>
+                        </div>
+                        <pre class="bg-gray-900 p-5 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed">{
+  <span class="text-violet-300">"deckCards"</span>: [
+    { <span class="text-violet-300">"cardReference"</span>: <span class="text-yellow-300">"ALT_CORE_B_AX_01_C"</span>,  <span class="text-violet-300">"quantity"</span>: <span class="text-emerald-400">3</span> },
+    { <span class="text-violet-300">"cardReference"</span>: <span class="text-yellow-300">"ALT_CORE_B_AX_04_R2"</span>, <span class="text-violet-300">"quantity"</span>: <span class="text-emerald-400">1</span> },
+    { <span class="text-violet-300">"cardReference"</span>: <span class="text-yellow-300">"ALT_CORE_B_AX_05_E"</span>,  <span class="text-violet-300">"quantity"</span>: <span class="text-emerald-400">1</span> }
+  ]
+}</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- response -->
+            <div class="mt-4 rounded-xl overflow-hidden border border-gray-800">
+                <div class="flex items-center gap-2 bg-gray-800 px-4 py-2.5 border-b border-gray-700">
+                    <span class="text-xs text-gray-400 font-mono">response</span>
+                    <span class="ml-auto text-xs text-emerald-400 font-semibold">200 OK</span>
+                </div>
+                <pre class="bg-gray-900 p-5 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed">{
+  <span class="text-violet-300">"id"</span>:          <span class="text-yellow-300">"018e4c2a-1234-7000-8000-abcdef012345"</span>,
+  <span class="text-violet-300">"name"</span>:        <span class="text-yellow-300">"Mon deck Axiom v2"</span>,
+  <span class="text-violet-300">"format"</span>:      <span class="text-yellow-300">"standard"</span>,
+  <span class="text-violet-300">"isPublic"</span>:    <span class="text-emerald-400">true</span>,
+  <span class="text-violet-300">"stats"</span>: {
+    <span class="text-violet-300">"totalCards"</span>: <span class="text-emerald-400">5</span>,
+    <span class="text-violet-300">"hero"</span>: <span class="text-emerald-400">null</span>,
+    <span class="text-violet-300">"byRarity"</span>: { <span class="text-violet-300">"C"</span>: <span class="text-emerald-400">3</span>, <span class="text-violet-300">"R"</span>: <span class="text-emerald-400">1</span>, <span class="text-violet-300">"U"</span>: <span class="text-emerald-400">0</span>, <span class="text-violet-300">"E"</span>: <span class="text-emerald-400">1</span> }
+  },
+  <span class="text-violet-300">"updatedAt"</span>: <span class="text-yellow-300">"2024-11-10T15:00:00+00:00"</span>
+}</pre>
+            </div>
+        </section>
+
+        <!-- DELETE -->
+        <section id="delete-deck">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="bg-red-500/15 text-red-400 text-sm font-bold px-3 py-1 rounded font-mono">DELETE</span>
+                <h2 class="text-2xl font-bold text-white">/api/decks/{id}</h2>
+            </div>
+            <p class="text-gray-400 mb-4">Deletes a deck and all its cards. Returns <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">204 No Content</code> on success.</p>
+            <div class="rounded-xl overflow-hidden border border-gray-800">
+                <div class="flex items-center gap-2 bg-gray-800 px-4 py-2.5 border-b border-gray-700">
+                    <div class="w-3 h-3 rounded-full bg-red-500/70"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500/70"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500/70"></div>
+                    <span class="ml-2 text-xs text-gray-400 font-mono">curl</span>
+                </div>
+                <pre class="bg-gray-900 p-5 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed"><span class="text-violet-400">curl</span> <span class="text-green-400">-X DELETE</span> \
+  <span class="text-green-400">-H</span> <span class="text-yellow-300">"Authorization: Bearer &lt;token&gt;"</span> \
+  <span class="text-yellow-300">"http://localhost/api/decks/018e4c2a-1234-7000-8000-abcdef012345"</span></pre>
+            </div>
+        </section>
+
+        <!-- Card reference -->
+        <section>
+            <h2 class="text-2xl font-bold text-white mb-4">Card reference format</h2>
+            <p class="text-gray-400 mb-6">
+                Each <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">cardReference</code> follows the Altered TCG convention:
+            </p>
+            <div class="rounded-xl overflow-hidden border border-gray-800 mb-6">
+                <div class="bg-gray-800 px-4 py-2.5 border-b border-gray-700">
+                    <span class="text-xs text-gray-400 font-mono">format</span>
+                </div>
+                <pre class="bg-gray-900 p-5 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed">ALT_CORE_B_AX_1_C
+    │    │   │  │  │  └─ rarity: C / R1 / R2 / U / E
+    │    │   │  │  └──── card number
+    │    │   │  └─────── faction: AX BR LY MU OR YZ
+    │    │   └────────── side: B (booster)
+    │    └────────────── set: CORE
+    └─────────────────── prefix</pre>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {% for r in [
+                    { code: 'C',    label: 'Common' },
+                    { code: 'R1/R2', label: 'Rare' },
+                    { code: 'U',    label: 'Unique' },
+                    { code: 'E',    label: 'Exalted' },
+                ] %}
+                <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+                    <div class="text-violet-400 font-mono text-sm font-semibold mb-1">{{ r.code }}</div>
+                    <div class="text-xs text-gray-500">{{ r.label }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="border-t border-gray-800 mt-8">
+        <div class="max-w-6xl mx-auto px-6 py-8 flex flex-wrap items-center justify-between gap-4">
+            <div class="text-sm text-gray-500">Altered Deck API — Community project. Not affiliated with Equinox.</div>
+            <a href="/api" class="text-sm text-violet-400 hover:text-violet-300 transition-colors">API Documentation →</a>
+        </div>
+    </div>
+
+</body>
+</html>

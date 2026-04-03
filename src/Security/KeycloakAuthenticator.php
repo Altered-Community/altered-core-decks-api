@@ -31,7 +31,7 @@ class KeycloakAuthenticator extends AbstractAuthenticator
         private readonly string                 $keycloakBaseUrl,
         private readonly string                 $keycloakRealm,
         private readonly string                 $appSecret,
-        private readonly string                 $appEnv,
+        private readonly bool                   $devAuthEnabled,
     ) {}
 
     public function supports(Request $request): ?bool
@@ -93,8 +93,8 @@ class KeycloakAuthenticator extends AbstractAuthenticator
 
     private function decodeToken(string $token): object
     {
-        // Dev mode: accept local HS256 tokens (issuer = "dev")
-        if ($this->appEnv === 'dev') {
+        // Dev auth: accept local HS256 tokens (issuer = "dev"), controlled by DEV_AUTH_ENABLED
+        if ($this->devAuthEnabled) {
             $parts   = explode('.', $token);
             $payload = json_decode(base64_decode(strtr($parts[1] ?? '', '-_', '+/')), true);
             if (($payload['iss'] ?? null) === 'dev') {

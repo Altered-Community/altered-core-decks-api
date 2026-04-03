@@ -3,7 +3,10 @@
     "allow": [
       "Bash(php bin/console cache:clear)",
       "Bash(php:*)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "Read(//home/john/PhpstormProjects/altered-core/public/**)",
+      "Bash(composer show *)",
+      "Bash(composer require *)"
     ]
   }
 }
