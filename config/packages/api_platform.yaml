@@ -1,7 +1,16 @@
 api_platform:
-    title: Hello API Platform
+    title: Altered Deck API
     version: 1.0.0
     defaults:
         stateless: true
         cache_headers:
             vary: ['Content-Type', 'Authorization', 'Origin']
+    formats:
+        json: ['application/json']
+    error_formats:
+        json: ['application/json']
+    patch_formats:
+        json: ['application/merge-patch+json']
+    docs_formats:
+        json: ['application/json']
+        jsonld: ['application/ld+json']

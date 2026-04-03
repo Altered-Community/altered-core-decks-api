@@ -94,6 +94,10 @@ class Deck
     #[Groups(['deck:read'])]
     private ?\DateTimeImmutable $updatedAt = null;
 
+    #[ORM\Column(type: 'json', nullable: true)]
+    #[Groups(['deck:read'])]
+    private ?array $stats = null;
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
@@ -136,4 +140,7 @@ class Deck
 
     public function getUpdatedAt(): ?\DateTimeImmutable { return $this->updatedAt; }
     public function setUpdatedAt(?\DateTimeImmutable $updatedAt): self { $this->updatedAt = $updatedAt; return $this; }
+
+    public function getStats(): ?array { return $this->stats; }
+    public function setStats(?array $stats): self { $this->stats = $stats; return $this; }
 }

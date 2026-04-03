@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php bin/console cache:clear)",
+      "Bash(php:*)",
+      "Bash(psql:*)"
+    ]
+  }
+}

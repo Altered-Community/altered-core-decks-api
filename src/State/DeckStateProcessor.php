@@ -7,6 +7,7 @@ use ApiPlatform\State\ProcessorInterface;
 use ApiPlatform\Validator\Exception\ValidationException;
 use App\Client\AlteredCoreClient;
 use App\Entity\Deck;
+use App\Entity\DeckCard;
 use App\Entity\User;
 use App\Validator\Format\DeckFormatValidatorFactory;
 use Doctrine\ORM\EntityManagerInterface;
@@ -18,11 +19,11 @@ use Symfony\Component\Validator\ConstraintViolationList;
 class DeckStateProcessor implements ProcessorInterface
 {
     public function __construct(
-        private readonly EntityManagerInterface     $em,
-        private readonly Security                  $security,
-        private readonly AlteredCoreClient         $alteredCoreClient,
+        private readonly EntityManagerInterface      $em,
+        private readonly Security                   $security,
+        private readonly AlteredCoreClient          $alteredCoreClient,
         private readonly DeckFormatValidatorFactory $validatorFactory,
-        private readonly RequestStack              $requestStack,
+        private readonly RequestStack               $requestStack,
     ) {}
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): Deck
@@ -38,7 +39,8 @@ class DeckStateProcessor implements ProcessorInterface
             $data->setUpdatedAt(new \DateTimeImmutable());
         }
 
-        $this->validateFormat($data);
+        $cardsData = $this->validateFormat($data);
+        $data->setStats($this->computeStats($data, $cardsData));
 
         $this->em->persist($data);
         $this->em->flush();
@@ -46,32 +48,93 @@ class DeckStateProcessor implements ProcessorInterface
         return $data;
     }
 
-    private function validateFormat(Deck $deck): void
+    /**
+     * Validates deck format rules and returns the fetched cardsData (empty if no validation ran).
+     *
+     * @return array<string, array>
+     */
+    private function validateFormat(Deck $deck): array
     {
         $format = $deck->getFormat();
 
         if (!$format || !$this->validatorFactory->supports($format)) {
-            return;
+            return [];
         }
 
         $locale     = $this->requestStack->getCurrentRequest()?->query->get('locale', 'fr') ?? 'fr';
         $references = array_map(
-            fn ($dc) => $dc->getCardReference(),
+            fn (DeckCard $dc) => $dc->getCardReference(),
             $deck->getDeckCards()->toArray()
         );
 
         $cardsData = $this->alteredCoreClient->getCardsByReferences($references, $locale);
         $errors    = $this->validatorFactory->getValidator($format)->validate($deck, $cardsData);
 
-        if (empty($errors)) {
-            return;
+        if (!empty($errors)) {
+            $violations = new ConstraintViolationList();
+            foreach ($errors as $message) {
+                $violations->add(new ConstraintViolation($message, $message, [], $deck, 'deckCards', null));
+            }
+            throw new ValidationException($violations);
         }
 
-        $violations = new ConstraintViolationList();
-        foreach ($errors as $message) {
-            $violations->add(new ConstraintViolation($message, $message, [], $deck, 'deckCards', null));
+        return $cardsData;
+    }
+
+    /**
+     * Computes deck stats from deckCards.
+     * Rarity is parsed from the card reference (parts[5]: C, R1, R2, U).
+     * Hero is detected from cardsData when available (format validation ran), null otherwise.
+     *
+     * @param array<string, array> $cardsData
+     */
+    private function computeStats(Deck $deck, array $cardsData): array
+    {
+        $hero     = null;
+        $total    = 0;
+        $byRarity = ['C' => 0, 'R' => 0, 'U' => 0, 'E' => 0];
+
+        foreach ($deck->getDeckCards() as $deckCard) {
+            $ref      = $deckCard->getCardReference();
+            $qty      = $deckCard->getQuantity();
+            $cardData = $cardsData[$ref] ?? [];
+
+            if ($cardData && $this->isHero($cardData)) {
+                $hero = $ref;
+                continue;
+            }
+
+            $total += $qty;
+            $rarity = $this->getRarityFromReference($ref);
+            $byRarity[$rarity] += $qty;
         }
 
-        throw new ValidationException($violations);
+        return [
+            'totalCards' => $total,
+            'hero'       => $hero,
+            'byRarity'   => $byRarity,
+        ];
+    }
+
+    private function isHero(array $cardData): bool
+    {
+        $typeRef = $cardData['cardGroup']['cardType']['reference'] ?? '';
+        return stripos($typeRef, 'HERO') !== false;
+    }
+
+    /**
+     * Parses rarity from card reference (e.g. ALT_CORE_B_OR_17_R1_045 → R1).
+     */
+    private function getRarityFromReference(string $ref): string
+    {
+        $parts  = explode('_', $ref);
+        $rarity = strtoupper($parts[5] ?? 'C');
+
+        return match ($rarity) {
+            'U'          => 'U',
+            'R1', 'R2'   => 'R',
+            'E', 'EXALT' => 'E',
+            default      => 'C',
+        };
     }
 }
