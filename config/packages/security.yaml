@@ -1,0 +1,30 @@
+security:
+    providers:
+        keycloak_provider:
+            entity:
+                class: App\Entity\User
+                property: keycloakId
+
+    firewalls:
+        dev:
+            pattern: ^/(_profiler|_wdt|assets|build)/
+            security: false
+
+        api:
+            pattern: ^/api
+            stateless: true
+            custom_authenticators:
+                - App\Security\KeycloakAuthenticator
+
+    access_control:
+        - { path: ^/api/dev/auth, roles: PUBLIC_ACCESS }\n        - { path: ^/api/docs, roles: PUBLIC_ACCESS }
+        - { path: ^/api,      roles: ROLE_USER }
+
+when@test:
+    security:
+        password_hashers:
+            Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
+                algorithm: auto
+                cost: 4
+                time_cost: 3
+                memory_cost: 10
