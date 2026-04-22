@@ -8,8 +8,7 @@ use App\Entity\Deck;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
-use Symfony\Component\Security\Core\Security;
-use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Bundle\SecurityBundle\Security;
 
 class DeckCollectionProvider implements ProviderInterface
 {
@@ -18,7 +17,7 @@ class DeckCollectionProvider implements ProviderInterface
         private readonly Security $security,
     ) {}
 
-    public function provide(Operation $operation, array $uriVariables = [], array $context = []): iterable
+public function provide(Operation $operation, array $uriVariables = [], array $context = []): iterable
     {
         $currentUser = $this->security->getUser();
 
