@@ -70,7 +70,7 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
                 'effects'           => []
             ];
 
-            if(array_key_exists('effect1', $card)) {
+            if(array_key_exists('effect1', $card) && $card['effect1'] !== null) {
                 $tmp['effects'][] = [
                     'text' => is_array($card['effect1']['text']) ? ($card['effect1']['text'][$locale] ?? $card['effect1']['text']['fr'] ?? null) : $card['effect1']['text'],
                     'abilityTrigger' => [
@@ -88,7 +88,7 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
                 ];
             }
 
-            if(array_key_exists('effect2', $card)) {
+            if(array_key_exists('effect2', $card) && $card['effect2'] !== null) {
                 $tmp['effects'][] = [
                     'text' => is_array($card['effect2']['text']) ? ($card['effect2']['text'][$locale] ?? $card['effect2']['text']['fr'] ?? null) : $card['effect2']['text'],
                     'abilityTrigger' => [
@@ -106,7 +106,7 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
                 ];
             }
 
-            if(array_key_exists('effect3', $card)) {
+            if(array_key_exists('effect3', $card) && $card['effect3'] !== null) {
                 $tmp['effects'][] = [
                     'text' => is_array($card['effect3']['text']) ? ($card['effect3']['text'][$locale] ?? $card['effect3']['text']['fr'] ?? null) : $card['effect3']['text'],
                     'abilityTrigger' => [
