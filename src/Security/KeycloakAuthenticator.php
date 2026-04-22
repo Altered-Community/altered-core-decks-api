@@ -102,7 +102,10 @@ class KeycloakAuthenticator extends AbstractAuthenticator
             }
         }
 
-        return JWT::decode($token, JWK::parseKeySet($this->getJwks()));
+        $jwks = $this->getJwks();
+        error_log('JWKS keys: ' . json_encode(array_keys($jwks['keys'] ?? [])));
+
+        return JWT::decode($token, JWK::parseKeySet($jwks));
     }
 
     private function getJwks(): array
