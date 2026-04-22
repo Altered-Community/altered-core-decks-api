@@ -12,6 +12,7 @@ use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use App\Repository\DeckRepository;
+use App\State\DeckCollectionProvider;
 use App\State\DeckStateProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -29,6 +30,7 @@ use Symfony\Component\Validator\Constraints as Assert;
             normalizationContext: ['groups' => ['deck:read']],
             paginationClientItemsPerPage: true,
             paginationMaximumItemsPerPage: 1000,
+            provider: DeckCollectionProvider::class,
         ),
         new Get(
             normalizationContext: ['groups' => ['deck:read', 'deck:read:detail']],
@@ -50,6 +52,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiFilter(SearchFilter::class, properties: [
     'format'    => 'exact',
     'isPublic'  => 'exact',
+    'user'      => 'exact',
 ])]
 #[ApiFilter(OrderFilter::class, properties: ['createdAt', 'updatedAt', 'name'])]
 class Deck
