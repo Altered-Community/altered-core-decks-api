@@ -52,6 +52,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiFilter(SearchFilter::class, properties: [
     'format'    => 'exact',
     'isPublic'  => 'exact',
+    'isDraft'   => 'exact',
     'user'      => 'exact',
 ])]
 #[ApiFilter(OrderFilter::class, properties: ['createdAt', 'updatedAt', 'name'])]
@@ -81,6 +82,10 @@ class Deck
     #[ORM\Column]
     #[Groups(['deck:read', 'deck:write'])]
     private bool $isPublic = false;
+
+    #[ORM\Column]
+    #[Groups(['deck:read', 'deck:write'])]
+    private bool $isDraft = false;
 
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'decks')]
     #[ORM\JoinColumn(nullable: false)]
@@ -123,6 +128,9 @@ class Deck
 
     public function isPublic(): bool { return $this->isPublic; }
     public function setIsPublic(bool $isPublic): self { $this->isPublic = $isPublic; return $this; }
+
+    public function isDraft(): bool { return $this->isDraft; }
+    public function setIsDraft(bool $isDraft): self { $this->isDraft = $isDraft; return $this; }
 
     public function getUser(): User { return $this->user; }
     public function setUser(User $user): self { $this->user = $user; return $this; }

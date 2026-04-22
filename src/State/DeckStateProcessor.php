@@ -41,9 +41,13 @@ class DeckStateProcessor implements ProcessorInterface
             $data->setUpdatedAt(new \DateTimeImmutable());
         }
 
-        $cardsData = $this->fetchCardsData($data);
-        $this->validateFormat($data, $cardsData);
-        $data->setStats($this->computeStats($data, $cardsData));
+        if (!$data->isDraft()) {
+            $cardsData = $this->fetchCardsData($data);
+            $this->validateFormat($data, $cardsData);
+            $data->setStats($this->computeStats($data, $cardsData));
+        } else {
+            $data->setStats(null);
+        }
 
         $this->em->persist($data);
         $this->em->flush();

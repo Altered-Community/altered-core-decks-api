@@ -106,7 +106,7 @@
             <div class="mb-6 bg-gray-900 border border-gray-800 rounded-xl p-5">
                 <div class="text-xs text-gray-500 mb-3 uppercase tracking-wider">Filter &amp; sort examples</div>
                 <div class="flex flex-wrap gap-2">
-                    {% for param in ['format=standard', 'format=nuc', 'isPublic=true', 'order[createdAt]=desc', 'order[name]=asc', 'itemsPerPage=50'] %}
+                    {% for param in ['format=standard', 'format=nuc', 'isPublic=true', 'isDraft=true', 'order[createdAt]=desc', 'order[name]=asc', 'itemsPerPage=50'] %}
                     <span class="font-mono text-xs bg-gray-800 text-gray-300 px-2.5 py-1 rounded border border-gray-700">?{{ param }}</span>
                     {% endfor %}
                 </div>
@@ -133,25 +133,26 @@
                 </div>
                 <pre class="bg-gray-900 p-5 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed">{
   <span class="text-violet-300">"member"</span>: [
-    {
-      <span class="text-violet-300">"id"</span>:          <span class="text-yellow-300">"018e4c2a-1234-7000-8000-abcdef012345"</span>,
-      <span class="text-violet-300">"name"</span>:        <span class="text-yellow-300">"Mon deck Axiom"</span>,
-      <span class="text-violet-300">"description"</span>: <span class="text-yellow-300">"Deck aggro standard"</span>,
-      <span class="text-violet-300">"format"</span>:      <span class="text-yellow-300">"standard"</span>,
-      <span class="text-violet-300">"isPublic"</span>:    <span class="text-emerald-400">false</span>,
-      <span class="text-violet-300">"user"</span>: { <span class="text-violet-300">"id"</span>: <span class="text-yellow-300">"018e4c2a-aaaa-7000-8000-000000000001"</span> },
-      <span class="text-violet-300">"stats"</span>: {
-        <span class="text-violet-300">"totalCards"</span>: <span class="text-emerald-400">39</span>,
-        <span class="text-violet-300">"hero"</span>: {
-          <span class="text-violet-300">"reference"</span>: <span class="text-yellow-300">"ALT_CORE_B_AX_03_C"</span>,
-          <span class="text-violet-300">"name"</span>:      <span class="text-yellow-300">"Héros Axiom"</span>,
-          <span class="text-violet-300">"imagePath"</span>: <span class="text-yellow-300">"/images/cards/ALT_CORE_B_AX_03_C.jpg"</span>
-        },
-        <span class="text-violet-300">"byRarity"</span>: { <span class="text-violet-300">"C"</span>: <span class="text-emerald-400">24</span>, <span class="text-violet-300">"R"</span>: <span class="text-emerald-400">12</span>, <span class="text-violet-300">"U"</span>: <span class="text-emerald-400">3</span>, <span class="text-violet-300">"E"</span>: <span class="text-emerald-400">0</span> }
-      },
-      <span class="text-violet-300">"createdAt"</span>:  <span class="text-yellow-300">"2024-11-01T10:00:00+00:00"</span>,
-      <span class="text-violet-300">"updatedAt"</span>:  <span class="text-yellow-300">"2024-11-10T14:30:00+00:00"</span>
-    }
+{
+  <span class="text-violet-300">"id"</span>:          <span class="text-yellow-300">"018e4c2a-1234-7000-8000-abcdef012345"</span>,
+  <span class="text-violet-300">"name"</span>:        <span class="text-yellow-300">"Mon deck Axiom"</span>,
+  <span class="text-violet-300">"description"</span>: <span class="text-yellow-300">"Deck aggro standard"</span>,
+  <span class="text-violet-300">"format"</span>:      <span class="text-yellow-300">"standard"</span>,
+  <span class="text-violet-300">"isPublic"</span>:    <span class="text-emerald-400">false</span>,
+  <span class="text-violet-300">"isDraft"</span>:     <span class="text-emerald-400">false</span>,
+  <span class="text-violet-300">"user"</span>: { <span class="text-violet-300">"id"</span>: <span class="text-yellow-300">"018e4c2a-aaaa-7000-8000-000000000001"</span> },
+  <span class="text-violet-300">"stats"</span>: {
+    <span class="text-violet-300">"totalCards"</span>: <span class="text-emerald-400">39</span>,
+    <span class="text-violet-300">"hero"</span>: {
+      <span class="text-violet-300">"reference"</span>: <span class="text-yellow-300">"ALT_CORE_B_AX_03_C"</span>,
+      <span class="text-violet-300">"name"</span>:      <span class="text-yellow-300">"Héros Axiom"</span>,
+      <span class="text-violet-300">"imagePath"</span>: <span class="text-yellow-300">"/images/cards/ALT_CORE_B_AX_03_C.jpg"</span>
+    },
+    <span class="text-violet-300">"byRarity"</span>: { <span class="text-violet-300">"C"</span>: <span class="text-emerald-400">24</span>, <span class="text-violet-300">"R"</span>: <span class="text-emerald-400">12</span>, <span class="text-violet-300">"U"</span>: <span class="text-emerald-400">3</span>, <span class="text-violet-300">"E"</span>: <span class="text-emerald-400">0</span> }
+  },
+  <span class="text-violet-300">"createdAt"</span>:  <span class="text-yellow-300">"2024-11-01T10:00:00+00:00"</span>,
+  <span class="text-violet-300">"updatedAt"</span>:  <span class="text-yellow-300">"2024-11-10T14:30:00+00:00"</span>
+}
   ],
   <span class="text-violet-300">"totalItems"</span>: <span class="text-emerald-400">1</span>
 }</pre>
@@ -195,6 +196,7 @@
   <span class="text-violet-300">"description"</span>: <span class="text-yellow-300">"Deck aggro standard"</span>,
   <span class="text-violet-300">"format"</span>:      <span class="text-yellow-300">"standard"</span>,
   <span class="text-violet-300">"isPublic"</span>:    <span class="text-emerald-400">false</span>,
+  <span class="text-violet-300">"isDraft"</span>:     <span class="text-emerald-400">false</span>,
   <span class="text-violet-300">"user"</span>: { <span class="text-violet-300">"id"</span>: <span class="text-yellow-300">"018e4c2a-aaaa-7000-8000-000000000001"</span> },
   <span class="text-violet-300">"deckCards"</span>: [
     { <span class="text-violet-300">"cardReference"</span>: <span class="text-yellow-300">"ALT_CORE_B_AX_01_C"</span>, <span class="text-violet-300">"quantity"</span>: <span class="text-emerald-400">3</span> },
@@ -269,11 +271,28 @@
   <span class="text-violet-300">"description"</span>: <span class="text-yellow-300">"Deck aggro standard"</span>,
   <span class="text-violet-300">"format"</span>:      <span class="text-yellow-300">"standard"</span>,
   <span class="text-violet-300">"isPublic"</span>:    <span class="text-emerald-400">false</span>,
+  <span class="text-violet-300">"isDraft"</span>:     <span class="text-emerald-400">false</span>,
   <span class="text-violet-300">"deckCards"</span>: [
     { <span class="text-violet-300">"cardReference"</span>: <span class="text-yellow-300">"ALT_CORE_B_AX_01_C"</span>,  <span class="text-violet-300">"quantity"</span>: <span class="text-emerald-400">3</span> },
     { <span class="text-violet-300">"cardReference"</span>: <span class="text-yellow-300">"ALT_CORE_B_AX_02_R1"</span>, <span class="text-violet-300">"quantity"</span>: <span class="text-emerald-400">2</span> },
     { <span class="text-violet-300">"cardReference"</span>: <span class="text-yellow-300">"ALT_CORE_B_AX_03_U"</span>,  <span class="text-violet-300">"quantity"</span>: <span class="text-emerald-400">1</span> }
   ]
+}</pre>
+            </div>
+
+            <!-- draft mode -->
+            <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-xs text-gray-500 uppercase tracking-wider">Draft mode</span>
+                    <span class="bg-amber-500/15 text-amber-400 text-xs font-semibold px-2 py-0.5 rounded">Skip validation</span>
+                </div>
+                <p class="text-sm text-gray-400 mb-3">
+                    Set <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">isDraft: true</code> to save a deck without validation. Useful for work-in-progress decks. Stats will be <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">null</code> until published.
+                </p>
+                <pre class="bg-gray-950 p-4 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed rounded-lg">{
+  <span class="text-violet-300">"name"</span>:     <span class="text-yellow-300">"Mon deck en cours"</span>,
+  <span class="text-violet-300">"isDraft"</span>:  <span class="text-emerald-400">true</span>,
+  <span class="text-violet-300">"stats"</span>:    <span class="text-emerald-400">null</span>
 }</pre>
             </div>
 
@@ -288,6 +307,7 @@
   <span class="text-violet-300">"name"</span>:        <span class="text-yellow-300">"Mon deck Axiom"</span>,
   <span class="text-violet-300">"format"</span>:      <span class="text-yellow-300">"standard"</span>,
   <span class="text-violet-300">"isPublic"</span>:    <span class="text-emerald-400">false</span>,
+  <span class="text-violet-300">"isDraft"</span>:     <span class="text-emerald-400">false</span>,
   <span class="text-violet-300">"stats"</span>: {
     <span class="text-violet-300">"totalCards"</span>: <span class="text-emerald-400">6</span>,
     <span class="text-violet-300">"hero"</span>: <span class="text-emerald-400">null</span>,
@@ -374,6 +394,7 @@
   <span class="text-violet-300">"name"</span>:        <span class="text-yellow-300">"Mon deck Axiom v2"</span>,
   <span class="text-violet-300">"format"</span>:      <span class="text-yellow-300">"standard"</span>,
   <span class="text-violet-300">"isPublic"</span>:    <span class="text-emerald-400">true</span>,
+  <span class="text-violet-300">"isDraft"</span>:     <span class="text-emerald-400">false</span>,
   <span class="text-violet-300">"stats"</span>: {
     <span class="text-violet-300">"totalCards"</span>: <span class="text-emerald-400">5</span>,
     <span class="text-violet-300">"hero"</span>: <span class="text-emerald-400">null</span>,
