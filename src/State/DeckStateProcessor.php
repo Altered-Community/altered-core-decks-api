@@ -39,6 +39,7 @@ class DeckStateProcessor implements ProcessorInterface
             $data->setUser($user);
         } else {
             $data->setUpdatedAt(new \DateTimeImmutable());
+            $this->mergeDeckCards($data);
         }
 
         if (!$data->isDraft()) {
@@ -175,5 +176,36 @@ class DeckStateProcessor implements ProcessorInterface
             'E', 'EXALT' => 'E',
             default      => 'C',
         };
+    }
+
+    private function mergeDeckCards(Deck $deck): void
+    {
+        $incomingByRef = [];
+        foreach ($deck->getDeckCards() as $card) {
+            $incomingByRef[$card->getCardReference()] = $card;
+        }
+
+        $deck->getDeckCards()->clear();
+
+        $dbCards = $this->em->getRepository(DeckCard::class)->findBy(['deck' => $deck]);
+        foreach ($dbCards as $dbCard) {
+            $ref = $dbCard->getCardReference();
+
+            if (!isset($incomingByRef[$ref])) {
+                $this->em->remove($dbCard);
+                continue;
+            }
+
+            $incoming = $incomingByRef[$ref];
+            $dbCard->setQuantity($incoming->getQuantity());
+            $deck->getDeckCards()->add($dbCard);
+            unset($incomingByRef[$ref]);
+        }
+
+        foreach ($incomingByRef as $incoming) {
+            $incoming->setDeck($deck);
+            $deck->getDeckCards()->add($incoming);
+            $this->em->persist($incoming);
+        }
     }
 }
