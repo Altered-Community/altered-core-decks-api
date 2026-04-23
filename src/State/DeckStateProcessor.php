@@ -130,7 +130,7 @@ class DeckStateProcessor implements ProcessorInterface
             if ($cardData && $this->isHero($cardData)) {
                 $hero = [
                     'reference' => $ref,
-                    'name'      => $cardData['cardGroup']['name'] ?? null,
+                    'name'      => $cardData['name'] ?? null,
                     'imagePath' => $cardData['imagePath'] ?? null,
                 ];
                 continue;
@@ -150,7 +150,7 @@ class DeckStateProcessor implements ProcessorInterface
 
     private function isHero(array $cardData): bool
     {
-        $typeRef = $cardData['cardGroup']['cardType']['reference'] ?? '';
+        $typeRef = $cardData['cardType']['reference'] ?? '';
         return stripos($typeRef, 'HERO') !== false;
     }
 

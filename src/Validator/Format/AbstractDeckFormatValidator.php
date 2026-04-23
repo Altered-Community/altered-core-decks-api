@@ -56,7 +56,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
 
     protected function isHero(array $cardData): bool
     {
-        $typeRef = $cardData['cardGroup']['cardType']['reference'] ?? '';
+        $typeRef = $cardData['cardType']['reference'] ?? '';
         return stripos($typeRef, 'HERO') !== false;
     }
 
@@ -71,7 +71,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
 
     protected function getCardName(array $cardData): string
     {
-        return $cardData['cardGroup']['name'] ?? $cardData['reference'] ?? '';
+        return $cardData['name'] ?? $cardData['reference'] ?? '';
     }
 
     /**
@@ -124,7 +124,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
         $factions = [];
         foreach ($deckCards as $deckCard) {
             $data = $cardsData[$deckCard->getCardReference()] ?? [];
-            $code = $data['cardGroup']['faction']['code'] ?? null;
+            $code = $data['faction']['code'] ?? null;
             if ($code && $code !== 'NE') {
                 $factions[$code] = true;
             }
@@ -142,10 +142,10 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
         foreach ($deck->getDeckCards() as $deckCard) {
             $data = $cardsData[$deckCard->getCardReference()] ?? [];
             $name = $this->getCardName($data);
-            if (!empty($data['cardGroup']['isBanned'])) {
+            if (!empty($data['isBanned'])) {
                 $errors[] = sprintf('Card "%s" is banned.', $name);
             }
-            if (!empty($data['cardGroup']['isSuspended'])) {
+            if (!empty($data['isSuspended'])) {
                 $errors[] = sprintf('Card "%s" is suspended.', $name);
             }
         }
