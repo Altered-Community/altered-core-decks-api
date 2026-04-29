@@ -1,6 +1,8 @@
 parameters:
     keycloak_base_url: '%env(KEYCLOAK_BASE_URL)%'
     keycloak_realm: '%env(KEYCLOAK_REALM)%'
+    keycloak_client_id: '%env(KEYCLOAK_CLIENT_ID)%'
+    keycloak_client_secret: '%env(KEYCLOAK_CLIENT_SECRET)%'
 
 services:
     _defaults:
@@ -14,12 +16,14 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
 
-    App\Security\KeycloakAuthenticator:
+    App\Service\KeycloakJwtDecoder:
         arguments:
             $keycloakBaseUrl: '%keycloak_base_url%'
             $keycloakRealm: '%keycloak_realm%'
             $appSecret: '%env(APP_SECRET)%'
             $devAuthEnabled: '%env(bool:DEV_AUTH_ENABLED)%'
+
+    App\Security\KeycloakAuthenticator: ~
 
     App\Controller\DevAuthController:
         arguments:
