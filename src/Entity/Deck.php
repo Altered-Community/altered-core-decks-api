@@ -109,6 +109,10 @@ class Deck
     #[Groups(['deck:read'])]
     private ?array $stats = null;
 
+    #[ORM\Column(type: 'json', nullable: true)]
+    #[Groups(['deck:read'])]
+    private ?array $formatErrors = null;
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
@@ -157,4 +161,7 @@ class Deck
 
     public function getStats(): ?array { return $this->stats; }
     public function setStats(?array $stats): self { $this->stats = $stats; return $this; }
+
+    public function getFormatErrors(): ?array { return $this->formatErrors; }
+    public function setFormatErrors(?array $formatErrors): self { $this->formatErrors = $formatErrors; return $this; }
 }

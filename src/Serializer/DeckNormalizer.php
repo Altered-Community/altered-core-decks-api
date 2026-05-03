@@ -70,57 +70,25 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
                 'effects'           => []
             ];
 
-            if(array_key_exists('effect1', $card) && $card['effect1'] !== null) {
+            foreach (['effect1', 'effect2', 'effect3'] as $effectKey) {
+                if (!array_key_exists($effectKey, $card) || $card[$effectKey] === null) {
+                    continue;
+                }
+                $effect = $card[$effectKey];
                 $tmp['effects'][] = [
-                    'text' => is_array($card['effect1']['text']) ? ($card['effect1']['text'][$locale] ?? $card['effect1']['text']['fr'] ?? null) : $card['effect1']['text'],
-                    'abilityTrigger' => [
-                        'alteredId' => $card['effect1']['abilityTrigger']['alteredId'] ?? null,
-                        'text' => $card['effect1']['abilityTrigger']['text']['en'] ?? null,
+                    'text'             => is_array($effect['text']) ? ($effect['text'][$locale] ?? $effect['text']['fr'] ?? null) : $effect['text'],
+                    'abilityTrigger'   => [
+                        'alteredId' => $effect['abilityTrigger']['alteredId'] ?? null,
+                        'text'      => is_array($effect['abilityTrigger']['text'] ?? null) ? ($effect['abilityTrigger']['text'][$locale] ?? $effect['abilityTrigger']['text']['fr'] ?? null) : ($effect['abilityTrigger']['text'] ?? null),
                     ],
                     'abilityCondition' => [
-                        'alteredId' => $card['effect1']['abilityCondition']['alteredId'] ?? null,
-                        'text' => $card['effect1']['abilityCondition']['text']['en'] ?? null,
+                        'alteredId' => $effect['abilityCondition']['alteredId'] ?? null,
+                        'text'      => is_array($effect['abilityCondition']['text'] ?? null) ? ($effect['abilityCondition']['text'][$locale] ?? $effect['abilityCondition']['text']['fr'] ?? null) : ($effect['abilityCondition']['text'] ?? null),
                     ],
-                    'abilityEffect' => [
-                        'alteredId' => $card['effect1']['abilityEffect']['alteredId'] ?? null,
-                        'text' => $card['effect1']['abilityEffect']['text']['en'] ?? null,
-                    ]
-                ];
-            }
-
-            if(array_key_exists('effect2', $card) && $card['effect2'] !== null) {
-                $tmp['effects'][] = [
-                    'text' => is_array($card['effect2']['text']) ? ($card['effect2']['text'][$locale] ?? $card['effect2']['text']['fr'] ?? null) : $card['effect2']['text'],
-                    'abilityTrigger' => [
-                        'alteredId' => $card['effect2']['abilityTrigger']['alteredId'] ?? null,
-                        'text' => $card['effect2']['abilityTrigger']['text']['en'] ?? null,
+                    'abilityEffect'    => [
+                        'alteredId' => $effect['abilityEffect']['alteredId'] ?? null,
+                        'text'      => is_array($effect['abilityEffect']['text'] ?? null) ? ($effect['abilityEffect']['text'][$locale] ?? $effect['abilityEffect']['text']['fr'] ?? null) : ($effect['abilityEffect']['text'] ?? null),
                     ],
-                    'abilityCondition' => [
-                        'alteredId' => $card['effect2']['abilityCondition']['alteredId'] ?? null,
-                        'text' => $card['effect2']['abilityCondition']['text']['en'] ?? null,
-                    ],
-                    'abilityEffect' => [
-                        'alteredId' => $card['effect2']['abilityEffect']['alteredId'] ?? null,
-                        'text' => $card['effect2']['abilityEffect']['text']['en'] ?? null,
-                    ]
-                ];
-            }
-
-            if(array_key_exists('effect3', $card) && $card['effect3'] !== null) {
-                $tmp['effects'][] = [
-                    'text' => is_array($card['effect3']['text']) ? ($card['effect3']['text'][$locale] ?? $card['effect3']['text']['fr'] ?? null) : $card['effect3']['text'],
-                    'abilityTrigger' => [
-                        'alteredId' => $card['effect3']['abilityTrigger']['alteredId'] ?? null,
-                        'text' => $card['effect3']['abilityTrigger']['text']['en'] ?? null,
-                    ],
-                    'abilityCondition' => [
-                        'alteredId' => $card['effect3']['abilityCondition']['alteredId'] ?? null,
-                        'text' => $card['effect3']['abilityCondition']['text']['en'] ?? null,
-                    ],
-                    'abilityEffect' => [
-                        'alteredId' => $card['effect3']['abilityEffect']['alteredId'] ?? null,
-                        'text' => $card['effect3']['abilityEffect']['text']['en'] ?? null,
-                    ]
                 ];
             }
 

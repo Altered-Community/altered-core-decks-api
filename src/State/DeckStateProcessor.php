@@ -4,7 +4,6 @@ namespace App\State;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
-use ApiPlatform\Validator\Exception\ValidationException;
 use App\Client\AlteredCoreClient;
 use App\Entity\Deck;
 use App\Entity\DeckCard;
@@ -14,8 +13,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Validator\ConstraintViolation;
-use Symfony\Component\Validator\ConstraintViolationList;
 
 class DeckStateProcessor implements ProcessorInterface
 {
@@ -44,10 +41,12 @@ class DeckStateProcessor implements ProcessorInterface
 
         if (!$data->isDraft()) {
             $cardsData = $this->fetchCardsData($data);
-            $this->validateFormat($data, $cardsData);
+            $errors    = $this->collectFormatErrors($data, $cardsData);
+            $data->setFormatErrors(empty($errors) ? null : $errors);
             $data->setStats($this->computeStats($data, $cardsData));
         } else {
             $data->setStats(null);
+            $data->setFormatErrors(null);
         }
 
         $this->em->persist($data);
@@ -87,27 +86,18 @@ class DeckStateProcessor implements ProcessorInterface
     }
 
     /**
-     * Validates deck format rules against already-fetched cardsData.
-     *
      * @param array<string, array> $cardsData
+     * @return string[]
      */
-    private function validateFormat(Deck $deck, array $cardsData): void
+    private function collectFormatErrors(Deck $deck, array $cardsData): array
     {
         $format = $deck->getFormat();
 
         if (!$format || !$this->validatorFactory->supports($format)) {
-            return;
+            return [];
         }
 
-        $errors = $this->validatorFactory->getValidator($format)->validate($deck, $cardsData);
-
-        if (!empty($errors)) {
-            $violations = new ConstraintViolationList();
-            foreach ($errors as $message) {
-                $violations->add(new ConstraintViolation($message, $message, [], $deck, 'deckCards', null));
-            }
-            throw new ValidationException($violations);
-        }
+        return $this->validatorFactory->getValidator($format)->validate($deck, $cardsData);
     }
 
     /**
