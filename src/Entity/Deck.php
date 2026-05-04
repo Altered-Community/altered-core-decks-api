@@ -130,10 +130,10 @@ class Deck
     public function getFormat(): ?string { return $this->format; }
     public function setFormat(?string $format): self { $this->format = $format; return $this; }
 
-    public function isPublic(): bool { return $this->isPublic; }
+    public function getIsPublic(): bool { return $this->isPublic; }
     public function setIsPublic(bool $isPublic): self { $this->isPublic = $isPublic; return $this; }
 
-    public function isDraft(): bool { return $this->isDraft; }
+    public function getIsDraft(): bool { return $this->isDraft; }
     public function setIsDraft(bool $isDraft): self { $this->isDraft = $isDraft; return $this; }
 
     public function getUser(): User { return $this->user; }

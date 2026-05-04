@@ -39,7 +39,7 @@ class DeckStateProcessor implements ProcessorInterface
             $this->mergeDeckCards($data);
         }
 
-        if (!$data->isDraft()) {
+        if (!$data->getIsDraft()) {
             $cardsData = $this->fetchCardsData($data);
             $errors    = $this->collectFormatErrors($data, $cardsData);
             $data->setFormatErrors(empty($errors) ? null : $errors);
