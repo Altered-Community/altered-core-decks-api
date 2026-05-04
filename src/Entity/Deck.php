@@ -13,6 +13,7 @@ use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use App\Repository\DeckRepository;
 use App\State\DeckCollectionProvider;
+use App\State\DeckItemProvider;
 use App\State\DeckStateProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -33,7 +34,9 @@ use Symfony\Component\Validator\Constraints as Assert;
             provider: DeckCollectionProvider::class,
         ),
         new Get(
+            requirements: ['id' => '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'],
             normalizationContext: ['groups' => ['deck:read', 'deck:read:detail']],
+            provider: DeckItemProvider::class,
         ),
         new Post(
             normalizationContext:   ['groups' => ['deck:read']],

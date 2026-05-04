@@ -38,12 +38,23 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
         /** @var Deck $object */
         $data = $this->normalizer->normalize($object, $format, $context);
 
+        $locale = $this->requestStack->getCurrentRequest()?->query->get('locale', 'fr') ?? 'fr';
+
+        if (isset($data['stats']['hero'])) {
+            $hero = &$data['stats']['hero'];
+            if (is_array($hero['name'] ?? null)) {
+                $hero['name'] = $hero['name'][$locale] ?? $hero['name']['fr'] ?? null;
+            }
+            if (is_array($hero['imagePath'] ?? null)) {
+                $hero['imagePath'] = $hero['imagePath'][$locale] ?? $hero['imagePath']['fr'] ?? null;
+            }
+        }
+
         // Only enrich on detail view (deckCards present)
         if (empty($data['deckCards'])) {
             return $data;
         }
 
-        $locale     = $this->requestStack->getCurrentRequest()?->query->get('locale', 'fr') ?? 'fr';
         $references = array_column($data['deckCards'], 'cardReference');
         $cardsData  = $this->alteredCoreClient->getCardsByReferences($references, $locale);
 

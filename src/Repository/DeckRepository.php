@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\Deck;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\Query\ResultSetMappingBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 class DeckRepository extends ServiceEntityRepository
@@ -39,6 +40,46 @@ class DeckRepository extends ServiceEntityRepository
             ->select('COUNT(d.id)')
             ->getQuery()
             ->getSingleScalarResult();
+    }
+
+    public function findPublic(int $page, int $itemsPerPage, ?string $hero = null): array
+    {
+        $rsm = new ResultSetMappingBuilder($this->getEntityManager());
+        $rsm->addRootEntityFromClassMetadata(Deck::class, 'd');
+
+        $heroFilter = $hero !== null ? "AND d.stats->'hero'->>'reference' = :hero" : '';
+
+        $sql = "SELECT {$rsm->generateSelectClause(['d' => 'd'])}
+                FROM deck d
+                WHERE d.is_public = true AND d.is_draft = false {$heroFilter}
+                ORDER BY d.created_at DESC
+                LIMIT :limit OFFSET :offset";
+
+        $query = $this->getEntityManager()->createNativeQuery($sql, $rsm)
+            ->setParameter('limit', $itemsPerPage)
+            ->setParameter('offset', ($page - 1) * $itemsPerPage);
+
+        if ($hero !== null) {
+            $query->setParameter('hero', $hero);
+        }
+
+        return $query->getResult();
+    }
+
+    public function countPublic(?string $hero = null): int
+    {
+        $params = [];
+        $heroFilter = '';
+
+        if ($hero !== null) {
+            $heroFilter = "AND stats->'hero'->>'reference' = :hero";
+            $params['hero'] = $hero;
+        }
+
+        return (int) $this->getEntityManager()->getConnection()->fetchOne(
+            "SELECT COUNT(*) FROM deck WHERE is_public = true AND is_draft = false {$heroFilter}",
+            $params,
+        );
     }
 
     public function findRecentAnonymized(int $limit = 30): array
