@@ -38,7 +38,9 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
         /** @var Deck $object */
         $data = $this->normalizer->normalize($object, $format, $context);
 
-        $locale = $this->requestStack->getCurrentRequest()?->query->get('locale', 'fr') ?? 'fr';
+        $request = $this->requestStack->getCurrentRequest();
+        $locale  = $request?->query->get('locale', 'fr') ?? 'fr';
+        $view    = $context['view'] ?? null;
 
         if (isset($data['stats']['hero'])) {
             $hero = &$data['stats']['hero'];
@@ -57,6 +59,10 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
 
         $references = array_column($data['deckCards'], 'cardReference');
         $cardsData  = $this->alteredCoreClient->getCardsByReferences($references, $locale);
+
+        if ($view === 'bga') {
+            return $this->normalizeBga($data, $cardsData, $locale);
+        }
 
         $cards = [];
         $tmp = [];
@@ -110,5 +116,75 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
         $data['cards'] = $cards;
 
         return $data;
+    }
+
+    private function normalizeBga(array $data, array $cardsData, string $locale): array
+    {
+        $heroRef  = $data['stats']['hero']['reference'] ?? null;
+        $legality = empty($data['formatErrors']);
+
+        $cards = [];
+        foreach ($data['deckCards'] as $deckCard) {
+            $ref     = $deckCard['cardReference'] ?? null;
+            $card    = $cardsData[$ref] ?? [];
+            $nameMap = $card['name'] ?? null;
+
+            $isUnique = str_contains($ref ?? '', '_U_');
+
+            $uniqueReduced = [];
+            if ($isUnique) {
+                foreach (['effect1', 'effect2', 'effect3'] as $effectKey) {
+                    if (!array_key_exists($effectKey, $card) || $card[$effectKey] === null) {
+                        continue;
+                    }
+                    $effect = $card[$effectKey];
+                    $ids    = array_values(array_filter([
+                        $effect['abilityTrigger']['alteredId'] ?? null,
+                        $effect['abilityCondition']['alteredId'] ?? null,
+                        $effect['abilityEffect']['alteredId'] ?? null,
+                    ], fn($id) => $id !== null));
+
+                    $uniqueReduced[] = ['effects' => [$ids]];
+                }
+            }
+
+            $typelineParts = array_filter([
+                $card['cardType']['name'] ?? null,
+                ...array_column($card['cardSubTypes'] ?? [], 'name'),
+            ]);
+            $typeline = $typelineParts ? '(' . implode(' - ', $typelineParts) . ')' : null;
+
+            $content = [
+                'reference'   => $ref,
+                'name'        => is_array($nameMap) ? ($nameMap[$locale] ?? $nameMap['fr'] ?? null) : $nameMap,
+                'cardType'    => $card['cardType']['reference'] ?? null,
+                'subTypes'    => array_column($card['cardSubTypes'] ?? [], 'reference'),
+                'typeline'    => $typeline,
+                'faction'     => $card['faction']['code'] ?? null,
+                'illustrator' => $card['artists'][0]['name'] ?? null,
+                'costHand'    => $card['mainCost'] ?? null,
+                'costReserve' => $card['recallCost'] ?? null,
+                'forest'      => $card['forestPower'] ?? null,
+                'mountain'    => $card['mountainPower'] ?? null,
+                'ocean'       => $card['oceanPower'] ?? null,
+            ];
+
+            if ($isUnique) {
+                $content['uniqueReduced'] = $uniqueReduced;
+            }
+
+            $cards[$ref] = [
+                'content'  => $content,
+                'quantity' => $deckCard['quantity'],
+            ];
+        }
+
+        return [
+            'content' => [
+                'legality' => $legality,
+                'hero'     => $heroRef,
+                'cards'    => $cards,
+            ],
+        ];
     }
 }

@@ -28,9 +28,9 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiResource(
     operations: [
         new GetCollection(
-            normalizationContext: ['groups' => ['deck:read']],
-            paginationClientItemsPerPage: true,
             paginationMaximumItemsPerPage: 1000,
+            paginationClientItemsPerPage: true,
+            normalizationContext: ['groups' => ['deck:read']],
             provider: DeckCollectionProvider::class,
         ),
         new Get(
