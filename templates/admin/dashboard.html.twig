@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — Altered Deck</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<div class="max-w-5xl mx-auto px-4 py-8">
+
+    <div class="flex items-center justify-between mb-8">
+        <h1 class="text-2xl font-bold text-gray-800">Altered Deck — Admin</h1>
+        <a href="{{ path('admin_logout') }}" class="text-sm text-gray-400 hover:text-red-500 transition">Déconnexion</a>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4 mb-8">
+        <div class="bg-white rounded-xl shadow p-6">
+            <p class="text-sm text-gray-500 mb-1">Decks aujourd'hui</p>
+            <p class="text-3xl font-bold text-indigo-600">{{ stats.today }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-6">
+            <p class="text-sm text-gray-500 mb-1">Decks cette semaine</p>
+            <p class="text-3xl font-bold text-indigo-600">{{ stats.thisWeek }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-6">
+            <p class="text-sm text-gray-500 mb-1">Total decks</p>
+            <p class="text-3xl font-bold text-indigo-600">{{ stats.total }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow">
+        <div class="px-6 py-4 border-b border-gray-100">
+            <h2 class="font-semibold text-gray-700">Derniers decks (anonymisés)</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                        <th class="px-6 py-3 text-left">Nom</th>
+                        <th class="px-6 py-3 text-left">Format</th>
+                        <th class="px-6 py-3 text-left">Cartes</th>
+                        <th class="px-6 py-3 text-left">Statut</th>
+                        <th class="px-6 py-3 text-left">Créé le</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 text-gray-700">
+                    {% for deck in decks %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-3 font-medium">{{ deck.name }}</td>
+                        <td class="px-6 py-3 text-gray-500">{{ deck.format ?? '—' }}</td>
+                        <td class="px-6 py-3">{{ deck.totalCards ?? '—' }}</td>
+                        <td class="px-6 py-3 space-x-1">
+                            {% if deck.isPublic %}
+                                <span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">Public</span>
+                            {% else %}
+                                <span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">Privé</span>
+                            {% endif %}
+                            {% if deck.isDraft %}
+                                <span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700">Brouillon</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-3 text-gray-500">{{ deck.createdAt|date('d/m/Y H:i') }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center text-gray-400">Aucun deck.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

@@ -13,6 +13,7 @@ use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use App\Repository\DeckRepository;
 use App\State\DeckCollectionProvider;
+use App\State\DeckItemProvider;
 use App\State\DeckStateProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -27,13 +28,15 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiResource(
     operations: [
         new GetCollection(
-            normalizationContext: ['groups' => ['deck:read']],
-            paginationClientItemsPerPage: true,
             paginationMaximumItemsPerPage: 1000,
+            paginationClientItemsPerPage: true,
+            normalizationContext: ['groups' => ['deck:read']],
             provider: DeckCollectionProvider::class,
         ),
         new Get(
+            requirements: ['id' => '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'],
             normalizationContext: ['groups' => ['deck:read', 'deck:read:detail']],
+            provider: DeckItemProvider::class,
         ),
         new Post(
             normalizationContext:   ['groups' => ['deck:read']],
@@ -109,6 +112,10 @@ class Deck
     #[Groups(['deck:read'])]
     private ?array $stats = null;
 
+    #[ORM\Column(type: 'json', nullable: true)]
+    #[Groups(['deck:read'])]
+    private ?array $formatErrors = null;
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
@@ -126,10 +133,10 @@ class Deck
     public function getFormat(): ?string { return $this->format; }
     public function setFormat(?string $format): self { $this->format = $format; return $this; }
 
-    public function isPublic(): bool { return $this->isPublic; }
+    public function getIsPublic(): bool { return $this->isPublic; }
     public function setIsPublic(bool $isPublic): self { $this->isPublic = $isPublic; return $this; }
 
-    public function isDraft(): bool { return $this->isDraft; }
+    public function getIsDraft(): bool { return $this->isDraft; }
     public function setIsDraft(bool $isDraft): self { $this->isDraft = $isDraft; return $this; }
 
     public function getUser(): User { return $this->user; }
@@ -157,4 +164,7 @@ class Deck
 
     public function getStats(): ?array { return $this->stats; }
     public function setStats(?array $stats): self { $this->stats = $stats; return $this; }
+
+    public function getFormatErrors(): ?array { return $this->formatErrors; }
+    public function setFormatErrors(?array $formatErrors): self { $this->formatErrors = $formatErrors; return $this; }
 }

@@ -38,14 +38,31 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
         /** @var Deck $object */
         $data = $this->normalizer->normalize($object, $format, $context);
 
+        $request = $this->requestStack->getCurrentRequest();
+        $locale  = $request?->query->get('locale', 'fr') ?? 'fr';
+        $view    = $context['view'] ?? null;
+
+        if (isset($data['stats']['hero'])) {
+            $hero = &$data['stats']['hero'];
+            if (is_array($hero['name'] ?? null)) {
+                $hero['name'] = $hero['name'][$locale] ?? $hero['name']['fr'] ?? null;
+            }
+            if (is_array($hero['imagePath'] ?? null)) {
+                $hero['imagePath'] = $hero['imagePath'][$locale] ?? $hero['imagePath']['fr'] ?? null;
+            }
+        }
+
         // Only enrich on detail view (deckCards present)
         if (empty($data['deckCards'])) {
             return $data;
         }
 
-        $locale     = $this->requestStack->getCurrentRequest()?->query->get('locale', 'fr') ?? 'fr';
         $references = array_column($data['deckCards'], 'cardReference');
         $cardsData  = $this->alteredCoreClient->getCardsByReferences($references, $locale);
+
+        if ($view === 'bga') {
+            return $this->normalizeBga($data, $cardsData, $locale);
+        }
 
         $cards = [];
         $tmp = [];
@@ -70,57 +87,25 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
                 'effects'           => []
             ];
 
-            if(array_key_exists('effect1', $card) && $card['effect1'] !== null) {
+            foreach (['effect1', 'effect2', 'effect3'] as $effectKey) {
+                if (!array_key_exists($effectKey, $card) || $card[$effectKey] === null) {
+                    continue;
+                }
+                $effect = $card[$effectKey];
                 $tmp['effects'][] = [
-                    'text' => is_array($card['effect1']['text']) ? ($card['effect1']['text'][$locale] ?? $card['effect1']['text']['fr'] ?? null) : $card['effect1']['text'],
-                    'abilityTrigger' => [
-                        'alteredId' => $card['effect1']['abilityTrigger']['alteredId'] ?? null,
-                        'text' => $card['effect1']['abilityTrigger']['text']['en'] ?? null,
+                    'text'             => is_array($effect['text']) ? ($effect['text'][$locale] ?? $effect['text']['fr'] ?? null) : $effect['text'],
+                    'abilityTrigger'   => [
+                        'alteredId' => $effect['abilityTrigger']['alteredId'] ?? null,
+                        'text'      => is_array($effect['abilityTrigger']['text'] ?? null) ? ($effect['abilityTrigger']['text'][$locale] ?? $effect['abilityTrigger']['text']['fr'] ?? null) : ($effect['abilityTrigger']['text'] ?? null),
                     ],
                     'abilityCondition' => [
-                        'alteredId' => $card['effect1']['abilityCondition']['alteredId'] ?? null,
-                        'text' => $card['effect1']['abilityCondition']['text']['en'] ?? null,
+                        'alteredId' => $effect['abilityCondition']['alteredId'] ?? null,
+                        'text'      => is_array($effect['abilityCondition']['text'] ?? null) ? ($effect['abilityCondition']['text'][$locale] ?? $effect['abilityCondition']['text']['fr'] ?? null) : ($effect['abilityCondition']['text'] ?? null),
                     ],
-                    'abilityEffect' => [
-                        'alteredId' => $card['effect1']['abilityEffect']['alteredId'] ?? null,
-                        'text' => $card['effect1']['abilityEffect']['text']['en'] ?? null,
-                    ]
-                ];
-            }
-
-            if(array_key_exists('effect2', $card) && $card['effect2'] !== null) {
-                $tmp['effects'][] = [
-                    'text' => is_array($card['effect2']['text']) ? ($card['effect2']['text'][$locale] ?? $card['effect2']['text']['fr'] ?? null) : $card['effect2']['text'],
-                    'abilityTrigger' => [
-                        'alteredId' => $card['effect2']['abilityTrigger']['alteredId'] ?? null,
-                        'text' => $card['effect2']['abilityTrigger']['text']['en'] ?? null,
+                    'abilityEffect'    => [
+                        'alteredId' => $effect['abilityEffect']['alteredId'] ?? null,
+                        'text'      => is_array($effect['abilityEffect']['text'] ?? null) ? ($effect['abilityEffect']['text'][$locale] ?? $effect['abilityEffect']['text']['fr'] ?? null) : ($effect['abilityEffect']['text'] ?? null),
                     ],
-                    'abilityCondition' => [
-                        'alteredId' => $card['effect2']['abilityCondition']['alteredId'] ?? null,
-                        'text' => $card['effect2']['abilityCondition']['text']['en'] ?? null,
-                    ],
-                    'abilityEffect' => [
-                        'alteredId' => $card['effect2']['abilityEffect']['alteredId'] ?? null,
-                        'text' => $card['effect2']['abilityEffect']['text']['en'] ?? null,
-                    ]
-                ];
-            }
-
-            if(array_key_exists('effect3', $card) && $card['effect3'] !== null) {
-                $tmp['effects'][] = [
-                    'text' => is_array($card['effect3']['text']) ? ($card['effect3']['text'][$locale] ?? $card['effect3']['text']['fr'] ?? null) : $card['effect3']['text'],
-                    'abilityTrigger' => [
-                        'alteredId' => $card['effect3']['abilityTrigger']['alteredId'] ?? null,
-                        'text' => $card['effect3']['abilityTrigger']['text']['en'] ?? null,
-                    ],
-                    'abilityCondition' => [
-                        'alteredId' => $card['effect3']['abilityCondition']['alteredId'] ?? null,
-                        'text' => $card['effect3']['abilityCondition']['text']['en'] ?? null,
-                    ],
-                    'abilityEffect' => [
-                        'alteredId' => $card['effect3']['abilityEffect']['alteredId'] ?? null,
-                        'text' => $card['effect3']['abilityEffect']['text']['en'] ?? null,
-                    ]
                 ];
             }
 
@@ -131,5 +116,75 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
         $data['cards'] = $cards;
 
         return $data;
+    }
+
+    private function normalizeBga(array $data, array $cardsData, string $locale): array
+    {
+        $heroRef  = $data['stats']['hero']['reference'] ?? null;
+        $legality = empty($data['formatErrors']);
+
+        $cards = [];
+        foreach ($data['deckCards'] as $deckCard) {
+            $ref     = $deckCard['cardReference'] ?? null;
+            $card    = $cardsData[$ref] ?? [];
+            $nameMap = $card['name'] ?? null;
+
+            $isUnique = str_contains($ref ?? '', '_U_');
+
+            $uniqueReduced = [];
+            if ($isUnique) {
+                foreach (['effect1', 'effect2', 'effect3'] as $effectKey) {
+                    if (!array_key_exists($effectKey, $card) || $card[$effectKey] === null) {
+                        continue;
+                    }
+                    $effect = $card[$effectKey];
+                    $ids    = array_values(array_filter([
+                        $effect['abilityTrigger']['alteredId'] ?? null,
+                        $effect['abilityCondition']['alteredId'] ?? null,
+                        $effect['abilityEffect']['alteredId'] ?? null,
+                    ], fn($id) => $id !== null));
+
+                    $uniqueReduced[] = ['effects' => [$ids]];
+                }
+            }
+
+            $typelineParts = array_filter([
+                $card['cardType']['name'] ?? null,
+                ...array_column($card['cardSubTypes'] ?? [], 'name'),
+            ]);
+            $typeline = $typelineParts ? '(' . implode(' - ', $typelineParts) . ')' : null;
+
+            $content = [
+                'reference'   => $ref,
+                'name'        => is_array($nameMap) ? ($nameMap[$locale] ?? $nameMap['fr'] ?? null) : $nameMap,
+                'cardType'    => $card['cardType']['reference'] ?? null,
+                'subTypes'    => array_column($card['cardSubTypes'] ?? [], 'reference'),
+                'typeline'    => $typeline,
+                'faction'     => $card['faction']['code'] ?? null,
+                'illustrator' => $card['artists'][0]['name'] ?? null,
+                'costHand'    => $card['mainCost'] ?? null,
+                'costReserve' => $card['recallCost'] ?? null,
+                'forest'      => $card['forestPower'] ?? null,
+                'mountain'    => $card['mountainPower'] ?? null,
+                'ocean'       => $card['oceanPower'] ?? null,
+            ];
+
+            if ($isUnique) {
+                $content['uniqueReduced'] = $uniqueReduced;
+            }
+
+            $cards[$ref] = [
+                'content'  => $content,
+                'quantity' => $deckCard['quantity'],
+            ];
+        }
+
+        return [
+            'content' => [
+                'legality' => $legality,
+                'hero'     => $heroRef,
+                'cards'    => $cards,
+            ],
+        ];
     }
 }

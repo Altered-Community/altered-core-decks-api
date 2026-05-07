@@ -17,9 +17,13 @@ security:
                 - App\Security\KeycloakAuthenticator
 
     access_control:
-        - { path: ^/api/dev/auth, roles: PUBLIC_ACCESS }
-        - { path: ^/api/docs,     roles: PUBLIC_ACCESS }
-        - { path: ^/api/formats,  roles: PUBLIC_ACCESS }
+        - { path: ^/api/dev/auth,    roles: PUBLIC_ACCESS }
+        - { path: ^/api/docs,        roles: PUBLIC_ACCESS }
+        - { path: ^/api/formats,     roles: PUBLIC_ACCESS }
+        - { path: ^/api/decks/public, roles: PUBLIC_ACCESS }
+        - { path: '^/api/decks/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', roles: PUBLIC_ACCESS }
+        - { path: '^/api/bga/decks/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', roles: PUBLIC_ACCESS }
+        - { path: ^/api/admin,    roles: ROLE_ADMIN }
         - { path: ^/api,          roles: ROLE_USER }
 
 when@test:
