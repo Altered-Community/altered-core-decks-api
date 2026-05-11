@@ -173,10 +173,12 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
                 $content['uniqueReduced'] = $uniqueReduced;
             }
 
-            $cards[$ref] = [
-                'content'  => $content,
-                'quantity' => $deckCard['quantity'],
-            ];
+            $entry = ['quantity' => $deckCard['quantity']];
+            if ($isUnique) {
+                $entry['content'] = $content;
+            }
+
+            $cards[$ref] = $entry;
         }
 
         return [

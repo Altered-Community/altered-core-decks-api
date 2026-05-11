@@ -15,6 +15,8 @@ use Symfony\Component\Serializer\SerializerInterface;
 
 class BgaDeckController extends AbstractController
 {
+    private const BGA_VALID_FORMATS = ['standard', 'nuc', 'sandbox'];
+
     public function __construct(
         private readonly DeckRepository      $deckRepository,
         private readonly SerializerInterface $serializer,
@@ -33,7 +35,7 @@ class BgaDeckController extends AbstractController
         $format = match ($eventFormat) {
             'STANDARD'  => 'standard',
             'NO_UNIQUE' => 'nuc',
-            'SINGLETON' => 'singleton',
+            'SANDBOX'   => 'sandbox',
             default     => '',
         };
 
@@ -41,8 +43,8 @@ class BgaDeckController extends AbstractController
         $user         = $this->security->getUser();
         $user         = $user instanceof User ? $user : null;
 
-        $decks    = $this->deckRepository->findBgaDecks($user, $page, $itemsPerPage, $name, $factions, $hero, $format);
-        $total    = $this->deckRepository->countBgaDecks($user, $name, $factions, $hero, $format);
+        $decks    = $this->deckRepository->findBgaDecks($user, $page, $itemsPerPage, $name, $factions, $hero, $format, self::BGA_VALID_FORMATS);
+        $total    = $this->deckRepository->countBgaDecks($user, $name, $factions, $hero, $format, self::BGA_VALID_FORMATS);
         $lastPage = max(1, (int) ceil($total / $itemsPerPage));
 
         $deckData = array_map(function (Deck $deck) {
