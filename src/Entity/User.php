@@ -28,6 +28,9 @@ class User implements UserInterface
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $username = null;
 
+    #[ORM\Column(length: 10, nullable: true)]
+    private ?string $locale = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -56,6 +59,9 @@ class User implements UserInterface
 
     public function getUsername(): ?string { return $this->username; }
     public function setUsername(?string $username): self { $this->username = $username; return $this; }
+
+    public function getLocale(): ?string { return $this->locale; }
+    public function setLocale(?string $locale): self { $this->locale = $locale; return $this; }
 
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
 

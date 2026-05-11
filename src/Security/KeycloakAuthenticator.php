@@ -72,8 +72,9 @@ class KeycloakAuthenticator extends AbstractAuthenticator
             $this->em->persist($user);
         }
 
-        $user->setEmail($decoded->email ?? null);
-        $user->setUsername($decoded->preferred_username ?? $decoded->name ?? null);
+        $user->setEmail($decoded->email ?? $decoded->preferred_username ?? null);
+        $user->setUsername($decoded->pseudo ?? $decoded->preferred_username ?? $decoded->name ?? null);
+        $user->setLocale($decoded->locale ?? null);
         $user->setUpdatedAt(new \DateTimeImmutable());
 
         $this->em->flush();

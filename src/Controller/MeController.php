@@ -24,6 +24,7 @@ class MeController extends AbstractController
             'email'    => $user->getEmail(),
             'uniqueId' => $user->getKeycloakId(),
             'nickName' => $user->getUsername(),
+            'locale'   => $user->getLocale(),
         ]);
     }
 }

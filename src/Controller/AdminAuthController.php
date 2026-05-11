@@ -35,7 +35,7 @@ final class AdminAuthController extends AbstractController
             'client_id'             => $this->keycloakClientId,
             'redirect_uri'          => $this->callbackUri($request),
             'response_type'         => 'code',
-            'scope'                 => 'openid',
+            'scope'                 => 'openid profile email',
             'code_challenge'        => $challenge,
             'code_challenge_method' => 'S256',
         ]);

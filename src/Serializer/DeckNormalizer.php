@@ -122,12 +122,14 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
     {
         $heroRef  = $data['stats']['hero']['reference'] ?? null;
         $legality = empty($data['formatErrors']);
+        $faction = '';
 
         $cards = [];
         foreach ($data['deckCards'] as $deckCard) {
             $ref     = $deckCard['cardReference'] ?? null;
             $card    = $cardsData[$ref] ?? [];
             $nameMap = $card['name'] ?? null;
+            $faction = $card['faction']['code'] ?? null;
 
             $isUnique = str_contains($ref ?? '', '_U_');
 
@@ -157,16 +159,18 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
             $content = [
                 'reference'   => $ref,
                 'name'        => is_array($nameMap) ? ($nameMap[$locale] ?? $nameMap['fr'] ?? null) : $nameMap,
-                'cardType'    => $card['cardType']['reference'] ?? null,
+                'cardType'    => ['reference' => $card['cardType']['reference']],
                 'subTypes'    => array_column($card['cardSubTypes'] ?? [], 'reference'),
                 'typeline'    => $typeline,
-                'faction'     => $card['faction']['code'] ?? null,
-                'illustrator' => $card['artists'][0]['name'] ?? null,
-                'costHand'    => $card['mainCost'] ?? null,
-                'costReserve' => $card['recallCost'] ?? null,
-                'forest'      => $card['forestPower'] ?? null,
-                'mountain'    => $card['mountainPower'] ?? null,
-                'ocean'       => $card['oceanPower'] ?? null,
+                'mainFaction' => ['reference' => $card['faction']['code']],
+                'illustrator' => ['nickName' => $card['artists'][0]['name']],
+                'elements'    => [
+                    'MAIN_COST' => $card['mainCost'],
+                    'RECALL_COST' => $card['recallCost'],
+                    'FOREST_POWER' => $card['forestPower'],
+                    'MOUNTAIN_POWER' => $card['mountainPower'],
+                    'OCEAN_POWER' => $card['oceanPower'],
+                ]
             ];
 
             if ($isUnique) {
@@ -174,19 +178,28 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
             }
 
             $entry = ['quantity' => $deckCard['quantity']];
-            if ($isUnique) {
-                $entry['content'] = $content;
+            $entry['card'] = $content;
+
+            $key = strtolower($card['cardType']['reference']);
+            if($key === 'expedition_permanent' || $key === 'landmark_permanent') {
+                $key = 'permanent';
             }
 
-            $cards[$ref] = $entry;
+            if(!array_key_exists($key, $cards)) {
+                $cards[$key]['deckUserListCard'] = [];
+            }
+            $cards[$key]['deckUserListCard'][] = $entry;
+
         }
 
         return [
-            'content' => [
-                'legality' => $legality,
-                'hero'     => $heroRef,
-                'cards'    => $cards,
-            ],
+            'name' => $data['name'],
+            'id' => $data['id'],
+            'faction' => ['reference' => $faction],
+            'deckLegality' => ['resume' => ['globalValidity' => true]],
+            'alterator' => ['reference' => $data['stats']['hero']['reference']],
+            'cardQuantity' => (int) $data['stats']['totalCards'],
+            'deckCardsByType' => $cards
         ];
     }
 }

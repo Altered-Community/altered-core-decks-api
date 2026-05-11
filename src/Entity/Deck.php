@@ -109,7 +109,7 @@ class Deck
     private ?\DateTimeImmutable $updatedAt = null;
 
     #[ORM\Column(type: 'json', nullable: true)]
-    #[Groups(['deck:read'])]
+    #[Groups(['deck:read', 'deck:read:detail'])]
     private ?array $stats = null;
 
     #[ORM\Column(type: 'json', nullable: true)]
