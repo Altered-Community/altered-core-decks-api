@@ -41,12 +41,28 @@ class DeckStateProcessor implements ProcessorInterface
 
         if (!$data->getIsDraft()) {
             $cardsData = $this->fetchCardsData($data);
-            $errors    = $this->collectFormatErrors($data, $cardsData);
-            $data->setFormatErrors(empty($errors) ? null : $errors);
+            $format    = $data->getFormat();
+
+            if ($format && $this->validatorFactory->supports($format)) {
+                $validator = $this->validatorFactory->getValidator($format);
+                $errors    = $validator->validate($data, $cardsData);
+                $detail    = $validator->computeLegalityDetail($data, $cardsData);
+
+                $data->setFormatErrors(empty($errors) ? null : $errors);
+                $data->setLegalityDetail($detail);
+                $data->setLegal($detail['global']);
+            } else {
+                $data->setFormatErrors(null);
+                $data->setLegalityDetail(null);
+                $data->setLegal(false);
+            }
+
             $data->setStats($this->computeStats($data, $cardsData));
         } else {
             $data->setStats(null);
             $data->setFormatErrors(null);
+            $data->setLegalityDetail(null);
+            $data->setLegal(false);
         }
 
         $this->em->persist($data);
@@ -83,21 +99,6 @@ class DeckStateProcessor implements ProcessorInterface
             ]);
             return [];
         }
-    }
-
-    /**
-     * @param array<string, array> $cardsData
-     * @return string[]
-     */
-    private function collectFormatErrors(Deck $deck, array $cardsData): array
-    {
-        $format = $deck->getFormat();
-
-        if (!$format || !$this->validatorFactory->supports($format)) {
-            return [];
-        }
-
-        return $this->validatorFactory->getValidator($format)->validate($deck, $cardsData);
     }
 
     /**
