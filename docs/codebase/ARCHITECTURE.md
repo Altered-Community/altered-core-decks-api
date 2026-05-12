@@ -5,346 +5,201 @@
 
 ## System Overview
 
-Altered Core Decks API is a stateless JSON REST API that allows authenticated users to create, manage, and validate trading-card decks for the Altered TCG game. It is built on Symfony 7/8 with API Platform 3, persisting data in PostgreSQL, and delegates card catalogue lookups to the external `altered-core` service (a sibling API).
-
-## Architectural Pattern
-
-**Layered + API Platform resource-centric.** The system uses Symfony's HTTP kernel as the outermost layer, API Platform as the resource/routing/serialization orchestrator, and splits domain logic into State Providers (reads), State Processors (writes), Normalizers (response shaping), and a Validator strategy hierarchy (format rules).
+Altered Core Decks API is a stateless JSON REST API (Symfony 7/8 + API Platform 3 + PostgreSQL) that lets authenticated users build and manage Altered TCG decks, exposes a BGA-compatible integration surface, and provides a session-based admin panel for moderation. Authentication uses Keycloak JWTs (RS256) for the API surface and a Keycloak PKCE flow for the admin UI. Card catalogue data is never stored locally — it is fetched on demand from the sibling `altered-core` service and cached for one hour.
 
 ## System Diagram
 
 ```
-┌────────────────────────────────────────────────────────────────────┐
-│                        HTTP Client / Browser                        │
-│                  Authorization: Bearer <JWT>                        │
-└───────────────────────────────┬────────────────────────────────────┘
-                                │
-                                ▼
-┌────────────────────────────────────────────────────────────────────┐
-│              FrankenPHP (caddy + php-fpm in one binary)             │
-│              public/index.php  →  Kernel.php                        │
-└───────────────────────────────┬────────────────────────────────────┘
-                                │
-                    ┌───────────┴────────────┐
-                    │  Security Firewall      │
-                    │  KeycloakAuthenticator  │
-                    │  src/Security/          │
-                    └───────────┬────────────┘
-                                │  authenticated User in token
-          ┌─────────────────────┼──────────────────────────┐
-          │                     │                           │
-          ▼                     ▼                           ▼
-┌──────────────────┐  ┌──────────────────────┐  ┌───────────────────┐
-│  Plain Symfony   │  │  API Platform 3       │  │  Twig / Homepage  │
-│  Controllers     │  │  /api prefix          │  │  HomepageCtrl     │
-│                  │  │                       │  └───────────────────┘
-│ FormatController │  │  Entity attributes    │
-│ DevAuthController│  │  drive all operations │
-└──────────────────┘  └──────────┬────────────┘
-                                 │
-              ┌──────────────────┼──────────────────┐
-              │                  │                   │
-              ▼                  ▼                   ▼
-    ┌──────────────────┐ ┌──────────────┐ ┌──────────────────┐
-    │  State Provider  │ │  State       │ │  Custom           │
-    │  DeckCollection  │ │  Processor   │ │  Serializer       │
-    │  Provider        │ │  DeckState   │ │  DeckNormalizer   │
-    │  src/State/      │ │  Processor   │ │  DeckCollection   │
-    └────────┬─────────┘ └──────┬───────┘ │  Normalizer       │
-             │                  │         └──────────────────┘
-             │         ┌────────┴──────────────────────────────┐
-             │         │  Business Logic (inside Processor)     │
-             │         │  - AlteredCoreClient (card fetch)      │
-             │         │  - DeckFormatValidatorFactory          │
-             │         │  - Stats computation                   │
-             │         │  src/Client/, src/Validator/           │
-             │         └────────┬──────────────────────────────┘
-             │                  │
-             └──────────────────┘
+HTTP Client / Browser  (Authorization: Bearer <JWT>)
+         │
+         ▼
+FrankenPHP  ·  public/index.php → Kernel.php
+         │
+  Security Firewall  ·  KeycloakAuthenticator  (src/Security/)
+         │
+   ┌─────┴──────────────────────────────────────┐
+   │                    │                        │
+   ▼                    ▼                        ▼
+API Platform 3     Plain Symfony            Admin UI
+/api prefix        Controllers              /admin/* (session-auth)
+(entity attrs)     BgaDeckController        AdminAuthController
+                   MeController             AdminDashboardController
+                   PublicDeckController     AdminBgaController
+                   FormatController         AdminApiController
+                   DevAuthController
+         │
+   ┌─────┴──────────────────────┐
+   │                            │
+   ▼                            ▼
+State Providers           State Processors
+DeckCollectionProvider    DeckStateProcessor
+DeckItemProvider          (user assign · card fetch
+                           · format validate · stats)
+         │                            │
+         └──────────────┬─────────────┘
+                        ▼
+              Repository Layer
+              DeckRepository · DeckCardRepository · UserRepository
+              src/Repository/
                         │
                         ▼
-         ┌──────────────────────────────┐
-         │  Repository Layer            │
-         │  DeckRepository              │
-         │  DeckCardRepository          │
-         │  UserRepository              │
-         │  src/Repository/             │
-         └──────────────┬───────────────┘
+                   PostgreSQL
+              (deck · deck_card · user)
                         │
-                        ▼
-         ┌──────────────────────────────┐
-         │  PostgreSQL                  │
-         │  Tables: deck, deck_card,    │
-         │  user                        │
-         └──────────────────────────────┘
-                        │
-         ┌──────────────▼───────────────┐
-         │  External Service            │
-         │  AlteredCoreClient           │
-         │  POST /api/cards/batch       │
-         │  (card catalogue, cached 1h) │
-         └──────────────────────────────┘
+              ┌─────────▼──────────┐
+              │  AlteredCoreClient │  POST /api/cards/batch
+              │  (cached 1 h)      │  ← external altered-core API
+              └────────────────────┘
 ```
 
-## Component Responsibilities
+## Component Table
 
-| Component | Responsibility | File |
-|-----------|----------------|------|
-| `KeycloakAuthenticator` | Validates Bearer JWT (RS256 via Keycloak JWKS, or HS256 in dev mode); auto-provisions `User` on first login | `src/Security/KeycloakAuthenticator.php` |
-| `Deck` entity | API resource definition (operations, filters, serialization groups, validators) | `src/Entity/Deck.php` |
-| `DeckCard` entity | Join entity holding card reference + quantity; uniqueness enforced at DB level | `src/Entity/DeckCard.php` |
-| `User` entity | Local mirror of Keycloak principal; owns decks | `src/Entity/User.php` |
-| `DeckCollectionProvider` | Intercepts GET /api/decks; scopes results to authenticated user via QueryBuilder | `src/State/DeckCollectionProvider.php` |
-| `DeckStateProcessor` | Handles POST/PATCH: assigns user, fetches card data, validates format, computes stats, persists | `src/State/DeckStateProcessor.php` |
-| `AlteredCoreClient` | HTTP client wrapper for the upstream card catalogue API; caches per-reference for 1 h | `src/Client/AlteredCoreClient.php` |
-| `DeckFormatValidatorFactory` | Tagged-service registry: maps format string → `DeckFormatValidatorInterface` | `src/Validator/Format/DeckFormatValidatorFactory.php` |
-| `AbstractDeckFormatValidator` | Template-method base: hero check, deck size, faction mono, banned/suspended, delegates format-specific rules | `src/Validator/Format/AbstractDeckFormatValidator.php` |
-| `NucFormatValidator` | NUC rules (no Unique cards, ≤15 R1, ≤3 R2) | `src/Validator/Format/NucFormatValidator.php` |
-| `StandardFormatValidator` | Standard rules (≤3 Unique, ≤15 R1, ≤3 R2) | `src/Validator/Format/StandardFormatValidator.php` |
-| `SingletonFormatValidator` | Singleton rules (1 per rarity, Unique limit keyed to hero name) | `src/Validator/Format/SingletonFormatValidator.php` |
-| `DeckNormalizer` | Post-normalizes a single `Deck` on `deck:read:detail`: replaces `deckCards` with enriched `cards` array sourced from `AlteredCoreClient` | `src/Serializer/DeckNormalizer.php` |
-| `DeckCollectionNormalizer` | Post-normalizes API Platform `Paginator` into `{data, pagination, links}` shape | `src/Serializer/DeckCollectionNormalizer.php` |
-| `OpenApiFactory` | Decorator: adds Bearer security scheme; adds `/api/dev/auth` path in dev environment | `src/OpenApi/OpenApiFactory.php` |
-| `FormatController` | Plain Symfony controller; returns static format metadata at `GET /api/formats` | `src/Controller/FormatController.php` |
-| `DevAuthController` | Issues HS256 JWT tokens for development; guarded by `DEV_AUTH_ENABLED` env flag | `src/Controller/DevAuthController.php` |
-| `HomepageController` | Renders Twig landing page at `/` | `src/Controller/HomepageController.php` |
+| Component | File | Role |
+|-----------|------|------|
+| `KeycloakAuthenticator` | `src/Security/KeycloakAuthenticator.php` | Validates Bearer JWT (RS256/HS256); auto-provisions `User` on first login |
+| `KeycloakJwtDecoder` | `src/Service/KeycloakJwtDecoder.php` | Extracted JWT decode logic (JWKS cache, dev HS256 path); shared by authenticator and admin auth |
+| `Deck` | `src/Entity/Deck.php` | Primary API resource — all API Platform config in PHP attributes |
+| `DeckCard` | `src/Entity/DeckCard.php` | Join entity: card reference + quantity |
+| `User` | `src/Entity/User.php` | Keycloak mirror; `isAdmin` flag drives `ROLE_ADMIN` |
+| `DeckCollectionProvider` | `src/State/DeckCollectionProvider.php` | User-scoped GET /api/decks |
+| `DeckItemProvider` | `src/State/DeckItemProvider.php` | Ownership/public check on GET /api/decks/{id} (fixes IDOR) |
+| `DeckStateProcessor` | `src/State/DeckStateProcessor.php` | Full POST/PATCH pipeline: assign user, fetch cards, validate format, compute stats, persist |
+| `AlteredCoreClient` | `src/Client/AlteredCoreClient.php` | HTTP wrapper for upstream card catalogue; 1 h per-reference cache |
+| `DeckFormatValidatorFactory` | `src/Validator/Format/DeckFormatValidatorFactory.php` | Tagged-service registry: format string → validator |
+| `AbstractDeckFormatValidator` | `src/Validator/Format/AbstractDeckFormatValidator.php` | Template-method base: hero, size, faction, bans |
+| `NucFormatValidator` | `src/Validator/Format/NucFormatValidator.php` | NUC rules (no Unique, ≤15 R1, ≤3 R2) |
+| `StandardFormatValidator` | `src/Validator/Format/StandardFormatValidator.php` | Standard rules (≤3 Unique, ≤15 R1, ≤3 R2) |
+| `SingletonFormatValidator` | `src/Validator/Format/SingletonFormatValidator.php` | Singleton rules (1 per rarity, Unique keyed to hero name) |
+| `SandboxFormatValidator` | `src/Validator/Format/SandboxFormatValidator.php` | Sandbox rules (no Unique, ≤15 R1, ≤3 R2, set whitelist) |
+| `BgaDeckSerializer` | `src/Serializer/BgaDeckSerializer.php` | Shapes deck data for BGA collection/item endpoints |
+| `DeckNormalizer` | `src/Serializer/DeckNormalizer.php` | Enriches single Deck (`deck:read:detail`) with card data from `AlteredCoreClient` |
+| `DeckCollectionNormalizer` | `src/Serializer/DeckCollectionNormalizer.php` | Wraps `Paginator` into `{data, pagination, links}` |
+| `BgaDeckController` | `src/Controller/BgaDeckController.php` | BGA-compatible deck collection + item + card proxy endpoints |
+| `MeController` | `src/Controller/MeController.php` | GET /api/me — current user profile |
+| `PublicDeckController` | `src/Controller/PublicDeckController.php` | GET /api/decks/public — paginated public decks |
+| `AdminAuthController` | `src/Controller/AdminAuthController.php` | Keycloak PKCE login/callback/logout for admin UI |
+| `AdminDashboardController` | `src/Controller/AdminDashboardController.php` | Admin HTML dashboard (session-gated) |
+| `AdminBgaController` | `src/Controller/AdminBgaController.php` | Admin BGA deck preview (session-gated) |
+| `AdminApiController` | `src/Controller/AdminApiController.php` | ROLE_ADMIN JSON stats + deck list API |
+| `PromoteAdminCommand` | `src/Command/PromoteAdminCommand.php` | CLI: `app:promote-admin <email>` |
+| `OpenApiFactory` | `src/OpenApi/OpenApiFactory.php` | Adds Bearer scheme + dev auth path to Scalar UI |
 
 ## API Operations Reference
 
-| Method | Path | Auth | Serialization Groups | State Class |
-|--------|------|------|----------------------|-------------|
-| GET | `/api/decks` | ROLE_USER | `deck:read` (out) | `DeckCollectionProvider` |
-| GET | `/api/decks/{id}` | ROLE_USER | `deck:read`, `deck:read:detail` (out) | Default Doctrine |
-| POST | `/api/decks` | ROLE_USER | `deck:write` (in), `deck:read` (out) | `DeckStateProcessor` |
-| PATCH | `/api/decks/{id}` | ROLE_USER | `deck:write` (in), `deck:read` (out) | `DeckStateProcessor` |
-| DELETE | `/api/decks/{id}` | ROLE_USER | — | Default Doctrine |
-| GET | `/api/formats` | PUBLIC | — | `FormatController` |
-| POST | `/api/dev/auth` | PUBLIC | — | `DevAuthController` |
-| GET | `/` | PUBLIC | — | `HomepageController` (Twig) |
+| Method | Path | Auth | Notes |
+|--------|------|------|-------|
+| GET | `/api/decks` | ROLE_USER | User-scoped, paginated; `DeckCollectionProvider` |
+| GET | `/api/decks/{id}` | optional* | `DeckItemProvider` — public decks accessible without auth |
+| POST | `/api/decks` | ROLE_USER | `DeckStateProcessor` — full write pipeline |
+| PATCH | `/api/decks/{id}` | ROLE_USER | `DeckStateProcessor` — merge-patch |
+| DELETE | `/api/decks/{id}` | ROLE_USER | Default Doctrine processor |
+| GET | `/api/decks/public` | PUBLIC | `PublicDeckController` — paginated public decks, filterable by hero |
+| GET | `/api/me` | ROLE_USER | `MeController` — current user profile |
+| GET | `/api/formats` | PUBLIC | `FormatController` — static format metadata |
+| GET | `/api/bga/decks` | optional* | `BgaDeckController` — BGA collection (hydra envelope) |
+| GET | `/api/bga/decks/{id}` | PUBLIC | `BgaDeckController` — BGA item |
+| GET | `/api/bga/cards/{ref}` | PUBLIC | `BgaDeckController` — BGA card proxy |
+| POST | `/api/dev/auth` | PUBLIC | `DevAuthController` — dev HS256 JWT (DEV_AUTH_ENABLED only) |
+| GET | `/admin/login` | PUBLIC | `AdminAuthController` — PKCE redirect to Keycloak |
+| GET | `/admin/callback` | PUBLIC | `AdminAuthController` — PKCE callback; sets session |
+| GET | `/admin/dashboard` | session | `AdminDashboardController` — HTML |
+| GET | `/admin/bga` | session | `AdminBgaController` — BGA deck list HTML |
+| GET | `/admin/bga/{id}` | session | `AdminBgaController` — BGA deck detail HTML |
+| GET | `/api/admin/stats` | ROLE_ADMIN | `AdminApiController` — deck counts JSON |
+| GET | `/api/admin/decks` | ROLE_ADMIN | `AdminApiController` — recent anonymized decks JSON |
 
-## Key Layers
-
-**Security Layer:**
-- Purpose: Authenticate every `/api/*` request (except `/api/dev/auth`, `/api/docs`, `/api/formats`)
-- Location: `src/Security/`
-- Pattern: Stateless; validates JWT, finds or creates the `User` record, sets the security token
-- Depends on: `firebase/php-jwt`, Symfony Cache (JWKS TTL 1 h), `UserRepository`
-
-**API Platform Resource Layer:**
-- Purpose: Routing, deserialization, constraint validation, serialization for CRUD operations
-- Location: `src/Entity/Deck.php` (attributes drive all API Platform config — no YAML)
-- Operations: `GetCollection` (custom provider), `Get`, `Post` (custom processor), `Patch` (custom processor), `Delete`
-- Serialization groups: `deck:read` (collection + write response), `deck:read:detail` (single GET, includes `deckCards`), `deck:write` (input)
-
-**State Layer:**
-- Purpose: Custom read/write logic beyond standard CRUD
-- Location: `src/State/`
-- `DeckCollectionProvider` — user-scoped collection query
-- `DeckStateProcessor` — owns the full write pipeline: user assignment, external card fetch, format validation, stats computation, persistence
-
-**Domain / Validation Layer:**
-- Purpose: Encapsulate game-rule validation per format
-- Location: `src/Validator/Format/`
-- Pattern: Strategy + Template Method — `AbstractDeckFormatValidator` owns shared rules; concrete subclasses implement `validateFormatRules()`, `getMinCards()`, `getMaxCards()`
-- Service wiring: all `DeckFormatValidatorInterface` implementations are auto-tagged `app.deck_format_validator` and injected as an iterable into `DeckFormatValidatorFactory`
-
-**Serialization Layer:**
-- Purpose: Response envelope shaping and card-data enrichment beyond what serialization groups alone provide
-- Location: `src/Serializer/`
-- Both normalizers use the `ALREADY_CALLED` guard pattern to prevent infinite loops with the delegating normalizer chain
-
-**Client Layer:**
-- Purpose: Isolate all HTTP communication with the upstream `altered-core` card catalogue
-- Location: `src/Client/AlteredCoreClient.php`
-- Caches each card reference result for 1 hour; uses batch POST endpoint to minimise HTTP round-trips
-
-**Infrastructure Layer:**
-- Purpose: Repositories, migrations, config
-- Location: `src/Repository/`, `migrations/`, `config/`
-- Repositories currently delegate to `ServiceEntityRepository`; `UserRepository` adds `findByKeycloakId()`
-
-**Presentation Layer (non-API):**
-- Purpose: Static developer-facing homepage
-- Location: `src/Controller/HomepageController.php`, `templates/homepage/index.html.twig`
-- Twig + Tailwind CSS CDN; not part of the JSON API surface
+\* `DeckItemProvider` allows unauthenticated access to public decks; BGA collection endpoint scopes to owner when a JWT is provided but accepts anonymous requests.
 
 ## Data Model
 
 ```
 User
- ├─ id: Uuid (PK, auto-generated)
- ├─ keycloakId: string (unique — Keycloak sub claim)
- ├─ email: string|null
- ├─ username: string|null
+ ├─ id: Uuid (PK)
+ ├─ keycloakId: string (unique)
+ ├─ email / username / locale: string|null
+ ├─ isAdmin: bool (default false)
  ├─ createdAt / updatedAt
- └─ decks: Deck[] (OneToMany, cascade remove)
+ └─ decks: Deck[] (cascade remove)
 
 Deck
- ├─ id: Uuid (PK, auto-generated)
- ├─ name: string (≤150, required)
- ├─ description: string|null
- ├─ format: string|null   ('standard' | 'nuc' | 'singleton')
+ ├─ id: Uuid (PK)
+ ├─ name: string (≤150)
+ ├─ description: text|null
+ ├─ format: string|null  ('standard'|'nuc'|'singleton'|'sandbox')
  ├─ isPublic: bool
  ├─ isDraft: bool
- ├─ stats: json|null      ({totalCards, hero{reference,name,imagePath}, byRarity{C,R,U,E}})
+ ├─ stats: json|null     ({totalCards, hero{reference,name,imagePath}, byRarity{C,R,U,E}})
+ ├─ formatErrors: json|null
  ├─ createdAt / updatedAt
- ├─ user: User (ManyToOne, FK indexed)
- └─ deckCards: DeckCard[] (OneToMany, cascade persist+remove, orphanRemoval)
+ ├─ user: User (ManyToOne)
+ └─ deckCards: DeckCard[] (cascade persist+remove, orphanRemoval)
 
 DeckCard
  ├─ id: int (auto-increment)
- ├─ cardReference: string  (e.g. ALT_CORE_B_AX_1_C — validated by regex)
+ ├─ cardReference: string  (ALT_CORE_B_AX_1_C — validated by regex)
  ├─ quantity: smallint (1–3)
- └─ deck: Deck (ManyToOne, FK, ON DELETE CASCADE)
-          unique constraint: (deck_id, card_reference)
+ └─ deck: Deck (ManyToOne, ON DELETE CASCADE)
+          unique: (deck_id, card_reference)
 ```
 
-Card data (faction, type, name, costs, powers, effects, rarity, isBanned, isSuspended) is **not stored locally** — it is fetched on demand from the `altered-core` service and cached.
+Card metadata (faction, type, costs, powers, effects, rarity, bans) is not stored — fetched on demand from `altered-core` and cached.
 
-## Data Flow
+## Key Data Flows
 
-### Read: GET /api/decks
+**GET /api/decks/{id}**
+1. `KeycloakAuthenticator` validates JWT (or allows anonymous for public decks)
+2. `DeckItemProvider` fetches deck; checks `isPublic` or owner match; throws 401/403/404 as needed
+3. `DeckNormalizer` detects `deck:read:detail` group → calls `AlteredCoreClient` → replaces `deckCards` with enriched `cards` array
 
-1. `KeycloakAuthenticator` validates JWT → finds/creates `User` (`src/Security/KeycloakAuthenticator.php`)
-2. API Platform routes to `DeckCollectionProvider::provide()` (`src/State/DeckCollectionProvider.php`)
-3. QueryBuilder filters by `deck.user = :currentUser`
-4. Results returned as `Paginator`
-5. `DeckCollectionNormalizer::normalize()` wraps in `{data, pagination, links}` (`src/Serializer/DeckCollectionNormalizer.php`)
-6. Each `Deck` item normalised by `DeckNormalizer` — no enrichment because `deckCards` is absent in `deck:read` group
-7. JSON response
+**POST/PATCH /api/decks**
+1. JWT auth; API Platform deserialises body (groups: `deck:write`); Symfony constraints validated
+2. `DeckStateProcessor`: assign user (POST) or merge DeckCard rows (PATCH)
+3. If not draft: batch-fetch card data via `AlteredCoreClient` → format validate via `DeckFormatValidatorFactory` → compute stats
+4. Persist; return `deck:read` response
 
-### Write: POST/PATCH /api/decks
-
-1. `KeycloakAuthenticator` validates JWT
-2. API Platform deserialises body into `Deck` entity (groups: `deck:write`); Symfony validator runs `@Assert` constraints
-3. `DeckStateProcessor::process()` invoked (`src/State/DeckStateProcessor.php`):
-   a. POST: assigns `$data->setUser(...)` from security context
-   b. PATCH: calls `mergeDeckCards()` to diff incoming vs. existing `DeckCard` rows
-   c. If not draft: `AlteredCoreClient::getCardsByReferences()` → batch card fetch + 1 h cache
-   d. If not draft: `DeckFormatValidatorFactory::getValidator($format)->validate($deck, $cardsData)` → throws `ValidationException` on rule violations
-   e. If not draft: `computeStats()` populates `deck.stats`
-   f. `$em->persist($deck); $em->flush()`
-4. Serialiser normalises the saved `Deck` (groups: `deck:read`); no card enrichment on write response
-5. 201/200 JSON response
-
-### Read: GET /api/decks/{id}
-
-1. Auth as above
-2. API Platform fetches `Deck` by UUID (standard Doctrine provider)
-3. Normalisation uses `deck:read` + `deck:read:detail` groups — `deckCards` is included
-4. `DeckNormalizer::normalize()` detects non-empty `deckCards` → calls `AlteredCoreClient` for enrichment → replaces `deckCards` array with enriched `cards` array including name, faction, costs, powers, effects (`src/Serializer/DeckNormalizer.php`)
-5. JSON response
-
-## Security Flow
-
-### Keycloak JWT (production path)
-
-1. `KeycloakAuthenticator::supports()` — checks for `Authorization: Bearer` header
-2. `decodeToken()` — fetches Keycloak JWKS from `KEYCLOAK_BASE_URL/realms/KEYCLOAK_REALM/protocol/openid-connect/certs`, cached 1 hour
-3. `JWT::decode($token, JWK::parseKeySet($jwks))` validates RS256 signature and expiry
-4. `sub` claim extracted as `$keycloakId`
-5. `findOrCreateUser()` — `UserRepository::findByKeycloakId()` or creates new `User`, syncs `email` and `preferred_username` from claims, flushes to DB
-6. Returns `SelfValidatingPassport` with `UserBadge`
-
-### Dev auth path (DEV_AUTH_ENABLED=true only)
-
-1. `POST /api/dev/auth` with `{sub, email, username}` → `DevAuthController` signs HS256 token with `APP_SECRET`, issuer `dev`
-2. On subsequent requests, `decodeToken()` detects `iss === "dev"` in the payload and verifies with `HS256` + `APP_SECRET` instead of JWKS
-3. Same `findOrCreateUser()` path applies
-
-### Access control (security.yaml)
-
-- `^/api/dev/auth` → `PUBLIC_ACCESS`
-- `^/api/docs` → `PUBLIC_ACCESS`
-- `^/api/formats` → `PUBLIC_ACCESS`
-- `^/api` → `ROLE_USER`
-
-**No ownership check on GET /api/decks/{id} or DELETE /api/decks/{id} — IDOR vulnerability exists.** Any authenticated user can read or delete another user's deck by UUID. See `CONCERNS.md`.
-
-## API Platform Configuration
-
-### Global settings (`config/packages/api_platform.yaml`)
-
-- Format: `application/json` only (no JSON-LD, no Hydra)
-- Patch format: `application/merge-patch+json`
-- Pagination: `pagination_client_items_per_page: true`, max 1000
-- Responses are stateless; vary headers: `Content-Type`, `Authorization`, `Origin`
-
-### Dev-only settings (`config/packages/dev/api_platform.yaml`)
-
-- Scalar UI enabled (not Swagger UI / ReDoc)
-- HTML docs format enabled in dev only
-
-### Entity-level (`src/Entity/Deck.php`)
-
-- `GetCollection` uses `DeckCollectionProvider`; `Post` and `Patch` use `DeckStateProcessor`
-- Filters: `SearchFilter` on `format`, `isPublic`, `isDraft`, `user`; `OrderFilter` on `createdAt`, `updatedAt`, `name`
-- Default `paginationItemsPerPage: 20`
-
-## OpenAPI Customization
-
-`src/OpenApi/OpenApiFactory.php` decorates `api_platform.openapi.factory` (registered in `services.yaml`):
-
-1. Adds `bearerAuth` HTTP security scheme and applies it globally to all operations
-2. In `dev` environment only: adds the `/api/dev/auth` POST path with full schema to the Scalar UI
+**Admin UI login**
+1. `AdminAuthController::login()` → PKCE challenge → redirect to Keycloak
+2. Keycloak calls `/admin/callback` → exchange code → decode JWT via `KeycloakJwtDecoder`
+3. Check `user.isAdmin`; store `admin_user_id` + `admin_access_token` in session
+4. Subsequent admin routes check `session.has('admin_user_id')` manually
 
 ## Key Design Decisions
 
-**API Platform attributes only, no YAML.**
-All operation config (operations, filters, pagination, serialization groups) lives in PHP attributes on `src/Entity/Deck.php`. This keeps the resource contract co-located with the entity and avoids split configuration.
+- **API Platform attributes only** — all operation/filter/pagination config lives on `src/Entity/Deck.php`; no API Platform YAML.
+- **`application/json` only** — no JSON-LD; collections use `member`/`totalItems`; `DeckCollectionNormalizer` overrides to `{data, pagination, links}`.
+- **Card data not persisted** — only `cardReference` stored; all metadata fetched from `altered-core` on demand. Draft mode skips this call entirely.
+- **Strategy + Template Method for formats** — `AbstractDeckFormatValidator` owns shared rules; concrete validators implement only their distinct rules; auto-discovered via `app.deck_format_validator` tag.
+- **`DeckItemProvider` fixes IDOR** — `Get` operation now uses a custom provider that enforces ownership or `isPublic` before returning a deck.
+- **`KeycloakJwtDecoder` extracted as service** — shared between `KeycloakAuthenticator` (Bearer API auth) and `AdminAuthController` (session admin auth) to avoid duplicated JWKS logic.
+- **Admin UI uses session auth** — the admin panel is a separate Twig surface with Keycloak PKCE; it does not go through the Symfony security firewall (manual `session.has()` guards in each controller action).
+- **PATCH merges DeckCard rows** — `DeckStateProcessor::mergeDeckCards()` diffs by `cardReference` to update quantities in-place, avoiding orphan-removal delete/insert cycles.
 
-**`application/json` format only — no JSON-LD.**
-`config/packages/api_platform.yaml` declares only the `json` format. This means collection responses use `member` / `totalItems` (not `hydra:member`). The `DeckCollectionNormalizer` overrides the default envelope to use `{data, pagination, links}` instead.
+## Security Flow
 
-**Card data is not persisted locally.**
-Only `cardReference` (the string key) is stored. All card metadata (name, faction, effects, rarity, bans) is fetched from `altered-core` on demand. This avoids a full card synchronisation job but makes write operations dependent on the upstream service.
+**API requests (Bearer JWT)**
+1. `KeycloakAuthenticator` checks `Authorization: Bearer` header
+2. Delegates decode to `KeycloakJwtDecoder` (JWKS RS256, or HS256 when `iss === "dev"` and `DEV_AUTH_ENABLED=true`)
+3. `findOrCreateUser()` syncs `email`, `preferred_username`, `locale` from claims; flushes if new
+4. Returns `SelfValidatingPassport`; security token set for request lifetime
 
-**Draft mode bypasses validation and stats.**
-When `isDraft = true`, `DeckStateProcessor` skips the `AlteredCoreClient` call, format validation, and stats computation. Stats are stored as `null`. This allows partial/in-progress decks without triggering external HTTP calls.
+**Admin UI (session)**
+1. `/admin/login` → PKCE verifier stored in session → redirect to Keycloak
+2. `/admin/callback` → token exchange → `KeycloakJwtDecoder::decode()` → check `user.isAdmin()`
+3. `admin_user_id` written to session; each admin controller action checks `session.has('admin_user_id')`
 
-**Format validation uses Strategy + Template Method.**
-`AbstractDeckFormatValidator` codifies the shared rules (hero, size, faction, bans). Each concrete validator (`NucFormatValidator`, `StandardFormatValidator`, `SingletonFormatValidator`) implements only its distinct rules. New formats require a new class tagged `app.deck_format_validator` — the factory picks it up automatically via tagged iterator.
-
-**Keycloak JWT + auto-provisioning.**
-`KeycloakAuthenticator` verifies RS256 tokens against the Keycloak JWKS endpoint (cached 1 h). A `User` row is created automatically on the first authenticated request. In development, a `DEV_AUTH_ENABLED` flag enables HS256 tokens issued by `DevAuthController` — no Keycloak instance required.
-
-**User-scoped collection via custom Provider.**
-`DeckCollectionProvider` replaces the default API Platform collection provider to always filter by the authenticated user. This is simpler and more explicit than a Doctrine extension filter.
-
-**PATCH merges `DeckCard` rows rather than replacing.**
-`DeckStateProcessor::mergeDeckCards()` diffs incoming vs. database cards by `cardReference`: updates quantities in-place, removes orphans, and inserts new entries. This preserves auto-increment IDs and avoids an orphan-removal delete-then-insert cycle.
-
-## Anti-Patterns
-
-### Building queries outside repositories
-
-**What happens:** `DeckCollectionProvider` and `DeckStateProcessor` both call `$this->em->getRepository(Deck::class)->createQueryBuilder()` and `$this->em->getRepository(DeckCard::class)->findBy()` directly in service/state classes.
-**Why it's wrong:** It violates the convention that all DQL/SQL lives in Repository classes, making queries harder to find and test.
-**Do this instead:** Move the QueryBuilder logic into `DeckRepository` and `DeckCardRepository`; call named repository methods from State classes (pattern shown in `UserRepository::findByKeycloakId()`).
-
-### Inline card-data caching logic in client
-
-**What happens:** `AlteredCoreClient::getCardsByReferences()` contains a two-phase cache check (check → null sentinel → batch fetch → re-cache) using a `null` sentinel value to detect misses.
-**Why it's wrong:** The null sentinel approach (cache a `null` then re-fetch) is fragile; a genuinely missing card and a cache miss are indistinguishable.
-**Do this instead:** Use a dedicated cache key prefix with an explicit "not found" value, or use `CacheInterface::get()` with the miss callback directly populating real data from the batch response.
+**Access control (`config/packages/security.yaml`)**
+- `PUBLIC_ACCESS`: `/api/dev/auth`, `/api/docs`, `/api/formats`
+- `ROLE_USER`: `^/api` (all other API routes)
+- `ROLE_ADMIN`: `^/api/admin` (enforced via `#[IsGranted]` on `AdminApiController`)
+- Admin UI routes (`/admin/*`) are outside the API firewall; protected by manual session check only
 
 ## Error Handling
 
-**Strategy:** API Platform's exception listener converts exceptions to JSON error responses. `DeckStateProcessor` throws `ValidationException` (API Platform) when format rules fail — this produces a `422 Unprocessable Entity` with per-field violation messages. `KeycloakAuthenticator::onAuthenticationFailure()` returns a `401 Unauthorized` JSON response directly.
-
-**Patterns:**
-- Symfony constraint violations (`@Assert`) → API Platform automatically returns `422` with violation details
-- `ValidationException` with a `ConstraintViolationList` → `422` with message per violation
-- `AuthenticationException` in `KeycloakAuthenticator` → `401 {"error": "..."}`
-- `AlteredCoreClient` exceptions are caught and logged; processing continues with an empty `cardsData` array (graceful degradation — stats and format validation become no-ops)
-
-## Cross-Cutting Concerns
-
-**Caching:** Symfony Cache (`CacheInterface`) — Keycloak JWKS cached 1 h (`keycloak_jwks`), card data cached 1 h per reference (`card_<md5(ref_locale)>`).
-**Authentication:** Stateless Bearer JWT on all `/api/*` routes except `/api/dev/auth`, `/api/docs`, `/api/formats`.
-**CORS:** `nelmio/cors-bundle` configured in `config/packages/nelmio_cors.yaml`.
-**Logging:** PSR-3 `LoggerInterface` injected into `DeckStateProcessor`; used to log `AlteredCoreClient` failures.
-**Validation:** Two layers — Symfony constraint annotations on entities (structural: not-blank, length, regex, range) and `DeckFormatValidatorFactory` game-rule validation in the processor (semantic: hero, deck size, faction, rarity limits, bans).
+- Symfony constraint violations (`#[Assert\*]`) → API Platform returns `422` with per-field details automatically
+- `ValidationException` with `ConstraintViolationList` (thrown by format validators) → `422`
+- `AccessDeniedHttpException` / `NotFoundHttpException` from `DeckItemProvider` → `403` / `404`
+- `KeycloakAuthenticator::onAuthenticationFailure()` → `401 {"error": "..."}`
+- `AlteredCoreClient` failures → caught and logged; processing continues with empty `cardsData` (stats and validation become no-ops)
 
 ---
 

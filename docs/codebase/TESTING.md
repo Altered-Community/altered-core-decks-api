@@ -4,170 +4,98 @@
 
 ## Current State
 
-**PHPUnit is NOT installed.** No `phpunit/phpunit` or `symfony/test-pack` in `composer.json` (neither `require` nor `require-dev`). `require-dev` contains only `symfony/maker-bundle`.
+PHPUnit 13.1 is installed (`phpunit/phpunit: ^13.1` in `composer.json` require-dev). The `tests/` directory exists with real tests.
 
-**No `tests/` directory exists.** The PSR-4 namespace `App\Tests\` is declared in `composer.json` autoload-dev, but the `tests/` directory has never been created and no test files of any kind exist in the repository.
+**Test infrastructure:** `phpunit.xml.dist` — single suite scanning `tests/`, bootstrapped via `tests/bootstrap.php` (loads `.env` via `Dotenv::bootEnv`). `APP_ENV=test` is forced server-side.
 
-**Coverage: 0%** — zero tests across all code.
+**Fixtures:** `DoctrineFixturesBundle` installed. `src/DataFixtures/AppFixtures.php` exists but is empty — no seed data loaded yet.
 
-The Makefile defines a `make test` target (`bin/phpunit`), but it will fail until PHPUnit is installed.
-
-## Test Environment Configuration
-
-Despite no tests existing, the framework configuration for the test environment is present:
-
-**`config/packages/framework.yaml`:**
-```yaml
-when@test:
-    framework:
-        test: true
-        session:
-            storage_factory_id: session.storage.factory.mock_file
-```
-
-**`config/packages/security.yaml`:**
-```yaml
-when@test:
-    security:
-        password_hashers:
-            Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
-                algorithm: auto
-                cost: 4
-                time_cost: 3
-                memory_cost: 10
-```
-
-**`composer.json` autoload-dev:**
-```json
-"autoload-dev": {
-    "psr-4": {
-        "App\\Tests\\": "tests/"
-    }
-}
-```
-
-## How to Set Up Testing
-
-**Step 1 — Install PHPUnit:**
-```bash
-make composer c="require --dev symfony/test-pack"
-```
-This installs `phpunit/phpunit`, `symfony/phpunit-bridge`, and generates `phpunit.xml.dist`.
-
-**Step 2 — Create the `tests/` directory structure:**
-```
-tests/
-├── Unit/
-│   └── Validator/
-│       └── Format/
-│           ├── NucFormatValidatorTest.php
-│           ├── StandardFormatValidatorTest.php
-│           └── SingletonFormatValidatorTest.php
-└── Integration/
-    └── State/
-        └── DeckStateProcessorTest.php
-```
-
-**Step 3 — Run tests:**
-```bash
-make test                               # Run all tests (APP_ENV=test)
-make test c="--group unit"              # Run tests with PHPUnit options
-make test c="--stop-on-failure"         # Stop on first failure
-```
-
-Or directly via Docker:
-```bash
-docker compose exec -e APP_ENV=test php bin/phpunit
-```
+**CI:** GitHub Actions at `.github/workflows/ci.yml` — runs on push/PR to `main` on a self-hosted runner (PHP 8.4 + pdo_pgsql). Runs migrations + fixtures load before tests.
 
 ## How to Run
 
 ```bash
-make test                          # Run all tests (APP_ENV=test)
-make test c="--group unit"         # Run specific test group
-make test c="--stop-on-failure"    # Stop on first failure
-```
+# Via Makefile (sets APP_ENV=test automatically)
+make test
+make test c="--stop-on-failure"
 
-**Via Docker directly (Windows or without make):**
-```bash
+# Via Docker directly
 docker compose exec -e APP_ENV=test php bin/phpunit
-docker compose exec -e APP_ENV=test php bin/phpunit --stop-on-failure
+docker compose exec -e APP_ENV=test php bin/phpunit --testsuite Unit
+docker compose exec -e APP_ENV=test php bin/phpunit --testsuite Integration
 ```
 
-Note: `APP_ENV=test` must be set. The Makefile `test` target sets this automatically.
+Note: the CI config references `--testsuite Unit` and `--testsuite Integration`, but `phpunit.xml.dist` only defines a single suite named `Project Test Suite`. These flags will silently run all tests; add named suites to `phpunit.xml.dist` if per-suite execution is needed.
 
-## Recommended Test Priorities
+## Existing Test Files
 
-**1. Format validators — highest value, pure unit tests (no infrastructure):**
+### `tests/Api/DeckTest.php` — Integration, `WebTestCase`
 
-All three format validators have complex rule logic. Pure PHP objects, no Doctrine or HTTP needed.
+HTTP integration tests for the `Deck` API resource. Uses `KernelBrowser` + `MockHttpClient` for the altered-core dependency.
+
+| Test | Covers |
+|------|--------|
+| `testPatchIsPublicSaved` | PATCH `isPublic: true` persists correctly |
+| `testFormatErrorsStoredNotThrown` | Format errors go to `formatErrors` field, not 422 |
+| `testFormatErrorsNullWhenNoFormat` | No format → `formatErrors` is null |
+| `testDeckSavedWhenAlteredCoreUnavailable` | altered-core 500 → deck still saves |
+| `testFormatErrorsNullOnValidDeck` | Valid standard deck → null errors + stats populated |
+
+Auth uses HS256 JWTs signed with a test secret (`$ecretf0rt3st_extended_for_hs256_tests`). The mock HTTP client is fetched from the container via service id `altered_core.mock_http_client`.
+
+### `tests/Controller/BgaDeckControllerTest.php` — Integration, `WebTestCase`
+
+HTTP tests for the BGA-specific endpoints (`/api/bga/decks`, `/api/bga/cards`).
+
+| Area | Tests |
+|------|-------|
+| Collection auth | 401 without token |
+| Collection shape | `hydra:member`, `hydra:view`, view keys |
+| Item | 404 for unknown UUID, 200 + name/id for known |
+| Card endpoint | 404 when core returns empty, required keys, faction/reference shape, elements shape, effects/cardElements structure, multi-effect sequences |
+
+### `tests/Serializer/BgaDeckSerializerTest.php` — Unit, `TestCase`
+
+Pure unit tests for `src/Serializer/BgaDeckSerializer.php`. Mocks `NormalizerInterface` only.
+
+Covers: `collectionEntry()` with/without hero, faction extraction from reference parts, `adminRow()` with/without hero, `normalizeItem()` delegate call with correct groups, `normalizeCollection()` on multiple decks.
+
+### `tests/Serializer/DeckNormalizerBgaTest.php` — Unit, `TestCase`
+
+Pure unit tests for `src/Serializer/DeckNormalizer.php` in BGA view mode (`'view' => 'bga'` context). Stubs `NormalizerInterface`, `AlteredCoreClient`, `RequestStack`.
+
+Covers: top-level output keys, faction/alterator derivation, `deckLegality` shape, card grouping by type (`expedition_permanent`/`landmark_permanent` → `permanent`), card entry shape (name, type, subTypes, typeline, mainFaction, illustrator, elements), element values, typeline construction, unique card detection (`_U_` in reference), `uniqueReduced` structure with single and multiple effects.
+
+## Test Patterns
+
+**Integration tests** extend `WebTestCase` and use a real Symfony kernel + database.
 
 ```php
-namespace App\Tests\Unit\Validator\Format;
-
-use App\Entity\Deck;
-use App\Validator\Format\StandardFormatValidator;
-use PHPUnit\Framework\TestCase;
-
-class StandardFormatValidatorTest extends TestCase
+protected function setUp(): void
 {
-    private StandardFormatValidator $validator;
-
-    protected function setUp(): void
-    {
-        $this->validator = new StandardFormatValidator();
-    }
-
-    public function testValidDeckPassesValidation(): void
-    {
-        $deck = $this->buildDeck(/* ... */);
-        $cardsData = [/* mock data */];
-
-        $errors = $this->validator->validate($deck, $cardsData);
-
-        $this->assertEmpty($errors);
-    }
+    $this->client          = static::createClient();
+    $this->alteredCoreMock = static::getContainer()->get('altered_core.mock_http_client');
+    $this->alteredCoreMock->setResponseFactory(
+        static fn(): MockResponse => new MockResponse('[]', ['http_code' => 200, ...])
+    );
 }
 ```
 
-**2. `DeckStateProcessor` helpers — unit testable with mocks:**
+**Unit tests** extend `TestCase`. Use `createMock()` for strict mock expectations, `createStub()` for passive stubs.
 
-`computeStats()`, `getRarityFromReference()`, `mergeDeckCards()` are testable with mocked `EntityManagerInterface`. `validateFormat()` is testable with a mock `DeckFormatValidatorFactory`.
+**JWT generation in tests:** `Firebase\JWT\JWT::encode()` with the known test secret and HS256. Test subjects use per-test unique `sub` values (`'user-' . __FUNCTION__`) to avoid cross-test state.
 
-**3. `AlteredCoreClient` — mock HTTP client pattern:**
+## Coverage Gaps (Updated)
 
-```php
-use Symfony\Component\HttpClient\MockHttpClient;
-use Symfony\Component\HttpClient\Response\MockResponse;
-
-$mockClient = new MockHttpClient([
-    new MockResponse(json_encode([/* card data */])),
-]);
-$client = new AlteredCoreClient($mockClient, $cache, 'http://example.com');
-```
-
-**4. Integration tests — require database:**
-
-- `src/State/DeckCollectionProvider.php` — needs a `KernelTestCase` with a test PostgreSQL instance
-- `src/Security/KeycloakAuthenticator.php` — needs a mock HTTP client for JWKS endpoint
-
-## Test Coverage Gaps (Priority)
-
-| Component | Risk | Notes |
-|-----------|------|-------|
-| `src/Validator/Format/` — all 3 validators | High | Complex branching, no regression coverage |
-| PATCH/DELETE ownership checks | Critical | IDOR vulnerability — must have regression test after fix |
-| `src/Security/KeycloakAuthenticator.php` | High | Security-critical; dev auth bypass path untested |
-| `src/State/DeckStateProcessor.php` | High | Full write pipeline, card fetch, stats computation |
-| `src/Client/AlteredCoreClient.php` | Medium | Cache probe/delete/rewrite logic is subtle |
-| `src/Serializer/DeckNormalizer.php` | Medium | Card enrichment logic |
-| `src/State/DeckCollectionProvider.php` | Medium | User-scoping, null user fallback |
-
-## CI/CD
-
-**No CI/CD pipeline configured.** No `.github/workflows/`, no `.gitlab-ci.yml`, no Jenkinsfile, no Bitbucket pipelines found.
-
-Tests are run manually via `make test` or Docker. There is no automated test execution on push or pull request.
+| Component | Risk | Status |
+|-----------|------|--------|
+| `src/Validator/Format/` — all 3 validators | High | No tests — complex branching |
+| PATCH/DELETE ownership checks (IDOR) | Critical | No regression test after fix |
+| `src/Security/KeycloakJwtDecoder.php` | High | No tests — security-critical |
+| `src/State/DeckStateProcessor.php` | High | Covered only indirectly via integration tests |
+| `src/Client/AlteredCoreClient.php` | Medium | No direct unit tests — cache probe/delete logic |
+| `src/State/DeckCollectionProvider.php` | Medium | No direct tests — user-scoping, null user fallback |
+| `src/DataFixtures/AppFixtures.php` | Low | Empty — no seed data for integration tests |
 
 ---
 

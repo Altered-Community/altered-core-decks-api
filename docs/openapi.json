@@ -670,13 +670,17 @@
                             ]
                         }
                     },
-                    "public": {
-                        "readOnly": true,
-                        "type": "boolean"
-                    },
-                    "draft": {
-                        "readOnly": true,
-                        "type": "boolean"
+                    "formatErrors": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
                     }
                 },
                 "required": [
@@ -734,6 +738,18 @@
                         "format": "date-time"
                     },
                     "stats": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "formatErrors": {
                         "type": [
                             "array",
                             "null"
@@ -807,6 +823,18 @@
                         "format": "date-time"
                     },
                     "stats": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "formatErrors": {
                         "type": [
                             "array",
                             "null"
@@ -1030,6 +1058,12 @@
                             "null"
                         ]
                     },
+                    "locale": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "createdAt": {
                         "readOnly": true,
                         "type": "string",
@@ -1042,12 +1076,20 @@
                         ],
                         "format": "date-time"
                     },
+                    "isAdmin": {
+                        "default": false,
+                        "type": "boolean"
+                    },
                     "decks": {
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/Deck"
                         },
                         "readOnly": true
+                    },
+                    "admin": {
+                        "readOnly": true,
+                        "type": "boolean"
                     },
                     "roles": {
                         "readOnly": true,
