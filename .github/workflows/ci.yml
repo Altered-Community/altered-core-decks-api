@@ -1,0 +1,57 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  tests:
+    name: Tests PHP ${{ matrix.php }}
+    runs-on: self-hosted
+
+    strategy:
+      matrix:
+        php: ['8.4']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_pgsql, apcu, intl, zip
+          coverage: none
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependencies
+        env:
+          COMPOSER_HOME: /tmp/composer
+          COMPOSER_ALLOW_SUPERUSER: 1
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Prepare test database
+        env:
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+        run: |
+          php bin/console doctrine:schema:drop --full-database --force --env=test
+          php bin/console doctrine:migrations:migrate --no-interaction --env=test
+          php bin/console doctrine:fixtures:load --no-interaction --env=test
+
+      - name: Run unit tests
+        run: php bin/phpunit --testsuite Unit --no-coverage
+
+      - name: Run integration tests
+        env:
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+        run: php bin/phpunit --testsuite Integration --no-coverage
+

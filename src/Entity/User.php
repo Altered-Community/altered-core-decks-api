@@ -28,11 +28,17 @@ class User implements UserInterface
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $username = null;
 
+    #[ORM\Column(length: 10, nullable: true)]
+    private ?string $locale = null;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
+
+    #[ORM\Column(options: ['default' => false])]
+    private bool $isAdmin = false;
 
     #[ORM\OneToMany(targetEntity: Deck::class, mappedBy: 'user', cascade: ['remove'])]
     private Collection $decks;
@@ -54,6 +60,9 @@ class User implements UserInterface
     public function getUsername(): ?string { return $this->username; }
     public function setUsername(?string $username): self { $this->username = $username; return $this; }
 
+    public function getLocale(): ?string { return $this->locale; }
+    public function setLocale(?string $locale): self { $this->locale = $locale; return $this; }
+
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
 
     public function getUpdatedAt(): ?\DateTimeImmutable { return $this->updatedAt; }
@@ -61,8 +70,18 @@ class User implements UserInterface
 
     public function getDecks(): Collection { return $this->decks; }
 
+    public function isAdmin(): bool { return $this->isAdmin; }
+    public function setIsAdmin(bool $isAdmin): self { $this->isAdmin = $isAdmin; return $this; }
+
     // UserInterface
-    public function getRoles(): array { return ['ROLE_USER']; }
+    public function getRoles(): array
+    {
+        $roles = ['ROLE_USER'];
+        if ($this->isAdmin) {
+            $roles[] = 'ROLE_ADMIN';
+        }
+        return $roles;
+    }
     public function eraseCredentials(): void {}
     public function getUserIdentifier(): string { return $this->keycloakId; }
 }
