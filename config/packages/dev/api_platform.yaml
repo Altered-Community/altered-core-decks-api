@@ -9,3 +9,5 @@ api_platform:
         scalar_extra_configuration:
             theme: purple
             darkMode: true
+            agent:
+                disabled: true
