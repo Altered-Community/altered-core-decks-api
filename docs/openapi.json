@@ -1,0 +1,1100 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "Altered Deck API",
+        "description": "",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "/",
+            "description": ""
+        }
+    ],
+    "paths": {
+        "/api/decks": {
+            "get": {
+                "operationId": "api_decks_get_collection",
+                "tags": [
+                    "Deck"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Deck collection",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Deck-deck.read"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Retrieves the collection of Deck resources.",
+                "description": "Retrieves the collection of Deck resources.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "The collection page number",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "itemsPerPage",
+                        "in": "query",
+                        "description": "The number of items per page",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 20,
+                            "minimum": 0,
+                            "maximum": 1000
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "format",
+                        "in": "query",
+                        "description": "",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "format[]",
+                        "in": "query",
+                        "description": "",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "isPublic",
+                        "in": "query",
+                        "description": "",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "isPublic[]",
+                        "in": "query",
+                        "description": "",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "boolean"
+                            }
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "isDraft",
+                        "in": "query",
+                        "description": "",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "isDraft[]",
+                        "in": "query",
+                        "description": "",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "boolean"
+                            }
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "description": "",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "user[]",
+                        "in": "query",
+                        "description": "",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "style": "form",
+                        "explode": true
+                    },
+                    {
+                        "name": "order[createdAt]",
+                        "in": "query",
+                        "description": "",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "asc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "order[updatedAt]",
+                        "in": "query",
+                        "description": "",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "asc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        },
+                        "style": "form",
+                        "explode": false
+                    },
+                    {
+                        "name": "order[name]",
+                        "in": "query",
+                        "description": "",
+                        "required": false,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "asc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        },
+                        "style": "form",
+                        "explode": false
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "api_decks_post",
+                "tags": [
+                    "Deck"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Deck resource created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Deck-deck.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Creates a Deck resource.",
+                "description": "Creates a Deck resource.",
+                "parameters": [],
+                "requestBody": {
+                    "description": "The new Deck resource",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Deck-deck.write"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/decks/{id}": {
+            "get": {
+                "operationId": "api_decks_id_get",
+                "tags": [
+                    "Deck"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Deck resource",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Deck-deck.read_deck.read.detail"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Retrieves a Deck resource.",
+                "description": "Retrieves a Deck resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Deck identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "api_decks_id_delete",
+                "tags": [
+                    "Deck"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Deck resource deleted"
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Removes the Deck resource.",
+                "description": "Removes the Deck resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Deck identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "api_decks_id_patch",
+                "tags": [
+                    "Deck"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Deck resource updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Deck-deck.read"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "422": {
+                        "description": "An error occurred",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConstraintViolation"
+                                }
+                            }
+                        },
+                        "links": {}
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "links": {}
+                    }
+                },
+                "summary": "Updates the Deck resource.",
+                "description": "Updates the Deck resource.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Deck identifier",
+                        "required": true,
+                        "deprecated": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "style": "simple",
+                        "explode": false
+                    }
+                ],
+                "requestBody": {
+                    "description": "The updated Deck resource",
+                    "content": {
+                        "application/merge-patch+json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Deck-deck.write.jsonMergePatch"
+                            }
+                        }
+                    },
+                    "required": true
+                }
+            }
+        },
+        "/api/dev/auth": {
+            "post": {
+                "operationId": "dev_auth_post",
+                "tags": [
+                    "Dev"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "JWT token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "token": {
+                                            "type": "string"
+                                        },
+                                        "expires_in": {
+                                            "type": "integer",
+                                            "example": 3600
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Generate a dev JWT token (disabled in production)",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "sub": {
+                                        "type": "string",
+                                        "example": "user-1"
+                                    },
+                                    "username": {
+                                        "type": "string",
+                                        "example": "john"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "example": "john@example.com"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "required": false
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "ConstraintViolation": {
+                "type": "object",
+                "description": "Unprocessable entity",
+                "properties": {
+                    "status": {
+                        "default": 422,
+                        "type": "integer"
+                    },
+                    "violations": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "propertyPath": {
+                                    "type": "string",
+                                    "description": "The property path of the violation"
+                                },
+                                "message": {
+                                    "type": "string",
+                                    "description": "The message associated with the violation"
+                                },
+                                "code": {
+                                    "type": "string",
+                                    "description": "The code of the violation"
+                                },
+                                "hint": {
+                                    "type": "string",
+                                    "description": "An extra hint to understand the violation"
+                                },
+                                "payload": {
+                                    "type": "object",
+                                    "additionalProperties": true,
+                                    "description": "The serialized payload of the violation"
+                                }
+                            },
+                            "required": [
+                                "propertyPath",
+                                "message"
+                            ]
+                        }
+                    },
+                    "detail": {
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "type": {
+                        "readOnly": true,
+                        "type": "string"
+                    },
+                    "title": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "instance": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "Deck": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "maxLength": 150,
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "format": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "isPublic": {
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "isDraft": {
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "user": {
+                        "$ref": "#/components/schemas/User"
+                    },
+                    "deckCards": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DeckCard"
+                        }
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "stats": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "public": {
+                        "readOnly": true,
+                        "type": "boolean"
+                    },
+                    "draft": {
+                        "readOnly": true,
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "name"
+                ]
+            },
+            "Deck-deck.read": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "maxLength": 150,
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "format": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "isPublic": {
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "isDraft": {
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "user": {
+                        "$ref": "#/components/schemas/User-deck.read"
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "stats": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "name"
+                ]
+            },
+            "Deck-deck.read_deck.read.detail": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "maxLength": 150,
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "format": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "isPublic": {
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "isDraft": {
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "user": {
+                        "$ref": "#/components/schemas/User-deck.read_deck.read.detail"
+                    },
+                    "deckCards": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DeckCard-deck.read_deck.read.detail"
+                        }
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "stats": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "name"
+                ]
+            },
+            "Deck-deck.write": {
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "properties": {
+                    "name": {
+                        "maxLength": 150,
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "format": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "isPublic": {
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "isDraft": {
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "deckCards": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DeckCard-deck.write"
+                        }
+                    }
+                }
+            },
+            "Deck-deck.write.jsonMergePatch": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "maxLength": 150,
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "format": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "isPublic": {
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "isDraft": {
+                        "default": false,
+                        "type": "boolean"
+                    },
+                    "deckCards": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DeckCard-deck.write"
+                        }
+                    }
+                }
+            },
+            "DeckCard": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "readOnly": true,
+                        "type": "integer"
+                    },
+                    "deck": {
+                        "type": "string",
+                        "format": "iri-reference",
+                        "example": "https://example.com/"
+                    },
+                    "cardReference": {
+                        "pattern": "^(ALT_[A-Z0-9]+_[A-Z0-9]+_[A-Z]+_\\d+_[A-Z0-9]+(_\\d+)?)$",
+                        "type": "string"
+                    },
+                    "quantity": {
+                        "minimum": 1,
+                        "maximum": 3,
+                        "default": 1,
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "cardReference"
+                ]
+            },
+            "DeckCard-deck.read_deck.read.detail": {
+                "type": "object",
+                "required": [
+                    "cardReference"
+                ],
+                "properties": {
+                    "cardReference": {
+                        "pattern": "^(ALT_[A-Z0-9]+_[A-Z0-9]+_[A-Z]+_\\d+_[A-Z0-9]+(_\\d+)?)$",
+                        "type": "string"
+                    },
+                    "quantity": {
+                        "minimum": 1,
+                        "maximum": 3,
+                        "default": 1,
+                        "type": "integer"
+                    }
+                }
+            },
+            "DeckCard-deck.write": {
+                "type": "object",
+                "required": [
+                    "cardReference"
+                ],
+                "properties": {
+                    "cardReference": {
+                        "pattern": "^(ALT_[A-Z0-9]+_[A-Z0-9]+_[A-Z]+_\\d+_[A-Z0-9]+(_\\d+)?)$",
+                        "type": "string"
+                    },
+                    "quantity": {
+                        "minimum": 1,
+                        "maximum": 3,
+                        "default": 1,
+                        "type": "integer"
+                    }
+                }
+            },
+            "Error": {
+                "type": "object",
+                "description": "A representation of common errors.",
+                "properties": {
+                    "title": {
+                        "readOnly": true,
+                        "description": "A short, human-readable summary of the problem.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "detail": {
+                        "readOnly": true,
+                        "description": "A human-readable explanation specific to this occurrence of the problem.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "status": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "examples": [
+                            404
+                        ],
+                        "default": 400
+                    },
+                    "instance": {
+                        "readOnly": true,
+                        "description": "A URI reference that identifies the specific occurrence of the problem. It may or may not yield further information if dereferenced.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "type": {
+                        "readOnly": true,
+                        "description": "A URI reference that identifies the problem type",
+                        "type": "string"
+                    }
+                }
+            },
+            "User": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "readOnly": true,
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "keycloakId": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "username": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "createdAt": {
+                        "readOnly": true,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "decks": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Deck"
+                        },
+                        "readOnly": true
+                    },
+                    "roles": {
+                        "readOnly": true,
+                        "type": "array",
+                        "items": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    },
+                    "userIdentifier": {
+                        "readOnly": true,
+                        "type": "string"
+                    }
+                }
+            },
+            "User-deck.read": {
+                "type": "object"
+            },
+            "User-deck.read_deck.read.detail": {
+                "type": "object"
+            }
+        },
+        "responses": {},
+        "parameters": {},
+        "examples": {},
+        "requestBodies": {},
+        "headers": {},
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    },
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "Deck",
+            "description": "Resource 'Deck' operations."
+        }
+    ],
+    "webhooks": {}
+}

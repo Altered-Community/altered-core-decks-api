@@ -1,0 +1,16 @@
+#!/bin/sh
+# Regenerate OpenAPI spec before each commit so docs/openapi.json stays in sync.
+# Skips gracefully if Docker is not running.
+
+OPENAPI_OUTPUT="docs/openapi.json"
+
+if ! docker compose ps --services --filter "status=running" 2>/dev/null | grep -q "php"; then
+  echo "⚠  Docker php container not running — skipping OpenAPI export (run 'make openapi' manually)"
+  exit 0
+fi
+
+echo "→ Exporting OpenAPI spec…"
+docker compose exec -T php php bin/console api:openapi:export --output="$OPENAPI_OUTPUT" --no-interaction
+
+git add "$OPENAPI_OUTPUT"
+echo "✓ $OPENAPI_OUTPUT updated and staged"

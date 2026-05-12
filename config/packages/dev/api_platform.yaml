@@ -1,0 +1,11 @@
+api_platform:
+    docs_formats:
+        json: ['application/json']
+        html: ['text/html']
+    enable_swagger_ui: false
+    enable_re_doc: false
+    enable_scalar: true
+    openapi:
+        scalar_extra_configuration:
+            theme: purple
+            darkMode: true
