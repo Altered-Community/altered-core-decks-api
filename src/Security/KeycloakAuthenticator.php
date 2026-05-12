@@ -19,10 +19,11 @@ use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPasspor
 class KeycloakAuthenticator extends AbstractAuthenticator
 {
     public function __construct(
-        private readonly UserRepository      $userRepository,
+        private readonly UserRepository $userRepository,
         private readonly EntityManagerInterface $em,
-        private readonly KeycloakJwtDecoder  $jwtDecoder,
-    ) {}
+        private readonly KeycloakJwtDecoder $jwtDecoder,
+    ) {
+    }
 
     public function supports(Request $request): ?bool
     {
@@ -37,7 +38,7 @@ class KeycloakAuthenticator extends AbstractAuthenticator
         try {
             $decoded = $this->jwtDecoder->decode($token);
         } catch (\Throwable $e) {
-            throw new AuthenticationException('Invalid token: ' . $e->getMessage());
+            throw new AuthenticationException('Invalid token: '.$e->getMessage());
         }
 
         $keycloakId = $decoded->sub ?? null;

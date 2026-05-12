@@ -10,10 +10,20 @@ use App\Entity\DeckCard;
  */
 class StandardFormatValidator extends AbstractDeckFormatValidator
 {
-    public function getFormat(): string { return 'standard'; }
+    public function getFormat(): string
+    {
+        return 'standard';
+    }
 
-    protected function getMinCards(): int { return 39; }
-    protected function getMaxCards(): int { return 59; }
+    protected function getMinCards(): int
+    {
+        return 39;
+    }
+
+    protected function getMaxCards(): int
+    {
+        return 59;
+    }
 
     protected function validateFormatRules(array $deckCards, array $cardsData, ?DeckCard $hero): array
     {

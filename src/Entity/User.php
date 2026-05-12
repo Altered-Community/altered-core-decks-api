@@ -40,38 +40,102 @@ class User implements UserInterface
     #[ORM\Column(options: ['default' => false])]
     private bool $isAdmin = false;
 
+    /** @var Collection<int, Deck> */
     #[ORM\OneToMany(targetEntity: Deck::class, mappedBy: 'user', cascade: ['remove'])]
     private Collection $decks;
 
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
-        $this->decks     = new ArrayCollection();
+        $this->decks = new ArrayCollection();
     }
 
-    public function getId(): ?Uuid { return $this->id; }
+    public function getId(): ?Uuid
+    {
+        return $this->id;
+    }
 
-    public function getKeycloakId(): string { return $this->keycloakId; }
-    public function setKeycloakId(string $keycloakId): self { $this->keycloakId = $keycloakId; return $this; }
+    public function getKeycloakId(): string
+    {
+        return $this->keycloakId;
+    }
 
-    public function getEmail(): ?string { return $this->email; }
-    public function setEmail(?string $email): self { $this->email = $email; return $this; }
+    public function setKeycloakId(string $keycloakId): self
+    {
+        $this->keycloakId = $keycloakId;
 
-    public function getUsername(): ?string { return $this->username; }
-    public function setUsername(?string $username): self { $this->username = $username; return $this; }
+        return $this;
+    }
 
-    public function getLocale(): ?string { return $this->locale; }
-    public function setLocale(?string $locale): self { $this->locale = $locale; return $this; }
+    public function getEmail(): ?string
+    {
+        return $this->email;
+    }
 
-    public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
+    public function setEmail(?string $email): self
+    {
+        $this->email = $email;
 
-    public function getUpdatedAt(): ?\DateTimeImmutable { return $this->updatedAt; }
-    public function setUpdatedAt(?\DateTimeImmutable $updatedAt): self { $this->updatedAt = $updatedAt; return $this; }
+        return $this;
+    }
 
-    public function getDecks(): Collection { return $this->decks; }
+    public function getUsername(): ?string
+    {
+        return $this->username;
+    }
 
-    public function isAdmin(): bool { return $this->isAdmin; }
-    public function setIsAdmin(bool $isAdmin): self { $this->isAdmin = $isAdmin; return $this; }
+    public function setUsername(?string $username): self
+    {
+        $this->username = $username;
+
+        return $this;
+    }
+
+    public function getLocale(): ?string
+    {
+        return $this->locale;
+    }
+
+    public function setLocale(?string $locale): self
+    {
+        $this->locale = $locale;
+
+        return $this;
+    }
+
+    public function getCreatedAt(): \DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function getUpdatedAt(): ?\DateTimeImmutable
+    {
+        return $this->updatedAt;
+    }
+
+    public function setUpdatedAt(?\DateTimeImmutable $updatedAt): self
+    {
+        $this->updatedAt = $updatedAt;
+
+        return $this;
+    }
+
+    public function getDecks(): Collection
+    {
+        return $this->decks;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->isAdmin;
+    }
+
+    public function setIsAdmin(bool $isAdmin): self
+    {
+        $this->isAdmin = $isAdmin;
+
+        return $this;
+    }
 
     // UserInterface
     public function getRoles(): array
@@ -80,8 +144,16 @@ class User implements UserInterface
         if ($this->isAdmin) {
             $roles[] = 'ROLE_ADMIN';
         }
+
         return $roles;
     }
-    public function eraseCredentials(): void {}
-    public function getUserIdentifier(): string { return $this->keycloakId; }
+
+    public function eraseCredentials(): void
+    {
+    }
+
+    public function getUserIdentifier(): string
+    {
+        return $this->keycloakId;
+    }
 }

@@ -9,7 +9,8 @@ final readonly class BgaDeckSerializer
 {
     public function __construct(
         private NormalizerInterface $serializer,
-    ) {}
+    ) {
+    }
 
     public function collectionEntry(Deck $deck): array
     {
@@ -17,10 +18,10 @@ final readonly class BgaDeckSerializer
         $faction = $heroRef ? (explode('_', $heroRef)[3] ?? null) : null;
 
         return [
-            'hero'      => $heroRef,
-            'faction'   => $faction,
-            'apiId'     => (string) $deck->getId(),
-            'deckName'  => $deck->getName(),
+            'hero' => $heroRef,
+            'faction' => $faction,
+            'apiId' => (string) $deck->getId(),
+            'deckName' => $deck->getName(),
             'cardCount' => $deck->getStats()['totalCards'] ?? 0,
         ];
     }
@@ -28,14 +29,14 @@ final readonly class BgaDeckSerializer
     public function adminRow(Deck $deck): array
     {
         $heroRef = $deck->getStats()['hero']['reference'] ?? null;
-        $parts   = $heroRef ? explode('_', $heroRef) : [];
+        $parts = $heroRef ? explode('_', $heroRef) : [];
 
         return [
-            'id'         => (string) $deck->getId(),
-            'name'       => $deck->getName(),
-            'format'     => $deck->getFormat()?->value,
-            'heroRef'    => $heroRef,
-            'faction'    => $parts[3] ?? null,
+            'id' => (string) $deck->getId(),
+            'name' => $deck->getName(),
+            'format' => $deck->getFormat()?->value,
+            'heroRef' => $heroRef,
+            'faction' => $parts[3] ?? null,
             'totalCards' => $deck->getStats()['totalCards'] ?? null,
         ];
     }
@@ -44,7 +45,7 @@ final readonly class BgaDeckSerializer
     {
         return $this->serializer->normalize($deck, 'json', [
             'groups' => ['deck:read', 'deck:read:detail'],
-            'view'   => 'bga',
+            'view' => 'bga',
         ]);
     }
 
@@ -55,7 +56,7 @@ final readonly class BgaDeckSerializer
 
     public function buildCardElements(array $card): array
     {
-        return array_values(array_filter([$this->generateMainEffect($card)]));
+        return array_filter([$this->generateMainEffect($card)]);
     }
 
     private function generateMainEffect(array $card): array
@@ -68,7 +69,7 @@ final readonly class BgaDeckSerializer
         }
 
         return [
-            'cardElementType'    => ['reference' => 'MAIN_EFFECT'],
+            'cardElementType' => ['reference' => 'MAIN_EFFECT'],
             'cardEffectDisplays' => $cardEffectDisplays,
         ];
     }
@@ -95,7 +96,7 @@ final readonly class BgaDeckSerializer
                     ],
                 ],
                 'reference' => $effect['abilityKey'],
-                'sequence'  => $sequence,
+                'sequence' => $sequence,
             ],
         ];
     }

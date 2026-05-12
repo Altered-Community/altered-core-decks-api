@@ -11,7 +11,7 @@ SYMFONY  = $(PHP) bin/console
 
 # Misc
 .DEFAULT_GOAL = help
-.PHONY        : help build up start down logs sh composer vendor sf cc test
+.PHONY        : help build up start down logs sh composer vendor sf cc test install-hooks cs-fix phpstan
 
 ## —— 🎵 🐳 The Symfony Docker Makefile 🐳 🎵 ——————————————————————————————————
 help: ## Outputs this help screen
@@ -59,3 +59,17 @@ sf: ## List all Symfony commands or pass the parameter "c=" to run a given comma
 
 cc: c=c:c ## Clear the cache
 cc: sf
+
+## —— Code Quality 🔍 ——————————————————————————————————————————————————————————
+install-hooks: ## Activate git hooks from .githooks/ (run once after cloning)
+	@git config core.hooksPath .githooks
+	@echo "Git hooks activated."
+
+cs-fix: ## Run PHP CS Fixer (fix mode)
+	@$(PHP_CONT) vendor/bin/php-cs-fixer fix
+
+cs-check: ## Run PHP CS Fixer (dry-run — check only)
+	@$(PHP_CONT) vendor/bin/php-cs-fixer fix --dry-run --diff
+
+phpstan: ## Run PHPStan static analysis
+	@$(PHP_CONT) vendor/bin/phpstan analyse --memory-limit=512M

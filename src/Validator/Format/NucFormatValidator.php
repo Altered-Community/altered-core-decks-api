@@ -14,10 +14,20 @@ use App\Entity\DeckCard;
  */
 class NucFormatValidator extends AbstractDeckFormatValidator
 {
-    public function getFormat(): string { return 'nuc'; }
+    public function getFormat(): string
+    {
+        return 'nuc';
+    }
 
-    protected function getMinCards(): int { return 39; }
-    protected function getMaxCards(): int { return 59; }
+    protected function getMinCards(): int
+    {
+        return 39;
+    }
+
+    protected function getMaxCards(): int
+    {
+        return 59;
+    }
 
     protected function computeFormatRulesDetail(array $deckCards, array $cardsData, ?DeckCard $hero): array
     {

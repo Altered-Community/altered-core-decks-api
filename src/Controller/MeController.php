@@ -12,7 +12,8 @@ class MeController extends AbstractController
 {
     public function __construct(
         private readonly Security $security,
-    ) {}
+    ) {
+    }
 
     #[Route('/api/me', name: 'api_me', methods: ['GET'])]
     public function __invoke(): JsonResponse
@@ -21,10 +22,10 @@ class MeController extends AbstractController
         $user = $this->security->getUser();
 
         return $this->json([
-            'email'    => $user->getEmail(),
+            'email' => $user->getEmail(),
             'uniqueId' => $user->getKeycloakId(),
             'nickName' => $user->getUsername(),
-            'locale'   => $user->getLocale(),
+            'locale' => $user->getLocale(),
         ]);
     }
 }

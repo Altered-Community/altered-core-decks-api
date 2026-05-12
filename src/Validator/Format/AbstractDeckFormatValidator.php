@@ -26,9 +26,13 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
         return $errors;
     }
 
+    /**
+     * Format-specific rules (rarity limits, unique limits, etc.).
+     */
     abstract protected function validateFormatRules(array $deckCards, array $cardsData, ?DeckCard $hero): array;
 
     abstract protected function getMinCards(): int;
+
     abstract protected function getMaxCards(): int;
 
     /**
@@ -85,7 +89,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
      */
     protected function splitHeroAndCards(Deck $deck, array $cardsData): array
     {
-        $hero      = null;
+        $hero = null;
         $deckCards = [];
 
         foreach ($deck->getDeckCards() as $deckCard) {
@@ -103,15 +107,23 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
     protected function isHero(array $cardData): bool
     {
         $typeRef = $cardData['cardType']['reference'] ?? '';
-        return stripos($typeRef, 'HERO') !== false;
+
+        return false !== stripos($typeRef, 'HERO');
     }
 
     protected function getRarityCode(array $cardData): string
     {
         $ref = $cardData['cardRarity']['reference'] ?? '';
-        if (str_contains($ref, '_U'))  return 'U';
-        if (str_contains($ref, '_R2')) return 'R2';
-        if (str_contains($ref, '_R1')) return 'R1';
+        if (str_contains($ref, '_U')) {
+            return 'U';
+        }
+        if (str_contains($ref, '_R2')) {
+            return 'R2';
+        }
+        if (str_contains($ref, '_R1')) {
+            return 'R1';
+        }
+
         return 'C';
     }
 
@@ -121,20 +133,22 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
     }
 
     /**
-     * Groups DeckCards by card name, returns ['name' => ['rarity' => totalQty, ...], ...]
+     * Groups DeckCards by card name, returns ['name' => ['rarity' => totalQty, ...], ...].
      *
      * @param DeckCard[] $deckCards
+     *
      * @return array<string, array<string, int>>
      */
     protected function groupByName(array $deckCards, array $cardsData): array
     {
         $groups = [];
         foreach ($deckCards as $deckCard) {
-            $data    = $cardsData[$deckCard->getCardReference()] ?? [];
-            $name    = $this->getCardName($data);
-            $rarity  = $this->getRarityCode($data);
+            $data = $cardsData[$deckCard->getCardReference()] ?? [];
+            $name = $this->getCardName($data);
+            $rarity = $this->getRarityCode($data);
             $groups[$name][$rarity] = ($groups[$name][$rarity] ?? 0) + $deckCard->getQuantity();
         }
+
         return $groups;
     }
 
@@ -142,12 +156,13 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
 
     protected function validateHero(?DeckCard $hero): array
     {
-        if ($hero === null) {
+        if (null === $hero) {
             return ['Deck must contain exactly 1 hero card.'];
         }
-        if ($hero->getQuantity() !== 1) {
+        if (1 !== $hero->getQuantity()) {
             return ['Deck must contain exactly 1 hero card.'];
         }
+
         return [];
     }
 
@@ -155,12 +170,13 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
     protected function validateDeckSize(array $deckCards): array
     {
         $total = array_sum(array_map(fn (DeckCard $dc) => $dc->getQuantity(), $deckCards));
-        $min   = $this->getMinCards();
-        $max   = $this->getMaxCards();
+        $min = $this->getMinCards();
+        $max = $this->getMaxCards();
 
         if ($total < $min || $total > $max) {
             return [sprintf('Deck must contain between %d and %d cards (hero excluded), got %d.', $min, $max, $total)];
         }
+
         return [];
     }
 
@@ -171,7 +187,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
         foreach ($deckCards as $deckCard) {
             $data = $cardsData[$deckCard->getCardReference()] ?? [];
             $code = $data['faction']['code'] ?? null;
-            if ($code && $code !== 'NE') {
+            if ($code && 'NE' !== $code) {
                 $factions[$code] = true;
             }
         }
@@ -179,6 +195,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
         if (count($factions) > 1) {
             return [sprintf('Deck contains cards from multiple factions: %s.', implode(', ', array_keys($factions)))];
         }
+
         return [];
     }
 
@@ -189,8 +206,8 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
         $forbiddenSets = $this->getForbiddenSets();
 
         foreach ($deck->getDeckCards() as $deckCard) {
-            $ref  = $deckCard->getCardReference();
-            $set  = explode('_', $ref)[1] ?? '';
+            $ref = $deckCard->getCardReference();
+            $set = explode('_', $ref)[1] ?? '';
             $name = $this->getCardName($cardsData[$ref] ?? []) ?: $ref;
 
             if (in_array($set, $forbiddenSets, true)) {
@@ -199,6 +216,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
                 $errors[] = sprintf('Card "%s" belongs to set "%s" which is not allowed in this format.', $name, $set);
             }
         }
+
         return $errors;
     }
 
@@ -231,6 +249,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
                 $errors[] = sprintf('Card "%s" is suspended.', $this->getCardName($data));
             }
         }
+
         return $errors;
     }
 
@@ -248,6 +267,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
                 $errors[] = sprintf('Card "%s" exceeds %d copies (got %d across all rarities).', $name, $max, $total);
             }
         }
+
         return $errors;
     }
 
@@ -260,6 +280,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
         foreach ($groups as $rarities) {
             $total += $rarities['U'] ?? 0;
         }
+
         return $total;
     }
 

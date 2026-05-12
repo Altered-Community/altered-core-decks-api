@@ -20,11 +20,7 @@ class DeckFormatValidatorFactory
     public function getValidator(string $format): DeckFormatValidatorInterface
     {
         if (!isset($this->validators[$format])) {
-            throw new \InvalidArgumentException(sprintf(
-                'No validator found for format "%s". Available: %s',
-                $format,
-                implode(', ', array_keys($this->validators))
-            ));
+            throw new \InvalidArgumentException(sprintf('No validator found for format "%s". Available: %s', $format, implode(', ', array_keys($this->validators))));
         }
 
         return $this->validators[$format];

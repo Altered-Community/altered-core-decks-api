@@ -36,11 +36,22 @@ Dans tous les cas n'hésitez pas à regarder dans le Makefile pour vous souvenir
 ## Étape par Étape
 
 1. Cloner le dépôt et copier `.env` en `.env.local` en renseignant les variables nécessaires.
-2. Lancer la commande de build : _`build`_
-3. Démarrer les conteneurs : _`up`_ (la BDD et les migrations vont se créer et se jouer automatiquement)
-4. Ouvrez `https://localhost` dans votre navigateur et [acceptez le certificat TLS auto-généré](https://stackoverflow.com/a/15076602/1352334)
-5. Pour les utilisateurices de Make, utiliser `make setup` afin de gagner du temps — allez quand même voir l'install classique pour mieux comprendre le setup.
+2. Activer les hooks git (une seule fois après le clone) : `make install-hooks`
+   - Windows : `git config core.hooksPath .githooks`
+3. Lancer la commande de build : _`build`_
+4. Démarrer les conteneurs : _`up`_ (la BDD et les migrations vont se créer et se jouer automatiquement)
+5. Ouvrez `https://localhost` dans votre navigateur et [acceptez le certificat TLS auto-généré](https://stackoverflow.com/a/15076602/1352334)
 6. Stopper les conteneurs quand vous avez fini de travailler : _`down`_
+
+## Qualité de code
+
+Les hooks git lancent automatiquement PHP CS Fixer et PHPStan à chaque commit sur les fichiers PHP modifiés.
+
+| Commande | Description |
+|---|---|
+| `make cs-fix` | Corrige le style (PHP CS Fixer) |
+| `make cs-check` | Vérifie sans modifier |
+| `make phpstan` | Analyse statique (niveau 5) |
 
 ---
 
@@ -78,8 +89,20 @@ In any case, feel free to check the Makefile to look up available commands.
 ## Step by Step
 
 1. Clone the repository and copy `.env` to `.env.local`, filling in the required variables.
-2. Build the images: _`build`_
-3. Start the containers: _`up`_ (the database and migrations will be created and run automatically)
-4. Open `https://localhost` in your browser and [accept the auto-generated TLS certificate](https://stackoverflow.com/a/15076602/1352334)
+2. Activate git hooks (once, after cloning): `make install-hooks`
+   - Windows: `git config core.hooksPath .githooks`
+3. Build the images: _`build`_
+4. Start the containers: _`up`_ (the database and migrations will be created and run automatically)
+5. Open `https://localhost` in your browser and [accept the auto-generated TLS certificate](https://stackoverflow.com/a/15076602/1352334)
 6. Stop the containers when you are done: _`down`_
+
+## Code Quality
+
+Git hooks automatically run PHP CS Fixer and PHPStan on every commit for staged PHP files.
+
+| Command | Description |
+|---|---|
+| `make cs-fix` | Fix code style (PHP CS Fixer) |
+| `make cs-check` | Check style without modifying |
+| `make phpstan` | Static analysis (level 5) |
 

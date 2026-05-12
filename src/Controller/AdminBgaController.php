@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\Deck;
 use App\Repository\DeckRepository;
 use App\Serializer\BgaDeckSerializer;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -14,9 +15,10 @@ final class AdminBgaController extends AbstractController
     private const BGA_VALID_FORMATS = ['standard', 'nuc', 'sandbox'];
 
     public function __construct(
-        private readonly DeckRepository    $deckRepository,
+        private readonly DeckRepository $deckRepository,
         private readonly BgaDeckSerializer $bgaSerializer,
-    ) {}
+    ) {
+    }
 
     #[Route('/admin/bga', name: 'admin_bga_index', methods: ['GET'])]
     public function index(Request $request): Response
@@ -25,25 +27,25 @@ final class AdminBgaController extends AbstractController
             return $this->redirectToRoute('admin_login');
         }
 
-        $name   = (string) $request->query->get('name', '');
+        $name = (string) $request->query->get('name', '');
         $format = (string) $request->query->get('format', '');
-        $page   = max(1, (int) $request->query->get('page', 1));
-        $items  = 20;
+        $page = max(1, (int) $request->query->get('page', 1));
+        $items = 20;
 
         $factions = ['AX', 'BR', 'MU', 'LY', 'OR', 'YZ'];
-        $decks    = $this->deckRepository->findBgaDecks(null, $page, $items, $name, $factions, '', $format, self::BGA_VALID_FORMATS);
-        $total    = $this->deckRepository->countBgaDecks(null, $name, $factions, '', $format, self::BGA_VALID_FORMATS);
+        $decks = $this->deckRepository->findBgaDecks(null, $page, $items, $name, $factions, '', $format, self::BGA_VALID_FORMATS);
+        $total = $this->deckRepository->countBgaDecks(null, $name, $factions, '', $format, self::BGA_VALID_FORMATS);
         $lastPage = max(1, (int) ceil($total / $items));
 
         $rows = array_map(fn (Deck $deck) => $this->bgaSerializer->adminRow($deck), $decks);
 
         return $this->render('admin/bga/index.html.twig', [
-            'rows'     => $rows,
-            'total'    => $total,
-            'page'     => $page,
+            'rows' => $rows,
+            'total' => $total,
+            'page' => $page,
             'lastPage' => $lastPage,
-            'filters'  => compact('name', 'format'),
-            'formats'  => self::BGA_VALID_FORMATS,
+            'filters' => compact('name', 'format'),
+            'formats' => self::BGA_VALID_FORMATS,
         ]);
     }
 
@@ -61,26 +63,26 @@ final class AdminBgaController extends AbstractController
         }
 
         $collectionEntry = $this->bgaSerializer->collectionEntry($deck);
-        $faction         = $collectionEntry['faction'];
+        $faction = $collectionEntry['faction'];
 
         try {
             $itemData = $this->bgaSerializer->normalizeItem($deck);
             $itemJson = json_encode($itemData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         } catch (\Throwable $e) {
             $itemData = null;
-            $itemJson = 'Erreur normalisation : ' . $e->getMessage();
+            $itemJson = 'Erreur normalisation : '.$e->getMessage();
         }
 
         return $this->render('admin/bga/deck.html.twig', [
-            'deck'            => $deck,
-            'faction'         => $faction,
-            'collectionJson'  => json_encode(
+            'deck' => $deck,
+            'faction' => $faction,
+            'collectionJson' => json_encode(
                 ['success' => 1, 'content' => ['decks' => [$collectionEntry]]],
                 JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE
             ),
-            'itemJson'        => $itemJson,
-            'hasErrors'       => !empty($deck->getFormatErrors()),
-            'formatErrors'    => $deck->getFormatErrors() ?? [],
+            'itemJson' => $itemJson,
+            'hasErrors' => !empty($deck->getFormatErrors()),
+            'formatErrors' => $deck->getFormatErrors() ?? [],
         ]);
     }
 }

@@ -15,28 +15,29 @@ final class AdminAuthController extends AbstractController
 {
     public function __construct(
         private readonly HttpClientInterface $httpClient,
-        private readonly KeycloakJwtDecoder  $jwtDecoder,
-        private readonly UserRepository      $userRepository,
-        #[Autowire('%keycloak_base_url%')]   private readonly string $keycloakBaseUrl,
-        #[Autowire('%keycloak_realm%')]      private readonly string $keycloakRealm,
-        #[Autowire('%keycloak_client_id%')]  private readonly string $keycloakClientId,
+        private readonly KeycloakJwtDecoder $jwtDecoder,
+        private readonly UserRepository $userRepository,
+        #[Autowire('%keycloak_base_url%')] private readonly string $keycloakBaseUrl,
+        #[Autowire('%keycloak_realm%')] private readonly string $keycloakRealm,
+        #[Autowire('%keycloak_client_id%')] private readonly string $keycloakClientId,
         #[Autowire('%keycloak_client_secret%')] private readonly string $keycloakClientSecret,
-    ) {}
+    ) {
+    }
 
     #[Route('/admin/login', name: 'admin_login', methods: ['GET'])]
     public function login(Request $request): Response
     {
-        $verifier  = $this->generateVerifier();
+        $verifier = $this->generateVerifier();
         $challenge = $this->generateChallenge($verifier);
 
         $request->getSession()->set('pkce_verifier', $verifier);
 
         $params = http_build_query([
-            'client_id'             => $this->keycloakClientId,
-            'redirect_uri'          => $this->callbackUri($request),
-            'response_type'         => 'code',
-            'scope'                 => 'openid profile email',
-            'code_challenge'        => $challenge,
+            'client_id' => $this->keycloakClientId,
+            'redirect_uri' => $this->callbackUri($request),
+            'response_type' => 'code',
+            'scope' => 'openid profile email',
+            'code_challenge' => $challenge,
             'code_challenge_method' => 'S256',
         ]);
 
@@ -48,7 +49,7 @@ final class AdminAuthController extends AbstractController
     #[Route('/admin/callback', name: 'admin_callback', methods: ['GET'])]
     public function callback(Request $request): Response
     {
-        $code     = $request->query->get('code');
+        $code = $request->query->get('code');
         $verifier = $request->getSession()->get('pkce_verifier');
         $request->getSession()->remove('pkce_verifier');
 
@@ -57,14 +58,14 @@ final class AdminAuthController extends AbstractController
         }
 
         $body = [
-            'grant_type'    => 'authorization_code',
-            'client_id'     => $this->keycloakClientId,
-            'code'          => $code,
-            'redirect_uri'  => $this->callbackUri($request),
+            'grant_type' => 'authorization_code',
+            'client_id' => $this->keycloakClientId,
+            'code' => $code,
+            'redirect_uri' => $this->callbackUri($request),
             'code_verifier' => $verifier,
         ];
 
-        if ($this->keycloakClientSecret !== '') {
+        if ('' !== $this->keycloakClientSecret) {
             $body['client_secret'] = $this->keycloakClientSecret;
         }
 
@@ -85,12 +86,12 @@ final class AdminAuthController extends AbstractController
         try {
             $decoded = $this->jwtDecoder->decode($data['access_token']);
         } catch (\Throwable $e) {
-            return new Response('Token invalide : ' . $e->getMessage(), Response::HTTP_UNAUTHORIZED);
+            return new Response('Token invalide : '.$e->getMessage(), Response::HTTP_UNAUTHORIZED);
         }
 
         $user = $this->userRepository->findByKeycloakId($decoded->sub);
 
-        if ($user === null || !$user->isAdmin()) {
+        if (null === $user || !$user->isAdmin()) {
             return new Response('Accès refusé.', Response::HTTP_FORBIDDEN);
         }
 
@@ -109,7 +110,7 @@ final class AdminAuthController extends AbstractController
             '%s/realms/%s/protocol/openid-connect/logout?post_logout_redirect_uri=%s&client_id=%s',
             $this->keycloakBaseUrl,
             $this->keycloakRealm,
-            urlencode($request->getSchemeAndHttpHost() . '/admin/login'),
+            urlencode($request->getSchemeAndHttpHost().'/admin/login'),
             $this->keycloakClientId,
         );
 
@@ -128,13 +129,13 @@ final class AdminAuthController extends AbstractController
         try {
             $decoded = $this->jwtDecoder->decode($token);
         } catch (\Throwable $e) {
-            return new Response('Token decode error: ' . $e->getMessage(), 500);
+            return new Response('Token decode error: '.$e->getMessage(), 500);
         }
 
         $html = '<pre>';
-        $html .= '<strong>Bearer token (copy for Authorization header):</strong>' . "\n";
-        $html .= htmlspecialchars($token) . "\n\n";
-        $html .= '<strong>Decoded claims:</strong>' . "\n";
+        $html .= '<strong>Bearer token (copy for Authorization header):</strong>'."\n";
+        $html .= htmlspecialchars($token)."\n\n";
+        $html .= '<strong>Decoded claims:</strong>'."\n";
         $html .= htmlspecialchars(json_encode((array) $decoded, JSON_PRETTY_PRINT));
         $html .= '</pre>';
 
@@ -143,7 +144,7 @@ final class AdminAuthController extends AbstractController
 
     private function callbackUri(Request $request): string
     {
-        return $request->getSchemeAndHttpHost() . '/admin/callback';
+        return $request->getSchemeAndHttpHost().'/admin/callback';
     }
 
     private function generateVerifier(): string

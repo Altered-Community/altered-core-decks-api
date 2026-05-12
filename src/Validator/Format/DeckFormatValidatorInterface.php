@@ -14,8 +14,9 @@ interface DeckFormatValidatorInterface
     /**
      * Validate the deck against format rules.
      *
-     * @param  array<string, array> $cardsData  reference => card data from altered-core
-     * @return string[]  list of validation error messages (empty = valid)
+     * @param array<string, array> $cardsData reference => card data from altered-core
+     *
+     * @return string[] list of validation error messages (empty = valid)
      */
     public function validate(Deck $deck, array $cardsData): array;
 

@@ -13,8 +13,9 @@ class DevAuthController extends AbstractController
 {
     public function __construct(
         private readonly string $appSecret,
-        private readonly bool   $devAuthEnabled,
-    ) {}
+        private readonly bool $devAuthEnabled,
+    ) {
+    }
 
     #[Route('/api/dev/auth', name: 'dev_auth', methods: ['POST'])]
     public function __invoke(Request $request): JsonResponse
@@ -25,27 +26,27 @@ class DevAuthController extends AbstractController
 
         $body = json_decode($request->getContent(), true);
 
-        $sub      = $body['sub']      ?? 'dev-user-' . uniqid();
-        $email    = $body['email']    ?? null;
+        $sub = $body['sub'] ?? 'dev-user-'.uniqid();
+        $email = $body['email'] ?? null;
         $username = $body['username'] ?? 'dev-user';
 
-        $now     = time();
+        $now = time();
         $payload = [
-            'sub'                => $sub,
+            'sub' => $sub,
             'preferred_username' => $username,
-            'email'              => $email,
-            'name'               => $username,
-            'iss'                => 'dev',
-            'iat'                => $now,
-            'exp'                => $now + 3600,
+            'email' => $email,
+            'name' => $username,
+            'iss' => 'dev',
+            'iat' => $now,
+            'exp' => $now + 3600,
         ];
 
         $token = JWT::encode($payload, $this->appSecret, 'HS256');
 
         return new JsonResponse([
-            'token'      => $token,
+            'token' => $token,
             'expires_in' => 3600,
-            'payload'    => $payload,
+            'payload' => $payload,
         ]);
     }
 }

@@ -16,10 +16,11 @@ final readonly class DeckItemProvider implements ProviderInterface
 {
     public function __construct(
         private DeckRepository $deckRepository,
-        private Security       $security,
-    ) {}
+        private Security $security,
+    ) {
+    }
 
-    public function provide(Operation $operation, array $uriVariables = [], array $context = []): ?Deck
+    public function provide(Operation $operation, array $uriVariables = [], array $context = []): Deck
     {
         $deck = $this->deckRepository->find($uriVariables['id']);
 

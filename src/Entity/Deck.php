@@ -2,15 +2,15 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
-use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
-use ApiPlatform\Metadata\ApiFilter;
 use App\Enum\DeckFormat;
 use App\Repository\DeckRepository;
 use App\State\DeckCollectionProvider;
@@ -40,12 +40,12 @@ use Symfony\Component\Validator\Constraints as Assert;
             provider: DeckItemProvider::class,
         ),
         new Post(
-            normalizationContext:   ['groups' => ['deck:read']],
+            normalizationContext: ['groups' => ['deck:read']],
             denormalizationContext: ['groups' => ['deck:write']],
             processor: DeckStateProcessor::class,
         ),
         new Patch(
-            normalizationContext:   ['groups' => ['deck:read']],
+            normalizationContext: ['groups' => ['deck:read']],
             denormalizationContext: ['groups' => ['deck:write']],
             processor: DeckStateProcessor::class,
         ),
@@ -54,10 +54,10 @@ use Symfony\Component\Validator\Constraints as Assert;
     paginationItemsPerPage: 20,
 )]
 #[ApiFilter(SearchFilter::class, properties: [
-    'format'    => 'exact',
-    'isPublic'  => 'exact',
-    'isDraft'   => 'exact',
-    'user'      => 'exact',
+    'format' => 'exact',
+    'isPublic' => 'exact',
+    'isDraft' => 'exact',
+    'user' => 'exact',
 ])]
 #[ApiFilter(OrderFilter::class, properties: ['createdAt', 'updatedAt', 'name'])]
 class Deck
@@ -96,6 +96,7 @@ class Deck
     #[Groups(['deck:read'])]
     private User $user;
 
+    /** @var Collection<int, DeckCard> */
     #[ORM\OneToMany(targetEntity: DeckCard::class, mappedBy: 'deck', cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[Assert\Valid]
     #[Groups(['deck:read:detail', 'deck:write'])]
@@ -131,55 +132,167 @@ class Deck
         $this->deckCards = new ArrayCollection();
     }
 
-    public function getId(): ?Uuid { return $this->id; }
+    public function getId(): ?Uuid
+    {
+        return $this->id;
+    }
 
-    public function getName(): string { return $this->name; }
-    public function setName(string $name): self { $this->name = $name; return $this; }
+    public function getName(): string
+    {
+        return $this->name;
+    }
 
-    public function getDescription(): ?string { return $this->description; }
-    public function setDescription(?string $description): self { $this->description = $description; return $this; }
+    public function setName(string $name): self
+    {
+        $this->name = $name;
 
-    public function getFormat(): ?DeckFormat { return $this->format; }
-    public function setFormat(?DeckFormat $format): self { $this->format = $format; return $this; }
+        return $this;
+    }
 
-    public function getIsPublic(): bool { return $this->isPublic; }
-    public function setIsPublic(bool $isPublic): self { $this->isPublic = $isPublic; return $this; }
+    public function getFormat(): ?DeckFormat
+    {
+        return $this->format;
+    }
 
-    public function getIsDraft(): bool { return $this->isDraft; }
-    public function setIsDraft(bool $isDraft): self { $this->isDraft = $isDraft; return $this; }
+    public function setFormat(?DeckFormat $format): self
+    {
+        $this->format = $format;
 
-    public function getUser(): User { return $this->user; }
-    public function setUser(User $user): self { $this->user = $user; return $this; }
+        return $this;
+    }
 
-    public function getDeckCards(): Collection { return $this->deckCards; }
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    public function setDescription(?string $description): self
+    {
+        $this->description = $description;
+
+        return $this;
+    }
+
+    public function getIsPublic(): bool
+    {
+        return $this->isPublic;
+    }
+
+    public function setIsPublic(bool $isPublic): self
+    {
+        $this->isPublic = $isPublic;
+
+        return $this;
+    }
+
+    public function getIsDraft(): bool
+    {
+        return $this->isDraft;
+    }
+
+    public function setIsDraft(bool $isDraft): self
+    {
+        $this->isDraft = $isDraft;
+
+        return $this;
+    }
+
+    public function getUser(): User
+    {
+        return $this->user;
+    }
+
+    public function setUser(User $user): self
+    {
+        $this->user = $user;
+
+        return $this;
+    }
+
+    public function getDeckCards(): Collection
+    {
+        return $this->deckCards;
+    }
+
     public function addDeckCard(DeckCard $card): self
     {
         if (!$this->deckCards->contains($card)) {
             $this->deckCards->add($card);
             $card->setDeck($this);
         }
+
         return $this;
     }
+
     public function removeDeckCard(DeckCard $card): self
     {
         $this->deckCards->removeElement($card);
+
         return $this;
     }
 
-    public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
+    public function getCreatedAt(): \DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
 
-    public function getUpdatedAt(): ?\DateTimeImmutable { return $this->updatedAt; }
-    public function setUpdatedAt(?\DateTimeImmutable $updatedAt): self { $this->updatedAt = $updatedAt; return $this; }
+    public function getUpdatedAt(): ?\DateTimeImmutable
+    {
+        return $this->updatedAt;
+    }
 
-    public function getStats(): ?array { return $this->stats; }
-    public function setStats(?array $stats): self { $this->stats = $stats; return $this; }
+    public function setUpdatedAt(?\DateTimeImmutable $updatedAt): self
+    {
+        $this->updatedAt = $updatedAt;
 
-    public function getFormatErrors(): ?array { return $this->formatErrors; }
-    public function setFormatErrors(?array $formatErrors): self { $this->formatErrors = $formatErrors; return $this; }
+        return $this;
+    }
 
-    public function isLegal(): bool { return $this->legal; }
-    public function setLegal(bool $legal): self { $this->legal = $legal; return $this; }
+    public function getStats(): ?array
+    {
+        return $this->stats;
+    }
 
-    public function getLegalityDetail(): ?array { return $this->legalityDetail; }
-    public function setLegalityDetail(?array $legalityDetail): self { $this->legalityDetail = $legalityDetail; return $this; }
+    public function setStats(?array $stats): self
+    {
+        $this->stats = $stats;
+
+        return $this;
+    }
+
+    public function getFormatErrors(): ?array
+    {
+        return $this->formatErrors;
+    }
+
+    public function setFormatErrors(?array $formatErrors): self
+    {
+        $this->formatErrors = $formatErrors;
+
+        return $this;
+    }
+
+    public function isLegal(): bool
+    {
+        return $this->legal;
+    }
+
+    public function setLegal(bool $legal): self
+    {
+        $this->legal = $legal;
+
+        return $this;
+    }
+
+    public function getLegalityDetail(): ?array
+    {
+        return $this->legalityDetail;
+    }
+
+    public function setLegalityDetail(?array $legalityDetail): self
+    {
+        $this->legalityDetail = $legalityDetail;
+
+        return $this;
+    }
 }

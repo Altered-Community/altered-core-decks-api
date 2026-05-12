@@ -13,42 +13,42 @@ class FormatController extends AbstractController
     {
         return $this->json([
             [
-                'code'     => 'nuc',
-                'label'    => 'NUC',
+                'code' => 'nuc',
+                'label' => 'NUC',
                 'minCards' => 39,
                 'maxCards' => 59,
-                'limits'   => [
-                    'unique'            => 0,
-                    'rare'              => 15,
-                    'exalted'           => 3,
-                    'maxCopiesPerName'  => 3,
-                    'maxCopiesPerRarity'=> null,
+                'limits' => [
+                    'unique' => 0,
+                    'rare' => 15,
+                    'exalted' => 3,
+                    'maxCopiesPerName' => 3,
+                    'maxCopiesPerRarity' => null,
                 ],
             ],
             [
-                'code'     => 'standard',
-                'label'    => 'Standard',
+                'code' => 'standard',
+                'label' => 'Standard',
                 'minCards' => 39,
                 'maxCards' => 59,
-                'limits'   => [
-                    'unique'            => 3,
-                    'rare'              => 15,
-                    'exalted'           => 3,
-                    'maxCopiesPerName'  => 3,
-                    'maxCopiesPerRarity'=> null,
+                'limits' => [
+                    'unique' => 3,
+                    'rare' => 15,
+                    'exalted' => 3,
+                    'maxCopiesPerName' => 3,
+                    'maxCopiesPerRarity' => null,
                 ],
             ],
             [
-                'code'     => 'singleton',
-                'label'    => 'Singleton',
+                'code' => 'singleton',
+                'label' => 'Singleton',
                 'minCards' => 59,
                 'maxCards' => 79,
-                'limits'   => [
-                    'unique'            => null,
-                    'rare'              => null,
-                    'exalted'           => null,
-                    'maxCopiesPerName'  => 3,
-                    'maxCopiesPerRarity'=> 1,
+                'limits' => [
+                    'unique' => null,
+                    'rare' => null,
+                    'exalted' => null,
+                    'maxCopiesPerName' => 3,
+                    'maxCopiesPerRarity' => 1,
                 ],
                 'uniqueLimitsByHero' => [
                     3 => ['teija', 'kojo', 'basira', 'sigismar', 'nevenka', 'fen', 'treyst'],

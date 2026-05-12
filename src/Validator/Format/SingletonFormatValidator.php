@@ -20,10 +20,20 @@ class SingletonFormatValidator extends AbstractDeckFormatValidator
         5 => ['sierra', 'sol', 'auraq', 'nadir', 'waru', 'gulrang', 'lindiwe', 'afanas', 'moyo'],
     ];
 
-    public function getFormat(): string { return 'singleton'; }
+    public function getFormat(): string
+    {
+        return 'singleton';
+    }
 
-    protected function getMinCards(): int { return 59; }
-    protected function getMaxCards(): int { return 79; }
+    protected function getMinCards(): int
+    {
+        return 59;
+    }
+
+    protected function getMaxCards(): int
+    {
+        return 79;
+    }
 
     protected function computeFormatRulesDetail(array $deckCards, array $cardsData, ?DeckCard $hero): array
     {

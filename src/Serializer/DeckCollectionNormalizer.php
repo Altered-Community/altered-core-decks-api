@@ -14,7 +14,9 @@ class DeckCollectionNormalizer implements NormalizerInterface, NormalizerAwareIn
 
     private const ALREADY_CALLED = 'DECK_COLLECTION_NORMALIZER_ALREADY_CALLED';
 
-    public function __construct(private readonly RequestStack $requestStack) {}
+    public function __construct(private readonly RequestStack $requestStack)
+    {
+    }
 
     public function normalize(mixed $object, ?string $format = null, array $context = []): array
     {
@@ -25,33 +27,34 @@ class DeckCollectionNormalizer implements NormalizerInterface, NormalizerAwareIn
             $items[] = $this->normalizer->normalize($item, $format, $context);
         }
 
-        $currentPage  = (int) $object->getCurrentPage();
+        $currentPage = (int) $object->getCurrentPage();
         $itemsPerPage = (int) $object->getItemsPerPage();
-        $totalItems   = (int) $object->getTotalItems();
-        $lastPage     = $itemsPerPage > 0 ? (int) ceil($totalItems / $itemsPerPage) : 1;
+        $totalItems = (int) $object->getTotalItems();
+        $lastPage = $itemsPerPage > 0 ? (int) ceil($totalItems / $itemsPerPage) : 1;
 
-        $request    = $this->requestStack->getCurrentRequest();
-        $baseUrl    = $request?->getPathInfo() ?? '';
+        $request = $this->requestStack->getCurrentRequest();
+        $baseUrl = $request?->getPathInfo() ?? '';
         $queryParams = $request?->query->all() ?? [];
 
         $buildUrl = function (int $page) use ($baseUrl, $queryParams): string {
             $params = array_merge($queryParams, ['page' => $page]);
-            return $baseUrl . '?' . http_build_query($params);
+
+            return $baseUrl.'?'.http_build_query($params);
         };
 
         return [
-            'data'       => $items,
+            'data' => $items,
             'pagination' => [
-                'totalItems'   => $totalItems,
+                'totalItems' => $totalItems,
                 'itemsPerPage' => $itemsPerPage,
-                'currentPage'  => $currentPage,
-                'lastPage'     => $lastPage,
+                'currentPage' => $currentPage,
+                'lastPage' => $lastPage,
             ],
-            'links'      => [
-                'first'    => $buildUrl(1),
-                'last'     => $buildUrl($lastPage),
+            'links' => [
+                'first' => $buildUrl(1),
+                'last' => $buildUrl($lastPage),
                 'previous' => $currentPage > 1 ? $buildUrl($currentPage - 1) : null,
-                'next'     => $currentPage < $lastPage ? $buildUrl($currentPage + 1) : null,
+                'next' => $currentPage < $lastPage ? $buildUrl($currentPage + 1) : null,
             ],
         ];
     }
