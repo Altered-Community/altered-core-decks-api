@@ -17,8 +17,8 @@ class SandboxFormatValidator extends AbstractDeckFormatValidator
 {
     public function getFormat(): string { return 'sandbox'; }
 
-    protected function getMinCards(): int { return 39; }
-    protected function getMaxCards(): int { return 59; }
+    protected function getMinCards(): int { return 1; }
+    protected function getMaxCards(): int { return 100; }
 
     protected function validateFormatRules(array $deckCards, array $cardsData, ?DeckCard $hero): array
     {

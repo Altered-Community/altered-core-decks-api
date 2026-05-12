@@ -163,7 +163,7 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
                 'subTypes'    => array_column($card['cardSubTypes'] ?? [], 'reference'),
                 'typeline'    => $typeline,
                 'mainFaction' => ['reference' => $card['faction']['code']],
-                'illustrator' => ['nickName' => $card['artists'][0]['name']],
+                'illustrator' => ['nickName' => $card['artists'] ? $card['artists'][0]['name']: null],
                 'elements'    => [
                     'MAIN_COST' => $card['mainCost'],
                     'RECALL_COST' => $card['recallCost'],

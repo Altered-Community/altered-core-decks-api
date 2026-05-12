@@ -52,4 +52,51 @@ final readonly class BgaDeckSerializer
     {
         return array_map(fn (Deck $deck) => $this->collectionEntry($deck), $decks);
     }
+
+    public function buildCardElements(array $card): array
+    {
+        return array_values(array_filter([$this->generateMainEffect($card)]));
+    }
+
+    private function generateMainEffect(array $card): array
+    {
+        $cardEffectDisplays = [];
+        foreach (['effect1', 'effect2', 'effect3'] as $i => $effectKey) {
+            if (array_key_exists($effectKey, $card)) {
+                $cardEffectDisplays[] = $this->generateEffectDisplay($card[$effectKey], $i + 1);
+            }
+        }
+
+        return [
+            'cardElementType'    => ['reference' => 'MAIN_EFFECT'],
+            'cardEffectDisplays' => $cardEffectDisplays,
+        ];
+    }
+
+    private function generateEffectDisplay(array $effect, int $sequence): array
+    {
+        return [
+            'cardEffect' => [
+                'cardEffectElements' => [
+                    [
+                        'idGd' => $effect['abilityTrigger']['alteredId'],
+                        'type' => 'TRIGGER',
+                        'text' => $effect['abilityTrigger']['text'],
+                    ],
+                    [
+                        'idGd' => $effect['abilityCondition']['alteredId'],
+                        'type' => 'OUTPUT',
+                        'text' => $effect['abilityCondition']['text'],
+                    ],
+                    [
+                        'idGd' => $effect['abilityEffect']['alteredId'],
+                        'type' => 'CONDITION',
+                        'text' => $effect['abilityEffect']['text'],
+                    ],
+                ],
+                'reference' => $effect['abilityKey'],
+                'sequence'  => $sequence,
+            ],
+        ];
+    }
 }
