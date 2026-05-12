@@ -6,10 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  PHP_EXTENSIONS: pdo_pgsql, apcu, intl, zip
+
 jobs:
   setup:
     name: Install dependencies
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,7 +21,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_pgsql, apcu, intl, zip
+          extensions: ${{ env.PHP_EXTENSIONS }}
           coverage: none
 
       - name: Cache Composer packages
@@ -44,7 +47,7 @@ jobs:
   code-quality:
     name: Code Quality
     needs: setup
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,7 +56,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_pgsql, apcu, intl, zip
+          extensions: ${{ env.PHP_EXTENSIONS }}
           coverage: none
 
       - name: Download vendor
@@ -69,7 +72,8 @@ jobs:
         env:
           APP_ENV: dev
           APP_SECRET: ci-secret
-          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          # Doctrine connects lazily — a placeholder URL is enough for warmup
+          DATABASE_URL: postgresql://ci:ci@localhost/ci
         run: php bin/console cache:warmup --env=dev
 
       - name: PHPStan
@@ -78,6 +82,9 @@ jobs:
   tests:
     name: Tests PHP ${{ matrix.php }}
     needs: setup
+    # Secrets (DATABASE_URL) are not available on fork PRs — skip tests there.
+    # They run on push to main and on PRs opened from within the same repo.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: self-hosted
     strategy:
       matrix:
@@ -90,7 +97,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: pdo_pgsql, apcu, intl, zip
+          extensions: ${{ env.PHP_EXTENSIONS }}
           coverage: none
 
       - name: Download vendor
