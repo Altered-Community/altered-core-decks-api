@@ -43,21 +43,6 @@ final readonly class OpenApiFactory implements OpenApiFactoryInterface
             post: new Model\Operation(
                 operationId: 'dev_auth_post',
                 tags: ['Dev'],
-                summary: 'Generate a dev JWT token (disabled in production)',
-                requestBody: new Model\RequestBody(
-                    content: new \ArrayObject([
-                        'application/json' => [
-                            'schema' => [
-                                'type' => 'object',
-                                'properties' => [
-                                    'sub'      => ['type' => 'string', 'example' => 'user-1'],
-                                    'username' => ['type' => 'string', 'example' => 'john'],
-                                    'email'    => ['type' => 'string', 'example' => 'john@example.com'],
-                                ],
-                            ],
-                        ],
-                    ]),
-                ),
                 responses: [
                     '200' => new Model\Response(
                         description: 'JWT token',
@@ -74,6 +59,21 @@ final readonly class OpenApiFactory implements OpenApiFactoryInterface
                         ]),
                     ),
                 ],
+                summary: 'Generate a dev JWT token (disabled in production)',
+                requestBody: new Model\RequestBody(
+                    content: new \ArrayObject([
+                        'application/json' => [
+                            'schema' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'sub'      => ['type' => 'string', 'example' => 'user-1'],
+                                    'username' => ['type' => 'string', 'example' => 'john'],
+                                    'email'    => ['type' => 'string', 'example' => 'john@example.com'],
+                                ],
+                            ],
+                        ],
+                    ]),
+                ),
             ),
         ));
     }

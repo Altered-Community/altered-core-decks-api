@@ -22,7 +22,7 @@
 
 **Package Manager:**
 - Composer 2 (installed in Docker image via `install-php-extensions @composer`)
-- Lockfile: `composer.lock` present and committed
+- Lockfile: `composer.lock` and `symfony.lock` present and committed
 
 ## Frameworks
 
@@ -31,7 +31,7 @@
 
 **API Layer:**
 - API Platform 4.3 (`api-platform/core` v4.3.3) — REST API generation from entity attributes
-- Format: `application/json` only (no JSON-LD/Hydra hydration; uses `member` / `totalItems`)
+- Format: `application/json` only (no JSON-LD/Hydra)
 
 **ORM:**
 - Doctrine ORM 3.6 (`doctrine/orm` v3.6.3) — entity mapping via PHP attributes
@@ -40,6 +40,8 @@
 
 **Templating:**
 - Twig 3.24 (`twig/twig` v3.24.0) — used for `templates/` (homepage / UI only, not API responses)
+- Tailwind CSS — loaded via CDN in `templates/base.html.twig` (no build pipeline, no npm)
+- Tom Select — multi-select inputs, CDN-loaded
 
 **Security:**
 - Symfony Security Bundle 8.0 (`symfony/security-bundle` v8.0.8)
@@ -67,6 +69,7 @@
 | `doctrine/doctrine-migrations-bundle` | ^4.0 (installed 4.0.0) | Database migrations |
 | `firebase/php-jwt` | ^7.0 (installed 7.0.5) | JWT decode for Keycloak token validation |
 | `nelmio/cors-bundle` | ^2.6 (installed 2.6.1) | CORS handling |
+| `symfony/asset` | 8.0.* | Asset versioning helpers (required by API Platform Twig template) |
 | `symfony/http-client` | 8.0.* | Outbound HTTP calls (Keycloak JWKS, Altered Core API) |
 | `symfony/security-bundle` | 8.0.* (installed 8.0.8) | Auth firewall |
 | `symfony/uid` | 8.0.* | UUID support |
@@ -74,6 +77,7 @@
 | `twig/twig` | ^3.24 (installed 3.24.0) | HTML templates |
 
 **Dev only:**
+
 | Package | Version | Purpose |
 |---------|---------|---------|
 | `symfony/maker-bundle` | ^1.67 | Code generation (`make:entity`, etc.) |
@@ -83,27 +87,40 @@
 **Containerization:**
 - Docker with multi-stage build: `frankenphp_base` → `frankenphp_dev` / `frankenphp_prod` targets
 - Dockerfile at `Dockerfile`; Compose files: `compose.yaml`, `compose.override.yaml` (dev), `compose.prod.yaml`
-- `make build` / `make up` / `make start` for standard operations (see `Makefile`)
+
+**Makefile Targets:**
+
+```bash
+make build                # docker compose build
+make up                   # docker compose up --detach
+make start                # build + up
+make down                 # docker compose down --remove-orphans
+make sh                   # shell into php container
+make bash                 # bash into php container
+make composer c='...'     # run composer command in container
+make sf c='...'           # run bin/console command in container
+make cc                   # symfony cache:clear
+make test                 # run phpunit (APP_ENV=test)
+make openapi              # export OpenAPI spec → docs/openapi.json
+make install-hooks        # configure .githooks/ (git config core.hooksPath .githooks)
+```
 
 **PHP Extensions (installed in Docker image):**
 - `pdo_pgsql` — PostgreSQL driver
-- `apcu` — in-process key-value cache (used as Symfony cache adapter in dev/prod)
+- `apcu` — in-process key-value cache (used as Symfony cache adapter)
 - `opcache` — bytecode cache
 - `intl` — internationalization
 - `zip` — archive support
 - `xdebug` — dev image only
 
 **Caching:**
-- Symfony Cache component backed by APCu (default filesystem in dev; pooled for Doctrine query/result cache in prod)
+- Symfony Cache component backed by APCu (filesystem in dev; pooled for Doctrine query/result cache in prod)
 - JWKS from Keycloak cached for 1 hour (`KeycloakAuthenticator`)
 - Altered Core card data cached per reference for 1 hour (`AlteredCoreClient`)
 
 **Testing:**
-- PHPUnit (invoked via `make test` → `bin/phpunit` inside container)
-- No dedicated test framework beyond Symfony's built-in test utilities; test namespace at `tests/`
-
-**Task Runner:**
-- `Makefile` — wraps `docker compose`, `composer`, and `bin/console` commands
+- PHPUnit NOT currently installed. No `phpunit/phpunit` or `symfony/test-pack` in `composer.json`.
+- `make test` target exists but will fail — see `TESTING.md` for setup instructions.
 
 ## Environment
 
@@ -120,16 +137,20 @@
 - Runs as `www-data` user
 
 **Key Environment Variables:**
-- `APP_ENV` — `dev` / `prod` / `test`
-- `APP_SECRET` — Symfony secret key
-- `DATABASE_URL` — PostgreSQL DSN
-- `KEYCLOAK_BASE_URL` — Keycloak server URL (default `http://localhost:8080`)
-- `KEYCLOAK_REALM` — Keycloak realm name (default `altered`)
-- `ALTERED_CORE_URL` — URL of the Altered Core cards API (default `http://localhost:41309`)
-- `CORS_ALLOW_ORIGIN` — CORS allowed origins regex
-- `DEV_AUTH_ENABLED` — enables local HS256 JWT bypass (`false` by default)
-- `SERVER_NAME`, `HTTP_PORT`, `HTTPS_PORT` — Caddy server binding
-- `MERCURE_PUBLISHER_JWT_KEY`, `MERCURE_SUBSCRIBER_JWT_KEY` — Mercure hub JWT keys
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `APP_ENV` | `dev` | `dev` / `prod` / `test` |
+| `APP_SECRET` | (required) | Symfony secret key; HS256 signing key in dev |
+| `DATABASE_URL` | (required) | PostgreSQL DSN |
+| `KEYCLOAK_BASE_URL` | `http://localhost:8080` | Keycloak server URL |
+| `KEYCLOAK_REALM` | `altered` | Keycloak realm name |
+| `ALTERED_CORE_URL` | `http://localhost:41309` | Altered Core cards API base URL |
+| `CORS_ALLOW_ORIGIN` | (required) | CORS allowed origins regex |
+| `DEV_AUTH_ENABLED` | `false` | Enable local HS256 JWT bypass |
+| `SERVER_NAME` | `localhost` | Caddy server binding |
+| `MERCURE_PUBLISHER_JWT_KEY` | (required) | Mercure publisher auth |
+| `MERCURE_SUBSCRIBER_JWT_KEY` | (required) | Mercure subscriber auth |
 
 ---
 

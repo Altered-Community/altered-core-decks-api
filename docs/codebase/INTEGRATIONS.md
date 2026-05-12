@@ -20,7 +20,7 @@
 - Endpoint called: `POST {ALTERED_CORE_URL}/api/cards/batch` with `{"references": [...], "locale": "fr"}`
 - Client: `src/Client/AlteredCoreClient.php`
 - Config: `ALTERED_CORE_URL` env var (default `http://localhost:41309`)
-- Caching: per-reference cache for 1 hour via Symfony Cache (APCu / filesystem)
+- Caching: per-reference cache for 1 hour via Symfony Cache; key format: `card_{md5(ref_locale)}`
 - HTTP library: `symfony/http-client`
 
 **Keycloak JWKS Endpoint:**
@@ -46,6 +46,7 @@
 - Accepts locally-signed HS256 JWTs with `iss=dev`, signed with `APP_SECRET`
 - Endpoint: `POST /api/dev/auth` (handled by `src/Controller/DevAuthController.php`) — PUBLIC_ACCESS
 - Intended for local development without a running Keycloak instance
+- ⚠ Security risk: nothing prevents `DEV_AUTH_ENABLED=true` from being set in production (see `CONCERNS.md`)
 
 ## Storage
 
@@ -76,7 +77,17 @@
 - Allowed origins: regex from `CORS_ALLOW_ORIGIN` env var (default: `localhost` / `127.0.0.1` any port)
 - Allowed methods: GET, OPTIONS, POST, PUT, PATCH, DELETE
 - Allowed headers: `Content-Type`, `Authorization`
+- Max age: 3600 seconds
 - Applies to all paths (`^/`)
+
+## Webhooks & Callbacks
+
+**Outgoing calls made by this application:**
+- `POST {ALTERED_CORE_URL}/api/cards/batch` — card data fetch from `src/Client/AlteredCoreClient.php`
+- `GET {KEYCLOAK_BASE_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/certs` — JWKS key fetch from `src/Security/KeycloakAuthenticator.php`
+
+**Incoming webhooks:**
+- None detected
 
 ## Monitoring & Observability
 
@@ -86,6 +97,7 @@
 **Logging:**
 - Symfony Monolog (standard Symfony logging stack, included transitively)
 - Log format: default Symfony channel/handler setup; no custom `monolog.yaml` detected
+- ⚠ Known issue: `error_log('JWKS keys: ...')` is present as a debug statement in `src/Security/KeycloakAuthenticator.php:106` — not structured, should be removed
 
 **Metrics:**
 - FrankenPHP exposes a `/metrics` endpoint (used by the Docker `HEALTHCHECK` probe at `http://localhost:2019/metrics`)
@@ -98,6 +110,7 @@
 
 **Container Registry / CI:**
 - No `.github/`, `.gitlab-ci.yml`, or CI pipeline files detected in the repository root
+- Git hooks: configurable via `make install-hooks` (sets `core.hooksPath .githooks`)
 
 **Deployment Target:**
 - Docker (multi-stage image); production image is `frankenphp_prod` stage based on `debian:13-slim`
@@ -106,15 +119,16 @@
 ## Environment Configuration Summary
 
 **Required env vars (minimum to run):**
+
 | Variable | Purpose |
 |----------|---------|
-| `APP_SECRET` | Symfony secret (CSRF, tokens) |
+| `APP_SECRET` | Symfony secret (CSRF, tokens); also HS256 key in dev auth |
 | `DATABASE_URL` | PostgreSQL connection DSN |
 | `KEYCLOAK_BASE_URL` | Keycloak server URL |
 | `KEYCLOAK_REALM` | Keycloak realm name |
 | `ALTERED_CORE_URL` | Altered Core cards API base URL |
 | `CORS_ALLOW_ORIGIN` | Regex of allowed CORS origins |
-| `DEV_AUTH_ENABLED` | `true` to enable dev JWT bypass |
+| `DEV_AUTH_ENABLED` | `true` to enable dev JWT bypass (never in production) |
 
 **Secrets location:**
 - `.env.local` (gitignored) for local overrides

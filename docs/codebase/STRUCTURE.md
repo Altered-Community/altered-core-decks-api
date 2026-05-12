@@ -8,30 +8,52 @@
 altered-core-decks-api/
 ├── bin/                    # Symfony console entry point (bin/console)
 ├── config/                 # Framework, package, and route configuration
-│   ├── packages/           # Per-bundle YAML config (doctrine, api_platform, security, …)
+│   ├── packages/           # Per-bundle YAML config
+│   │   ├── api_platform.yaml          # Format (json only), pagination defaults, cache headers
+│   │   ├── cache.yaml                 # Symfony Cache pool config
+│   │   ├── doctrine.yaml              # Doctrine DBAL + ORM config, naming strategy
+│   │   ├── doctrine_migrations.yaml   # Migrations config
+│   │   ├── framework.yaml             # Symfony framework secret, session
+│   │   ├── nelmio_cors.yaml           # CORS config (CORS_ALLOW_ORIGIN env var)
+│   │   ├── security.yaml              # Firewall, authenticator, access_control
+│   │   ├── twig.yaml                  # Twig bundle
+│   │   ├── validator.yaml             # Validator
+│   │   └── dev/
+│   │       └── api_platform.yaml      # Dev overrides: enable Scalar UI, HTML docs format
 │   ├── routes/             # Route loaders (api_platform, framework, security)
 │   ├── bundles.php         # Registered Symfony bundles
 │   ├── routes.yaml         # Top-level route import (controllers)
 │   ├── services.yaml       # DI container: autowire defaults + explicit argument bindings
 │   └── preload.php         # OPcache preload script
-├── docs/                   # Project documentation (not auto-generated)
+├── docs/                   # Project documentation
+│   └── codebase/           # Architecture and convention documents (this folder)
 ├── frankenphp/             # FrankenPHP / Caddy server config
-│   └── conf.d/             # Extra Caddyfile snippets
+│   └── conf.d/             # Extra Caddyfile snippets and PHP ini overrides
 ├── migrations/             # Doctrine Migrations (SQL schema history)
-├── public/                 # Web root — index.php + API Platform Swagger/Redoc assets
+├── public/                 # Web root — index.php + API Platform Scalar/Swagger assets
+│   └── bundles/
+│       └── apiplatform/    # API Platform web assets (Scalar UI, fonts; committed)
 ├── src/                    # Application source code (see detail below)
 ├── templates/              # Twig templates
-│   └── homepage/
-│       └── index.html.twig # Developer landing page
+│   ├── homepage/
+│   │   └── index.html.twig # Developer landing page (Tailwind CDN)
+│   └── bundles/
+│       └── ApiPlatformBundle/
+│           └── SwaggerUi/
+│               └── index.html.twig  # Custom Scalar UI override (auto-fetches dev JWT)
 ├── var/                    # Cache, logs (git-ignored, runtime only)
 ├── vendor/                 # Composer dependencies (git-ignored)
+├── .githooks/              # Git hooks (pre-commit: auto-export OpenAPI spec)
 ├── compose.yaml            # Docker Compose base (PostgreSQL + app)
-├── compose.override.yaml   # Local dev overrides (port bindings, etc.)
+├── compose.override.yaml   # Local dev overrides (port bindings, Xdebug)
 ├── compose.prod.yaml       # Production Compose overrides
-├── Dockerfile              # FrankenPHP-based image
-├── Makefile                # Developer shortcuts (make up, make migrate, …)
+├── Dockerfile              # FrankenPHP-based multi-stage image
+├── Makefile                # Developer shortcuts (make up, make migrate, make openapi, …)
 ├── composer.json           # PHP dependencies + autoload config
-└── claude.md               # Project conventions for AI assistance
+├── composer.lock           # Locked dependency versions
+├── symfony.lock            # Symfony recipe versions
+├── docs/openapi.json       # Generated OpenAPI spec (auto-committed by pre-commit hook)
+└── CLAUDE.md               # Project conventions for AI assistance
 ```
 
 ## src/ Directory Detail
@@ -39,36 +61,38 @@ altered-core-decks-api/
 ```
 src/
 ├── Client/
-│   └── AlteredCoreClient.php       # HTTP client for the upstream card catalogue API
+│   └── AlteredCoreClient.php        # HTTP client for the upstream card catalogue API
 ├── Controller/
-│   ├── DevAuthController.php       # POST /api/dev/auth — issues dev JWT tokens
-│   ├── FormatController.php        # GET /api/formats — static format metadata
-│   └── HomepageController.php      # GET / — renders Twig landing page
+│   ├── DevAuthController.php        # POST /api/dev/auth — issues dev JWT tokens
+│   ├── FormatController.php         # GET /api/formats — static format metadata
+│   └── HomepageController.php       # GET / — renders Twig landing page
 ├── Entity/
-│   ├── Deck.php                    # API resource + ORM entity; owns all API Platform config
-│   ├── DeckCard.php                # ORM entity; card reference + quantity for a deck
-│   └── User.php                    # ORM entity + UserInterface; Keycloak user mirror
+│   ├── Deck.php                     # API resource + ORM entity; owns all API Platform config
+│   ├── DeckCard.php                 # ORM entity; card reference + quantity for a deck
+│   └── User.php                     # ORM entity + UserInterface; Keycloak user mirror
+├── OpenApi/
+│   └── OpenApiFactory.php           # Decorator: adds Bearer scheme + dev auth endpoint to OpenAPI spec
 ├── Repository/
-│   ├── DeckCardRepository.php      # Extends ServiceEntityRepository (no custom methods yet)
-│   ├── DeckRepository.php          # Extends ServiceEntityRepository (no custom methods yet)
-│   └── UserRepository.php          # Adds findByKeycloakId(string): ?User
+│   ├── DeckCardRepository.php       # Extends ServiceEntityRepository (no custom methods yet)
+│   ├── DeckRepository.php           # Extends ServiceEntityRepository (no custom methods yet)
+│   └── UserRepository.php           # Adds findByKeycloakId(string): ?User
 ├── Security/
-│   └── KeycloakAuthenticator.php   # JWT authenticator; auto-provisions User on first login
+│   └── KeycloakAuthenticator.php    # JWT authenticator; auto-provisions User on first login
 ├── Serializer/
 │   ├── DeckCollectionNormalizer.php # Wraps Paginator → {data, pagination, links}
 │   └── DeckNormalizer.php           # Enriches single Deck with card data from AlteredCoreClient
 ├── State/
-│   ├── DeckCollectionProvider.php  # Custom ProviderInterface: user-scoped GET /api/decks
-│   └── DeckStateProcessor.php      # Custom ProcessorInterface: full write pipeline
+│   ├── DeckCollectionProvider.php   # Custom ProviderInterface: user-scoped GET /api/decks
+│   └── DeckStateProcessor.php       # Custom ProcessorInterface: full write pipeline
 ├── Validator/
 │   └── Format/
-│       ├── AbstractDeckFormatValidator.php   # Template-method base (shared rules)
-│       ├── DeckFormatValidatorFactory.php    # Tagged-service registry: format → validator
-│       ├── DeckFormatValidatorInterface.php  # Contract: getFormat(), validate()
-│       ├── NucFormatValidator.php            # NUC format rules
-│       ├── SingletonFormatValidator.php      # Singleton format rules
-│       └── StandardFormatValidator.php       # Standard format rules
-└── Kernel.php                                # Symfony application kernel
+│       ├── AbstractDeckFormatValidator.php  # Template-method base (shared rules)
+│       ├── DeckFormatValidatorFactory.php   # Tagged-service registry: format → validator
+│       ├── DeckFormatValidatorInterface.php # Contract: getFormat(), validate()
+│       ├── NucFormatValidator.php           # NUC format rules
+│       ├── SingletonFormatValidator.php     # Singleton format rules
+│       └── StandardFormatValidator.php      # Standard format rules
+└── Kernel.php                               # Symfony application kernel
 ```
 
 ## Key Directories
@@ -99,12 +123,16 @@ src/
 **`src/Security/`**
 - Purpose: Authentication only
 - `KeycloakAuthenticator` handles all JWT validation; supports both RS256 (production, JWKS) and HS256 (dev mode with `DEV_AUTH_ENABLED=true`)
-- JWKS fetched from Keycloak and cached for 1 hour
 
 **`src/Client/`**
 - Purpose: Isolate HTTP communication with the upstream `altered-core` card catalogue service
 - Caches each card reference for 1 hour using Symfony Cache
 - All calls to `altered-core` must go through this client — never call the upstream API directly from processors or normalizers
+
+**`src/OpenApi/`**
+- Purpose: Decorate the API Platform OpenAPI factory
+- `OpenApiFactory` adds the Bearer security scheme globally and injects the `/api/dev/auth` endpoint path into the spec in dev environment only
+- Registered as a decorator in `config/services.yaml`
 
 **`src/Repository/`**
 - Purpose: All database query logic — QueryBuilder and raw SQL must live here, never in controllers, providers, or processors
@@ -114,14 +142,15 @@ src/
 - `api_platform.yaml` — format (`json` only), pagination defaults, cache headers
 - `security.yaml` — firewall rules, access control list, `KeycloakAuthenticator` registration
 - `doctrine.yaml` — PostgreSQL DSN, ORM attribute mapping, prod cache pools
-- `services.yaml` — explicit DI bindings for `KeycloakAuthenticator`, `DevAuthController`, `AlteredCoreClient`, `DeckFormatValidatorFactory` (tagged iterator)
+- `services.yaml` — explicit DI bindings for `KeycloakAuthenticator`, `DevAuthController`, `AlteredCoreClient`, `OpenApiFactory` (decorator), `DeckFormatValidatorFactory` (tagged iterator)
 
 **`migrations/`**
 - Doctrine Migrations files; each is a `Version<timestamp>.php`
 - Current schema: `Version20260422162231.php` (initial tables: deck, deck_card, user), `Version20260422215237.php` (adds `is_draft` column)
 
-**`templates/homepage/`**
-- Twig template for the developer landing page; uses Tailwind CSS CDN and documents all API endpoints with curl examples
+**`templates/`**
+- `homepage/index.html.twig` — developer landing page with Tailwind CSS CDN and API endpoint documentation
+- `bundles/ApiPlatformBundle/SwaggerUi/index.html.twig` — custom Scalar UI override; in dev environment auto-fetches a JWT from `/api/dev/auth` and pre-populates the Bearer auth field
 
 ## Key Files
 
@@ -132,13 +161,15 @@ src/
 | `src/State/DeckCollectionProvider.php` | User-scoped GET /api/decks — replaces default API Platform collection provider |
 | `src/Security/KeycloakAuthenticator.php` | Stateless JWT authentication; user auto-provisioning |
 | `src/Client/AlteredCoreClient.php` | All HTTP calls to the upstream card catalogue; 1 h per-reference cache |
+| `src/OpenApi/OpenApiFactory.php` | Bearer security scheme + dev auth endpoint in Scalar UI |
 | `src/Validator/Format/AbstractDeckFormatValidator.php` | Template-method base for all format validators |
 | `src/Serializer/DeckNormalizer.php` | Enriches single-deck response with card metadata from altered-core |
 | `src/Serializer/DeckCollectionNormalizer.php` | Custom `{data, pagination, links}` collection envelope |
-| `config/services.yaml` | DI wiring for security, client, and format validator factory |
+| `config/services.yaml` | DI wiring for security, client, OpenApiFactory decorator, and format validator factory |
 | `config/packages/security.yaml` | Firewall, access control, authenticator registration |
 | `config/packages/api_platform.yaml` | JSON-only format, pagination defaults |
 | `migrations/Version20260422162231.php` | Initial schema (deck, deck_card, user tables) |
+| `templates/bundles/ApiPlatformBundle/SwaggerUi/index.html.twig` | Scalar UI template override |
 
 ## Module Organization
 
@@ -159,6 +190,7 @@ The single aggregate entity is `Deck`, owned by `User`, with `DeckCard` as a val
 - Plain Symfony controller with `#[Route]`: `src/Controller/NewActionController.php`
 - Do NOT use a custom API Platform operation for non-CRUD actions
 - Add access control in `config/packages/security.yaml` if the endpoint should be public
+- If the endpoint should appear in the OpenAPI spec/Scalar UI, add it in `src/OpenApi/OpenApiFactory.php`
 
 **New deck format:**
 - Create `src/Validator/Format/NewFormatValidator.php` extending `AbstractDeckFormatValidator`
@@ -177,6 +209,28 @@ The single aggregate entity is `Deck`, owned by `User`, with `DeckCard` as a val
 **New Symfony service with explicit DI arguments (env vars, tagged iterators):**
 - Register in `config/services.yaml` under the service's FQCN
 
+**New serialization customization:**
+- Add a normalizer to `src/Serializer/NewNormalizer.php`
+- Implement `NormalizerInterface` + `NormalizerAwareInterface`, use `ALREADY_CALLED` flag to prevent recursion
+
+## Special Directories
+
+**`var/`:**
+- Runtime-generated files (cache, logs, sessions)
+- Committed: No (`.gitignore`)
+
+**`vendor/`:**
+- Composer-managed PHP dependencies
+- Committed: No
+
+**`public/bundles/`:**
+- Web assets published from Symfony bundles (`bin/console assets:install`)
+- Committed: Yes (API Platform Scalar/Swagger assets are checked in)
+
+**`migrations/`:**
+- Doctrine schema migration history
+- Committed: Yes (always commit alongside entity changes)
+
 ## Naming Conventions
 
 **PHP classes:** PascalCase, descriptive suffix matching layer (`Controller`, `Repository`, `Provider`, `Processor`, `Normalizer`, `Authenticator`, `Validator`, `Client`)
@@ -187,7 +241,7 @@ The single aggregate entity is `Deck`, owned by `User`, with `DeckCard` as a val
 
 **Cache keys:** `keycloak_jwks` (JWKS), `card_<md5(reference_locale)>` (card data)
 
-**Route names:** `api_<resource>` for plain Symfony routes — e.g. `api_formats`, `api_dev_auth`, `dev_auth`
+**Route names:** `api_<resource>` for plain Symfony routes — e.g. `api_formats`, `api_dev_auth`
 
 ---
 

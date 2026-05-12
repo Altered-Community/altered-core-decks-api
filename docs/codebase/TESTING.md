@@ -2,15 +2,21 @@
 
 **Analysis Date:** 2026-05-12
 
-## Test Setup
+## Current State
 
-**Framework:**
-- PHPUnit (invoked via `bin/phpunit`, the Symfony wrapper)
-- No `phpunit.xml` or `phpunit.xml.dist` found in the project root — configuration is likely generated or absent
-- No dedicated testing packages in `composer.json` beyond `symfony/maker-bundle` (dev dependency)
-- No `symfony/test-pack`, `symfony/browser-kit`, `symfony/phpunit-bridge`, or `phpspec/prophecy` present
+**PHPUnit is NOT installed.** No `phpunit/phpunit` or `symfony/test-pack` in `composer.json` (neither `require` nor `require-dev`). `require-dev` contains only `symfony/maker-bundle`.
 
-**Test environment configuration** (`config/packages/framework.yaml`):
+**No `tests/` directory exists.** The PSR-4 namespace `App\Tests\` is declared in `composer.json` autoload-dev, but the `tests/` directory has never been created and no test files of any kind exist in the repository.
+
+**Coverage: 0%** — zero tests across all code.
+
+The Makefile defines a `make test` target (`bin/phpunit`), but it will fail until PHPUnit is installed.
+
+## Test Environment Configuration
+
+Despite no tests existing, the framework configuration for the test environment is present:
+
+**`config/packages/framework.yaml`:**
 ```yaml
 when@test:
     framework:
@@ -19,7 +25,7 @@ when@test:
             storage_factory_id: session.storage.factory.mock_file
 ```
 
-**Security test configuration** (`config/packages/security.yaml`):
+**`config/packages/security.yaml`:**
 ```yaml
 when@test:
     security:
@@ -31,7 +37,7 @@ when@test:
                 memory_cost: 10
 ```
 
-**Autoloading:**
+**`composer.json` autoload-dev:**
 ```json
 "autoload-dev": {
     "psr-4": {
@@ -39,62 +45,16 @@ when@test:
     }
 }
 ```
-The `tests/` namespace is configured — but no test files exist yet.
 
-## Test Types
+## How to Set Up Testing
 
-**Current state: No tests exist.**
-
-There are no test files anywhere in the project outside of `vendor/`. The `tests/` directory referenced in `composer.json` does not exist on disk.
-
-The Makefile defines a `test` target, indicating tests are intended to be run via `make test`, but the test suite has not been written yet.
-
-## How to Run
-
-**Via Makefile (Linux/Mac):**
+**Step 1 — Install PHPUnit:**
 ```bash
-make test                          # Run all tests (APP_ENV=test)
-make test c="--group unit"         # Run tests with PHPUnit options
-make test c="--stop-on-failure"    # Stop on first failure
+make composer c="require --dev symfony/test-pack"
 ```
+This installs `phpunit/phpunit`, `symfony/phpunit-bridge`, and generates `phpunit.xml.dist`.
 
-**Via Docker directly (Windows or without make):**
-```bash
-docker compose exec -e APP_ENV=test php bin/phpunit
-docker compose exec -e APP_ENV=test php bin/phpunit --stop-on-failure
-```
-
-**Directly inside the container:**
-```bash
-php bin/phpunit
-php bin/phpunit --group unit --stop-on-failure
-```
-
-Note: `APP_ENV=test` must be set. The Makefile `test` target sets this automatically.
-
-## Coverage
-
-**No coverage tooling configured.** No Xdebug, PCOV, or `phpunit.xml` with coverage settings are present. No coverage reports are generated.
-
-Current test coverage: **0%** — no tests exist.
-
-## Test Conventions
-
-No established test conventions yet. The following patterns are recommended based on what the codebase lends itself to:
-
-**Candidate unit tests** (pure logic, no I/O):
-- `src/Validator/Format/NucFormatValidator.php` — pure array/entity validation logic
-- `src/Validator/Format/StandardFormatValidator.php` — same
-- `src/Validator/Format/SingletonFormatValidator.php` — hero-based unique limit logic
-- `src/Validator/Format/AbstractDeckFormatValidator.php` — shared helpers (deck size, faction, ban checks)
-- `src/State/DeckStateProcessor.php` → `getRarityFromReference()`, `computeStats()`, `isHero()` — private methods testable via public entry points
-
-**Candidate integration tests:**
-- `src/Client/AlteredCoreClient.php` — HTTP client + cache interaction
-- `src/Security/KeycloakAuthenticator.php` — JWT decode, user upsert flow
-- `src/State/DeckStateProcessor.php` — full create/patch lifecycle
-
-**Where to add test files:**
+**Step 2 — Create the `tests/` directory structure:**
 ```
 tests/
 ├── Unit/
@@ -108,13 +68,104 @@ tests/
         └── DeckStateProcessorTest.php
 ```
 
-**Naming convention** (to follow when tests are written):
-- Test class: `{ClassUnderTest}Test` in `App\Tests\{matching namespace}`
-- Test methods: `test{WhatItTests}()` — e.g., `testValidateDeckSizeRejectsOversizedDeck()`
+**Step 3 — Run tests:**
+```bash
+make test                               # Run all tests (APP_ENV=test)
+make test c="--group unit"              # Run tests with PHPUnit options
+make test c="--stop-on-failure"         # Stop on first failure
+```
+
+Or directly via Docker:
+```bash
+docker compose exec -e APP_ENV=test php bin/phpunit
+```
+
+## How to Run
+
+```bash
+make test                          # Run all tests (APP_ENV=test)
+make test c="--group unit"         # Run specific test group
+make test c="--stop-on-failure"    # Stop on first failure
+```
+
+**Via Docker directly (Windows or without make):**
+```bash
+docker compose exec -e APP_ENV=test php bin/phpunit
+docker compose exec -e APP_ENV=test php bin/phpunit --stop-on-failure
+```
+
+Note: `APP_ENV=test` must be set. The Makefile `test` target sets this automatically.
+
+## Recommended Test Priorities
+
+**1. Format validators — highest value, pure unit tests (no infrastructure):**
+
+All three format validators have complex rule logic. Pure PHP objects, no Doctrine or HTTP needed.
+
+```php
+namespace App\Tests\Unit\Validator\Format;
+
+use App\Entity\Deck;
+use App\Validator\Format\StandardFormatValidator;
+use PHPUnit\Framework\TestCase;
+
+class StandardFormatValidatorTest extends TestCase
+{
+    private StandardFormatValidator $validator;
+
+    protected function setUp(): void
+    {
+        $this->validator = new StandardFormatValidator();
+    }
+
+    public function testValidDeckPassesValidation(): void
+    {
+        $deck = $this->buildDeck(/* ... */);
+        $cardsData = [/* mock data */];
+
+        $errors = $this->validator->validate($deck, $cardsData);
+
+        $this->assertEmpty($errors);
+    }
+}
+```
+
+**2. `DeckStateProcessor` helpers — unit testable with mocks:**
+
+`computeStats()`, `getRarityFromReference()`, `mergeDeckCards()` are testable with mocked `EntityManagerInterface`. `validateFormat()` is testable with a mock `DeckFormatValidatorFactory`.
+
+**3. `AlteredCoreClient` — mock HTTP client pattern:**
+
+```php
+use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpClient\Response\MockResponse;
+
+$mockClient = new MockHttpClient([
+    new MockResponse(json_encode([/* card data */])),
+]);
+$client = new AlteredCoreClient($mockClient, $cache, 'http://example.com');
+```
+
+**4. Integration tests — require database:**
+
+- `src/State/DeckCollectionProvider.php` — needs a `KernelTestCase` with a test PostgreSQL instance
+- `src/Security/KeycloakAuthenticator.php` — needs a mock HTTP client for JWKS endpoint
+
+## Test Coverage Gaps (Priority)
+
+| Component | Risk | Notes |
+|-----------|------|-------|
+| `src/Validator/Format/` — all 3 validators | High | Complex branching, no regression coverage |
+| PATCH/DELETE ownership checks | Critical | IDOR vulnerability — must have regression test after fix |
+| `src/Security/KeycloakAuthenticator.php` | High | Security-critical; dev auth bypass path untested |
+| `src/State/DeckStateProcessor.php` | High | Full write pipeline, card fetch, stats computation |
+| `src/Client/AlteredCoreClient.php` | Medium | Cache probe/delete/rewrite logic is subtle |
+| `src/Serializer/DeckNormalizer.php` | Medium | Card enrichment logic |
+| `src/State/DeckCollectionProvider.php` | Medium | User-scoping, null user fallback |
 
 ## CI/CD
 
-**No CI/CD pipeline configured.** No `.github/workflows/`, no `.gitlab-ci.yml`, no `Jenkinsfile`, no Bitbucket pipelines found.
+**No CI/CD pipeline configured.** No `.github/workflows/`, no `.gitlab-ci.yml`, no Jenkinsfile, no Bitbucket pipelines found.
 
 Tests are run manually via `make test` or Docker. There is no automated test execution on push or pull request.
 
