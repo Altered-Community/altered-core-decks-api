@@ -1,0 +1,10 @@
+services:
+    altered_core.mock_http_client:
+        class: Symfony\Component\HttpClient\MockHttpClient
+        public: true
+
+    App\Client\AlteredCoreClient:
+        autowire: true
+        arguments:
+            $httpClient: '@altered_core.mock_http_client'
+            $alteredCoreUrl: '%env(ALTERED_CORE_URL)%'

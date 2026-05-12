@@ -7,12 +7,15 @@ use App\Entity\DeckCard;
 
 abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterface
 {
+    protected const VALID_SETS = ['CORE', 'COREKS', 'BISE', 'ALIZE', 'EOLE', 'CYCLONE'];
+
     public function validate(Deck $deck, array $cardsData): array
     {
         $errors = [];
 
         [$hero, $deckCards] = $this->splitHeroAndCards($deck, $cardsData);
 
+        $errors = array_merge($errors, $this->validateAllowedSets($deck, $cardsData));
         $errors = array_merge($errors, $this->validateHero($hero));
         $errors = array_merge($errors, $this->validateDeckSize($deckCards));
         $errors = array_merge($errors, $this->validateFaction($deckCards, $cardsData));
@@ -134,6 +137,20 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
             return [sprintf('Deck contains cards from multiple factions: %s.', implode(', ', array_keys($factions)))];
         }
         return [];
+    }
+
+    protected function validateAllowedSets(Deck $deck, array $cardsData): array
+    {
+        $errors = [];
+        foreach ($deck->getDeckCards() as $deckCard) {
+            $ref = $deckCard->getCardReference();
+            $set = explode('_', $ref)[1] ?? '';
+            if (!in_array($set, self::VALID_SETS, true)) {
+                $name     = $this->getCardName($cardsData[$ref] ?? []);
+                $errors[] = sprintf('Card "%s" belongs to set "%s" which is not supported.', $name ?: $ref, $set);
+            }
+        }
+        return $errors;
     }
 
     protected function validateNoSuspendedOrBanned(Deck $deck, array $cardsData): array

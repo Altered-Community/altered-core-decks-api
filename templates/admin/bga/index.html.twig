@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin BGA — Altered Deck</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<div class="max-w-6xl mx-auto px-4 py-8">
+
+    <div class="flex items-center justify-between mb-8">
+        <h1 class="text-2xl font-bold text-gray-800">
+            <a href="{{ path('admin_dashboard') }}" class="text-indigo-500 hover:text-indigo-700 mr-2">Admin</a>
+            — BGA
+        </h1>
+        <a href="{{ path('admin_logout') }}" class="text-sm text-gray-400 hover:text-red-500 transition">Déconnexion</a>
+    </div>
+
+    <form method="get" class="bg-white rounded-xl shadow p-4 mb-6 flex items-end gap-4">
+        <div>
+            <label class="block text-xs text-gray-500 mb-1" for="name">Nom</label>
+            <input type="text" id="name" name="name" value="{{ filters.name }}"
+                   class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none">
+        </div>
+        <div>
+            <label class="block text-xs text-gray-500 mb-1" for="format">Format</label>
+            <select id="format" name="format"
+                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none">
+                <option value="">Tous</option>
+                {% for fmt in formats %}
+                    <option value="{{ fmt }}" {% if filters.format == fmt %}selected{% endif %}>{{ fmt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit"
+                class="bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+            Filtrer
+        </button>
+        {% if filters.name or filters.format %}
+            <a href="{{ path('admin_bga_index') }}"
+               class="text-sm text-gray-400 hover:text-gray-600 transition self-center">Réinitialiser</a>
+        {% endif %}
+    </form>
+
+    <div class="bg-white rounded-xl shadow">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 class="font-semibold text-gray-700">Decks BGA ({{ total }})</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                    <th class="px-6 py-3 text-left">Nom</th>
+                    <th class="px-6 py-3 text-left">Format</th>
+                    <th class="px-6 py-3 text-left">Héros</th>
+                    <th class="px-6 py-3 text-left">Faction</th>
+                    <th class="px-6 py-3 text-left">Cartes</th>
+                    <th class="px-6 py-3"></th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 text-gray-700">
+                {% for row in rows %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-3 font-medium">{{ row.name }}</td>
+                        <td class="px-6 py-3 text-gray-500">{{ row.format }}</td>
+                        <td class="px-6 py-3 font-mono text-xs">{{ row.heroRef ?? '—' }}</td>
+                        <td class="px-6 py-3">{{ row.faction ?? '—' }}</td>
+                        <td class="px-6 py-3">{{ row.totalCards ?? '—' }}</td>
+                        <td class="px-6 py-3 text-right">
+                            <a href="{{ path('admin_bga_show', { id: row.id }) }}"
+                               class="text-indigo-500 hover:text-indigo-700 text-xs font-medium transition">Voir</a>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-gray-400">Aucun deck.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if lastPage > 1 %}
+            <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-center gap-2">
+                {% if page > 1 %}
+                    <a href="{{ path('admin_bga_index', { page: page - 1, name: filters.name, format: filters.format }) }}"
+                       class="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-50 transition">Précédent</a>
+                {% endif %}
+                <span class="text-sm text-gray-500">Page {{ page }} / {{ lastPage }}</span>
+                {% if page < lastPage %}
+                    <a href="{{ path('admin_bga_index', { page: page + 1, name: filters.name, format: filters.format }) }}"
+                       class="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-50 transition">Suivant</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+</body>
+</html>
