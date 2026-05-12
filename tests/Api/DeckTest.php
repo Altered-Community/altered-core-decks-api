@@ -20,7 +20,7 @@ class DeckTest extends WebTestCase
         // Default: return empty card list (deck with no cards never triggers HTTP call,
         // but this prevents MockHttpClient from throwing if called unexpectedly)
         $this->alteredCoreMock->setResponseFactory(
-            new MockResponse('[]', ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
+            static fn(): MockResponse => new MockResponse('[]', ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
         );
     }
 
@@ -35,7 +35,7 @@ class DeckTest extends WebTestCase
             'iss'                => 'dev',
             'iat'                => time(),
             'exp'                => time() + 3600,
-        ], '$ecretf0rt3st', 'HS256');
+        ], '$ecretf0rt3st_extended_for_hs256_tests', 'HS256');
     }
 
     private function authHeaders(string $sub): array
@@ -81,7 +81,7 @@ class DeckTest extends WebTestCase
     {
         $json = json_encode($cards);
         $this->alteredCoreMock->setResponseFactory(
-            new MockResponse($json, ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
+            static fn(): MockResponse => new MockResponse($json, ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
         );
     }
 
