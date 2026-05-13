@@ -116,6 +116,14 @@ class Deck
     #[Groups(['deck:read'])]
     private ?array $formatErrors = null;
 
+    #[ORM\Column(type: 'boolean')]
+    #[Groups(['deck:read'])]
+    private bool $legal = false;
+
+    #[ORM\Column(type: 'json', nullable: true)]
+    #[Groups(['deck:read'])]
+    private ?array $legalityDetail = null;
+
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
@@ -167,4 +175,10 @@ class Deck
 
     public function getFormatErrors(): ?array { return $this->formatErrors; }
     public function setFormatErrors(?array $formatErrors): self { $this->formatErrors = $formatErrors; return $this; }
+
+    public function isLegal(): bool { return $this->legal; }
+    public function setLegal(bool $legal): self { $this->legal = $legal; return $this; }
+
+    public function getLegalityDetail(): ?array { return $this->legalityDetail; }
+    public function setLegalityDetail(?array $legalityDetail): self { $this->legalityDetail = $legalityDetail; return $this; }
 }

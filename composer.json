@@ -32,6 +32,7 @@
             "symfony/flex": true,
             "symfony/runtime": true
         },
+        "bin-compat": "full",
         "bump-after-update": true,
         "sort-packages": true
     },

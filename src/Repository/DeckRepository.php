@@ -43,6 +43,36 @@ class DeckRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    /**
+     * Returns a batch of decks with their deckCards eagerly loaded.
+     * Uses a two-step query (IDs first, then JOIN FETCH) to avoid Doctrine
+     * pagination issues with collection joins.
+     *
+     * @return Deck[]
+     */
+    public function findBatchWithCards(int $offset, int $limit): array
+    {
+        $ids = $this->createQueryBuilder('d')
+            ->select('d.id')
+            ->orderBy('d.id')
+            ->setFirstResult($offset)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        if (empty($ids)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('d')
+            ->leftJoin('d.deckCards', 'dc')
+            ->addSelect('dc')
+            ->where('d.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+    }
+
     public function findPublic(int $page, int $itemsPerPage, ?string $hero = null): array
     {
         $rsm = new ResultSetMappingBuilder($this->getEntityManager());
@@ -116,7 +146,7 @@ class DeckRepository extends ServiceEntityRepository
 
     private function buildBgaConditions(?User $user, string $name, array $factions, string $hero, string $format, array $validFormats = []): array
     {
-        $conditions = ['1=1', 'd.format_errors IS NULL'];
+        $conditions = ['d.legal = true'];
         $params     = [];
 
         if ($user) {

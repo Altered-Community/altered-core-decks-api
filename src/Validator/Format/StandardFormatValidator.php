@@ -39,4 +39,16 @@ class StandardFormatValidator extends AbstractDeckFormatValidator
 
         return $errors;
     }
+
+    protected function computeFormatRulesDetail(array $deckCards, array $cardsData, ?DeckCard $hero): array
+    {
+        $groups = $this->groupByName($deckCards, $cardsData);
+
+        return [
+            'copies'          => $this->validateMaxCopiesPerName($groups, 3) === [],
+            'uniqueQuantity'  => $this->countUniqueCards($groups) <= 3,
+            'rareQuantity'    => $this->countByRarity($groups, 'R1') <= 15,
+            'exaltedQuantity' => $this->countByRarity($groups, 'R2') <= 3,
+        ];
+    }
 }

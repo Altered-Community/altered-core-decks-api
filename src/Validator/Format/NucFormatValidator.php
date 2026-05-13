@@ -19,6 +19,18 @@ class NucFormatValidator extends AbstractDeckFormatValidator
     protected function getMinCards(): int { return 39; }
     protected function getMaxCards(): int { return 59; }
 
+    protected function computeFormatRulesDetail(array $deckCards, array $cardsData, ?DeckCard $hero): array
+    {
+        $groups = $this->groupByName($deckCards, $cardsData);
+
+        return [
+            'copies'          => $this->validateMaxCopiesPerName($groups, 3) === [],
+            'uniqueQuantity'  => $this->countUniqueCards($groups) === 0,
+            'rareQuantity'    => $this->countByRarity($groups, 'R1') <= 15,
+            'exaltedQuantity' => $this->countByRarity($groups, 'R2') <= 3,
+        ];
+    }
+
     protected function validateFormatRules(array $deckCards, array $cardsData, ?DeckCard $hero): array
     {
         $errors = [];
