@@ -55,9 +55,9 @@ class StandardFormatValidator extends AbstractDeckFormatValidator
         $groups = $this->groupByName($deckCards, $cardsData);
 
         return [
-            'copies'          => $this->validateMaxCopiesPerName($groups, 3) === [],
-            'uniqueQuantity'  => $this->countUniqueCards($groups) <= 3,
-            'rareQuantity'    => $this->countByRarity($groups, 'R1') <= 15,
+            'copies' => [] === $this->validateMaxCopiesPerName($groups, 3),
+            'uniqueQuantity' => $this->countUniqueCards($groups) <= 3,
+            'rareQuantity' => $this->countByRarity($groups, 'R1') <= 15,
             'exaltedQuantity' => $this->countByRarity($groups, 'R2') <= 3,
         ];
     }

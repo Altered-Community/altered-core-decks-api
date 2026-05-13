@@ -37,8 +37,8 @@ class SingletonFormatValidator extends AbstractDeckFormatValidator
 
     protected function computeFormatRulesDetail(array $deckCards, array $cardsData, ?DeckCard $hero): array
     {
-        $groups      = $this->groupByName($deckCards, $cardsData);
-        $copiesOk    = true;
+        $groups = $this->groupByName($deckCards, $cardsData);
+        $copiesOk = true;
 
         foreach ($groups as $rarities) {
             if (array_sum($rarities) > 3) {
@@ -54,7 +54,7 @@ class SingletonFormatValidator extends AbstractDeckFormatValidator
         }
 
         return [
-            'copies'         => $copiesOk,
+            'copies' => $copiesOk,
             'uniqueQuantity' => $this->countUniqueCards($groups) <= $this->getUniqueLimitForHero($hero, $cardsData),
         ];
     }

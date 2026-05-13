@@ -59,7 +59,6 @@ class DeckStateProcessor implements ProcessorInterface
                 $data->setLegal(false);
             }
 
-
             $data->setStats($this->computeStats($data, $cardsData));
         } else {
             $data->setStats(null);

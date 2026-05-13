@@ -9,7 +9,7 @@ final class DeckFormatDenormalizer implements DenormalizerInterface
 {
     public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): ?DeckFormat
     {
-        if ($data === null || $data === '') {
+        if (null === $data || '' === $data) {
             return null;
         }
 
@@ -18,7 +18,7 @@ final class DeckFormatDenormalizer implements DenormalizerInterface
 
     public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
     {
-        return $type === DeckFormat::class;
+        return DeckFormat::class === $type;
     }
 
     public function getSupportedTypes(?string $format): array

@@ -26,11 +26,11 @@ final class CheckDeckSetLegalityCommand extends Command
     private const BATCH_SIZE = 100;
 
     public function __construct(
-        private readonly DeckRepository             $deckRepository,
+        private readonly DeckRepository $deckRepository,
         private readonly DeckFormatValidatorFactory $validatorFactory,
-        private readonly AlteredCoreClient          $alteredCoreClient,
-        private readonly EntityManagerInterface     $em,
-        private readonly LoggerInterface            $logger,
+        private readonly AlteredCoreClient $alteredCoreClient,
+        private readonly EntityManagerInterface $em,
+        private readonly LoggerInterface $logger,
     ) {
         parent::__construct();
     }
@@ -42,7 +42,7 @@ final class CheckDeckSetLegalityCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io     = new SymfonyStyle($input, $output);
+        $io = new SymfonyStyle($input, $output);
         $dryRun = (bool) $input->getOption('dry-run');
 
         if ($dryRun) {
@@ -55,10 +55,10 @@ final class CheckDeckSetLegalityCommand extends Command
         $progress = new ProgressBar($output, $total);
         $progress->start();
 
-        $offset    = 0;
-        $updated   = 0;
+        $offset = 0;
+        $updated = 0;
         $unchanged = 0;
-        $skipped   = 0;
+        $skipped = 0;
 
         while (true) {
             $decks = $this->deckRepository->findBatchWithCards($offset, self::BATCH_SIZE);
@@ -70,25 +70,25 @@ final class CheckDeckSetLegalityCommand extends Command
             foreach ($decks as $deck) {
                 $format = $deck->getFormat()?->value;
 
-                if ($format === null || !$this->validatorFactory->supports($format)) {
-                    $skipped++;
+                if (null === $format || !$this->validatorFactory->supports($format)) {
+                    ++$skipped;
                     $progress->advance();
                     continue;
                 }
 
                 $validator = $this->validatorFactory->getValidator($format);
                 $cardsData = $this->fetchCardsData($deck);
-                $detail    = $validator->computeLegalityDetail($deck, $cardsData);
-                $legal     = $detail['global'];
+                $detail = $validator->computeLegalityDetail($deck, $cardsData);
+                $legal = $detail['global'];
 
                 if ($deck->isLegal() !== $legal || $deck->getLegalityDetail() !== $detail) {
                     if (!$dryRun) {
                         $deck->setLegal($legal);
                         $deck->setLegalityDetail($detail);
                     }
-                    $updated++;
+                    ++$updated;
                 } else {
-                    $unchanged++;
+                    ++$unchanged;
                 }
 
                 $progress->advance();
@@ -133,9 +133,10 @@ final class CheckDeckSetLegalityCommand extends Command
             return $this->alteredCoreClient->getCardsByReferences($references);
         } catch (\Throwable $e) {
             $this->logger->warning('CheckDeckSetLegality: could not fetch cards for deck {id}', [
-                'id'    => $deck->getId(),
+                'id' => $deck->getId(),
                 'error' => $e->getMessage(),
             ]);
+
             return [];
         }
     }

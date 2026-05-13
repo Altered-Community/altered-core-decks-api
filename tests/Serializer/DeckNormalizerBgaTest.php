@@ -47,7 +47,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     private function buildDeckData(array $deckCards, array $formatErrors = []): array
     {
-        $legal          = $formatErrors === [];
+        $legal = [] === $formatErrors;
         $legalityDetail = ['hero' => $legal, 'deckSize' => $legal, 'global' => $legal];
 
         return [

@@ -7,7 +7,7 @@ use App\Entity\DeckCard;
 
 abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterface
 {
-    public const VALID_SETS    = ['CORE', 'COREKS', 'BISE', 'ALIZE', 'EOLE', 'CYCLONE'];
+    public const VALID_SETS = ['CORE', 'COREKS', 'BISE', 'ALIZE', 'EOLE', 'CYCLONE'];
     public const FORBIDDEN_SETS = ['FUGUE', 'ROC'];
 
     public function validate(Deck $deck, array $cardsData): array
@@ -51,7 +51,8 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
     /**
      * Returns a per-rule legality breakdown for this deck.
      *
-     * @param  array<string, array> $cardsData
+     * @param array<string, array> $cardsData
+     *
      * @return array<string, bool>
      */
     public function computeLegalityDetail(Deck $deck, array $cardsData): array
@@ -59,12 +60,12 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
         [$hero, $deckCards] = $this->splitHeroAndCards($deck, $cardsData);
 
         $detail = [
-            'hero'           => $this->validateHero($hero) === [],
-            'deckSize'       => $this->validateDeckSize($deckCards) === [],
-            'faction'        => $this->validateFaction($deckCards, $cardsData) === [],
-            'sets'           => $this->validateAllowedSets($deck, $cardsData) === [],
-            'bannedCards'    => $this->validateNoBanned($deck, $cardsData) === [],
-            'suspendedCards' => $this->validateNoSuspended($deck, $cardsData) === [],
+            'hero' => [] === $this->validateHero($hero),
+            'deckSize' => [] === $this->validateDeckSize($deckCards),
+            'faction' => [] === $this->validateFaction($deckCards, $cardsData),
+            'sets' => [] === $this->validateAllowedSets($deck, $cardsData),
+            'bannedCards' => [] === $this->validateNoBanned($deck, $cardsData),
+            'suspendedCards' => [] === $this->validateNoSuspended($deck, $cardsData),
         ];
 
         $detail = array_merge($detail, $this->computeFormatRulesDetail($deckCards, $cardsData, $hero));
@@ -75,10 +76,16 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
     }
 
     /** Sets explicitly allowed in this format. Defaults to all globally valid sets. */
-    protected function getAllowedSets(): array { return self::VALID_SETS; }
+    protected function getAllowedSets(): array
+    {
+        return self::VALID_SETS;
+    }
 
     /** Sets explicitly forbidden in this format. Defaults to globally forbidden sets. */
-    protected function getForbiddenSets(): array { return self::FORBIDDEN_SETS; }
+    protected function getForbiddenSets(): array
+    {
+        return self::FORBIDDEN_SETS;
+    }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -201,8 +208,8 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
 
     protected function validateAllowedSets(Deck $deck, array $cardsData): array
     {
-        $errors        = [];
-        $allowedSets   = $this->getAllowedSets();
+        $errors = [];
+        $allowedSets = $this->getAllowedSets();
         $forbiddenSets = $this->getForbiddenSets();
 
         foreach ($deck->getDeckCards() as $deckCard) {
@@ -237,6 +244,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
                 $errors[] = sprintf('Card "%s" is banned.', $this->getCardName($data));
             }
         }
+
         return $errors;
     }
 

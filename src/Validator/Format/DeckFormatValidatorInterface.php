@@ -33,7 +33,8 @@ interface DeckFormatValidatorInterface
      * Keys are rule identifiers, values are true (legal) / false (not legal).
      * Always includes a 'global' key with the overall result.
      *
-     * @param  array<string, array> $cardsData
+     * @param array<string, array> $cardsData
+     *
      * @return array<string, bool>
      */
     public function computeLegalityDetail(Deck $deck, array $cardsData): array;

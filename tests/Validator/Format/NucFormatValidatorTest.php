@@ -22,6 +22,7 @@ class NucFormatValidatorTest extends TestCase
         $card = new DeckCard();
         $card->setCardReference($ref);
         $card->setQuantity($qty);
+
         return $card;
     }
 
@@ -29,30 +30,31 @@ class NucFormatValidatorTest extends TestCase
     {
         $deck = $this->createStub(Deck::class);
         $deck->method('getDeckCards')->willReturn(new ArrayCollection($cards));
+
         return $deck;
     }
 
     private function data(string $ref, string $typeRef = 'PERMANENT', string $faction = 'AX', string $rarityRef = 'CORAX_C', string $name = ''): array
     {
         return [
-            'reference'  => $ref,
-            'cardType'   => ['reference' => $typeRef],
-            'faction'    => ['code' => $faction],
+            'reference' => $ref,
+            'cardType' => ['reference' => $typeRef],
+            'faction' => ['code' => $faction],
             'cardRarity' => ['reference' => $rarityRef],
-            'name'       => $name ?: $ref,
+            'name' => $name ?: $ref,
         ];
     }
 
     /** @return array{0: array<string, array>, 1: DeckCard[]} */
     private function buildMinimalValidNucDeck(): array
     {
-        $heroRef             = 'ALT_CORE_B_AX_0_C';
-        $cardsData           = [$heroRef => $this->data($heroRef, 'HERO_MAIN')];
-        $deckCards           = [$this->card($heroRef, 1)];
+        $heroRef = 'ALT_CORE_B_AX_0_C';
+        $cardsData = [$heroRef => $this->data($heroRef, 'HERO_MAIN')];
+        $deckCards = [$this->card($heroRef, 1)];
 
-        for ($i = 1; $i <= 13; $i++) {
-            $ref             = sprintf('ALT_CORE_B_AX_%d_C', $i);
-            $deckCards[]     = $this->card($ref, 3);
+        for ($i = 1; $i <= 13; ++$i) {
+            $ref = sprintf('ALT_CORE_B_AX_%d_C', $i);
+            $deckCards[] = $this->card($ref, 3);
             $cardsData[$ref] = $this->data($ref);
         }
 
@@ -72,8 +74,8 @@ class NucFormatValidatorTest extends TestCase
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidNucDeck();
 
-        $ref             = 'ALT_CORE_B_AX_99_U';
-        $deckCards[]     = $this->card($ref, 1);
+        $ref = 'ALT_CORE_B_AX_99_U';
+        $deckCards[] = $this->card($ref, 1);
         $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_U', 'Unique Card');
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
@@ -85,9 +87,9 @@ class NucFormatValidatorTest extends TestCase
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidNucDeck();
 
-        for ($i = 1; $i <= 6; $i++) {
-            $ref             = sprintf('ALT_CORE_B_AX_%d_R1', $i);
-            $deckCards[]     = $this->card($ref, 3);
+        for ($i = 1; $i <= 6; ++$i) {
+            $ref = sprintf('ALT_CORE_B_AX_%d_R1', $i);
+            $deckCards[] = $this->card($ref, 3);
             $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_R1', "Rare $i");
         }
 
@@ -100,9 +102,9 @@ class NucFormatValidatorTest extends TestCase
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidNucDeck();
 
-        for ($i = 1; $i <= 2; $i++) {
-            $ref             = sprintf('ALT_CORE_B_AX_%d_R2', $i);
-            $deckCards[]     = $this->card($ref, 2);
+        for ($i = 1; $i <= 2; ++$i) {
+            $ref = sprintf('ALT_CORE_B_AX_%d_R2', $i);
+            $deckCards[] = $this->card($ref, 2);
             $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_R2', "Exalted $i");
         }
 
@@ -115,8 +117,8 @@ class NucFormatValidatorTest extends TestCase
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidNucDeck();
 
-        $ref             = 'ALT_ROC_B_AX_1_C';
-        $deckCards[]     = $this->card($ref, 1);
+        $ref = 'ALT_ROC_B_AX_1_C';
+        $deckCards[] = $this->card($ref, 1);
         $cardsData[$ref] = $this->data($ref);
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
