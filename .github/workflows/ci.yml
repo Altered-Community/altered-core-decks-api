@@ -75,8 +75,7 @@ jobs:
         env:
           APP_ENV: dev
           APP_SECRET: ci-secret
-          # Doctrine connects lazily — a placeholder URL is enough for warmup
-          DATABASE_URL: postgresql://ci:ci@localhost/ci
+          DATABASE_URL: postgresql://ci:ci@localhost/ci?serverVersion=16&charset=utf8
         run: php bin/console cache:warmup --env=dev
 
       - name: PHPStan
