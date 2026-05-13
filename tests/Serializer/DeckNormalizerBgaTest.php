@@ -67,6 +67,7 @@ class DeckNormalizerBgaTest extends TestCase
             'name'          => ['fr' => 'Carte Test', 'en' => 'Test Card'],
             'cardType'      => ['reference' => $typeRef, 'name' => ucfirst($typeRef)],
             'cardSubTypes'  => $subTypes,
+            'rarity'        => ['reference' => 'C'],
             'faction'       => ['code' => 'AX'],
             'mainCost'      => 3,
             'recallCost'    => 2,

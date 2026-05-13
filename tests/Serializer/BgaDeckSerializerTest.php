@@ -16,7 +16,7 @@ class BgaDeckSerializerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->symfonySerializer = $this->createMock(NormalizerInterface::class);
+        $this->symfonySerializer = $this->createStub(NormalizerInterface::class);
         $this->serializer        = new BgaDeckSerializer($this->symfonySerializer);
     }
 
@@ -86,10 +86,11 @@ class BgaDeckSerializerTest extends TestCase
 
     public function testNormalizeItemDelegatesToSymfonySerializer(): void
     {
-        $deck     = $this->createMock(Deck::class);
+        $deck     = $this->createStub(Deck::class);
         $expected = ['foo' => 'bar'];
 
-        $this->symfonySerializer->expects(self::once())
+        $normalizer = $this->createMock(NormalizerInterface::class);
+        $normalizer->expects(self::once())
             ->method('normalize')
             ->with(
                 $deck,
@@ -98,7 +99,7 @@ class BgaDeckSerializerTest extends TestCase
             )
             ->willReturn($expected);
 
-        $result = $this->serializer->normalizeItem($deck);
+        $result = (new BgaDeckSerializer($normalizer))->normalizeItem($deck);
 
         self::assertSame($expected, $result);
     }
@@ -121,7 +122,7 @@ class BgaDeckSerializerTest extends TestCase
 
     private function deckWithStats(array $stats, string $name = 'deck-name'): Deck
     {
-        $deck = $this->createMock(Deck::class);
+        $deck = $this->createStub(Deck::class);
         $uuid = Uuid::fromString('550e8400-e29b-41d4-a716-446655440000');
 
         $deck->method('getId')->willReturn($uuid);
