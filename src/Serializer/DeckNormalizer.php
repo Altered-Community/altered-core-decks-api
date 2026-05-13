@@ -192,14 +192,19 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
 
         }
 
+        $detail = $data['legalityDetail'] ?? null;
+
         return [
-            'name' => $data['name'],
-            'id' => $data['id'],
-            'faction' => ['reference' => $faction],
-            'deckLegality' => ['resume' => ['globalValidity' => true]],
-            'alterator' => ['reference' => $data['stats']['hero']['reference']],
-            'cardQuantity' => (int) $data['stats']['totalCards'],
-            'deckCardsByType' => $cards
+            'name'           => $data['name'],
+            'id'             => $data['id'],
+            'faction'        => ['reference' => $faction],
+            'deckLegality'   => ['resume' => array_merge(
+                ['globalValidity' => $data['legal'] ?? false],
+                array_diff_key($detail ?? [], ['global' => null]),
+            )],
+            'alterator'      => ['reference' => $data['stats']['hero']['reference']],
+            'cardQuantity'   => (int) $data['stats']['totalCards'],
+            'deckCardsByType' => $cards,
         ];
     }
 }

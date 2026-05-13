@@ -47,12 +47,17 @@ class DeckNormalizerBgaTest extends TestCase
 
     private function buildDeckData(array $deckCards, array $formatErrors = []): array
     {
+        $legal          = $formatErrors === [];
+        $legalityDetail = ['hero' => $legal, 'deckSize' => $legal, 'global' => $legal];
+
         return [
-            'name'         => self::DECK_NAME,
-            'id'           => self::DECK_ID,
-            'stats'        => ['hero' => ['reference' => self::HERO_REF], 'totalCards' => count($deckCards)],
-            'formatErrors' => $formatErrors,
-            'deckCards'    => $deckCards,
+            'name'           => self::DECK_NAME,
+            'id'             => self::DECK_ID,
+            'stats'          => ['hero' => ['reference' => self::HERO_REF], 'totalCards' => count($deckCards)],
+            'formatErrors'   => $formatErrors,
+            'legal'          => $legal,
+            'legalityDetail' => $legalityDetail,
+            'deckCards'      => $deckCards,
         ];
     }
 
@@ -128,10 +133,9 @@ class DeckNormalizerBgaTest extends TestCase
         $ref    = 'ALT_CORE_B_AX_2_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card()]);
 
-        self::assertSame(
-            ['resume' => ['globalValidity' => true]],
-            $result['deckLegality']
-        );
+        self::assertTrue($result['deckLegality']['resume']['globalValidity']);
+        self::assertArrayHasKey('hero', $result['deckLegality']['resume']);
+        self::assertArrayHasKey('deckSize', $result['deckLegality']['resume']);
     }
 
     // ── Card grouping by type ─────────────────────────────────────────────────

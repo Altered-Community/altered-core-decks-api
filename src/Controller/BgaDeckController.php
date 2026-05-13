@@ -16,7 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class BgaDeckController extends AbstractController
 {
-    private const BGA_VALID_FORMATS = [/*'standard',*/ 'nuc'/*,'sandbox'*/];
+    private const BGA_VALID_FORMATS = ['standard', 'nuc'/*,'sandbox'*/];
 
     public function __construct(
         private readonly DeckRepository    $deckRepository,
@@ -61,7 +61,7 @@ class BgaDeckController extends AbstractController
                 'id'        => (string) $deck->getId(),
                 'name'      => $deck->getName(),
                 'cardCount' => $deck->getStats()['totalCards'] ?? 0,
-                'format'    => $deck->getFormat(),
+                'format'    => $deck->getFormat()?->value,
             ];
         }, $decks);
 

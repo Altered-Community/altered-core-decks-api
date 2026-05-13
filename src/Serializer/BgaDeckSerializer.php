@@ -33,7 +33,7 @@ final readonly class BgaDeckSerializer
         return [
             'id'         => (string) $deck->getId(),
             'name'       => $deck->getName(),
-            'format'     => $deck->getFormat(),
+            'format'     => $deck->getFormat()?->value,
             'heroRef'    => $heroRef,
             'faction'    => $parts[3] ?? null,
             'totalCards' => $deck->getStats()['totalCards'] ?? null,

@@ -2,9 +2,13 @@
 
 namespace App\Command;
 
+use App\Client\AlteredCoreClient;
+use App\Entity\Deck;
+use App\Entity\DeckCard;
 use App\Repository\DeckRepository;
 use App\Validator\Format\DeckFormatValidatorFactory;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\ProgressBar;
@@ -15,16 +19,18 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:deck:check-set-legality',
-    description: 'Updates isLegal on all decks based on format-specific set rules (no HTTP calls)',
+    description: 'Updates legal and legalityDetail on all decks',
 )]
 final class CheckDeckSetLegalityCommand extends Command
 {
     private const BATCH_SIZE = 100;
 
     public function __construct(
-        private readonly DeckRepository            $deckRepository,
+        private readonly DeckRepository             $deckRepository,
         private readonly DeckFormatValidatorFactory $validatorFactory,
-        private readonly EntityManagerInterface    $em,
+        private readonly AlteredCoreClient          $alteredCoreClient,
+        private readonly EntityManagerInterface     $em,
+        private readonly LoggerInterface            $logger,
     ) {
         parent::__construct();
     }
@@ -62,7 +68,7 @@ final class CheckDeckSetLegalityCommand extends Command
             }
 
             foreach ($decks as $deck) {
-                $format = $deck->getFormat();
+                $format = $deck->getFormat()?->value;
 
                 if ($format === null || !$this->validatorFactory->supports($format)) {
                     $skipped++;
@@ -70,13 +76,15 @@ final class CheckDeckSetLegalityCommand extends Command
                     continue;
                 }
 
-                $validator  = $this->validatorFactory->getValidator($format);
-                $setErrors  = $validator->validateSets($deck);
-                $legal      = $setErrors === [] && $deck->getFormatErrors() === [];
+                $validator = $this->validatorFactory->getValidator($format);
+                $cardsData = $this->fetchCardsData($deck);
+                $detail    = $validator->computeLegalityDetail($deck, $cardsData);
+                $legal     = $detail['global'];
 
-                if ($deck->isLegal() !== $legal) {
+                if ($deck->isLegal() !== $legal || $deck->getLegalityDetail() !== $detail) {
                     if (!$dryRun) {
                         $deck->setLegal($legal);
+                        $deck->setLegalityDetail($detail);
                     }
                     $updated++;
                 } else {
@@ -107,5 +115,28 @@ final class CheckDeckSetLegalityCommand extends Command
         );
 
         return Command::SUCCESS;
+    }
+
+    /** @return array<string, array> */
+    private function fetchCardsData(Deck $deck): array
+    {
+        $references = array_map(
+            fn (DeckCard $dc) => $dc->getCardReference(),
+            $deck->getDeckCards()->toArray(),
+        );
+
+        if (empty($references)) {
+            return [];
+        }
+
+        try {
+            return $this->alteredCoreClient->getCardsByReferences($references);
+        } catch (\Throwable $e) {
+            $this->logger->warning('CheckDeckSetLegality: could not fetch cards for deck {id}', [
+                'id'    => $deck->getId(),
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
     }
 }
