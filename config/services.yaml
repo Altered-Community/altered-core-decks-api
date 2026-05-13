@@ -30,6 +30,11 @@ services:
             $appSecret: '%env(APP_SECRET)%'
             $devAuthEnabled: '%env(bool:DEV_AUTH_ENABLED)%'
 
+    App\OpenApi\OpenApiFactory:
+        decorates: api_platform.openapi.factory
+        arguments:
+            $appEnv: '%kernel.environment%'
+
     App\Client\AlteredCoreClient:
         arguments:
             $alteredCoreUrl: '%env(ALTERED_CORE_URL)%'

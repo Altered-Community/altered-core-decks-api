@@ -1,0 +1,59 @@
+{% extends '@!ApiPlatform/SwaggerUi/index.html.twig' %}
+
+{% block javascript %}
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.55.3/dist/browser/standalone.js"></script>
+    <script>
+    (async function () {
+        const data = JSON.parse(document.getElementById('swagger-data').innerText);
+
+        {% if app.environment == 'dev' %}
+        async function fetchToken() {
+            const res = await fetch('/api/dev/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sub: 'dev-1', username: 'dev', email: 'dev@localhost' }),
+            });
+            const json = await res.json();
+            const exp = json.payload?.exp ?? (Math.floor(Date.now() / 1000) + json.expires_in);
+            localStorage.setItem('_dev_jwt', JSON.stringify({ token: json.token, exp }));
+            return json.token;
+        }
+
+        async function getToken() {
+            const stored = localStorage.getItem('_dev_jwt');
+            if (stored) {
+                const { token, exp } = JSON.parse(stored);
+                if (exp - Math.floor(Date.now() / 1000) > 60) return token;
+            }
+            return fetchToken();
+        }
+
+        const token = await getToken();
+
+        // Reload the page 1 minute before the token expires to get a fresh one automatically
+        const { exp } = JSON.parse(localStorage.getItem('_dev_jwt'));
+        const reloadIn = (exp - Math.floor(Date.now() / 1000) - 60) * 1000;
+        if (reloadIn > 0) setTimeout(() => location.reload(), reloadIn);
+
+        const config = Object.assign(
+            {
+                content: data.spec,
+                theme: 'default',
+                authentication: {
+                    preferredSecurityScheme: 'bearerAuth',
+                    securitySchemes: { bearerAuth: { token } },
+                },
+            },
+            data.scalarExtraConfiguration || {},
+        );
+        {% else %}
+        const config = Object.assign(
+            { content: data.spec, theme: 'default' },
+            data.scalarExtraConfiguration || {},
+        );
+        {% endif %}
+
+        Scalar.createApiReference('#swagger-ui', config);
+    })();
+    </script>
+{% endblock %}
