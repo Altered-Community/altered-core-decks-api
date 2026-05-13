@@ -161,6 +161,7 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
                 'name'        => is_array($nameMap) ? ($nameMap[$locale] ?? $nameMap['fr'] ?? null) : $nameMap,
                 'cardType'    => ['reference' => $card['cardType']['reference']],
                 'subTypes'    => array_column($card['cardSubTypes'] ?? [], 'reference'),
+                'rarity' => ['reference' => $card['rarity']['reference']],
                 'typeline'    => $typeline,
                 'mainFaction' => ['reference' => $card['faction']['code']],
                 'illustrator' => ['nickName' => $card['artists'] ? $card['artists'][0]['name']: null],
