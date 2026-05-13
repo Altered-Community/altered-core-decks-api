@@ -7,8 +7,8 @@ use App\Entity\DeckCard;
 
 abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterface
 {
-    public const VALID_SETS    = ['CORE', 'COREKS', 'BISE', 'ALIZE', 'EOLE', 'CYCLONE'];
-    public const FORBIDDEN_SETS = ['FUGUE', 'ROC'];
+    public const VALID_SETS    = ['CORE', 'COREKS', 'BISE', 'ALIZE', 'CYCLONE', 'DUSTER'];
+    public const FORBIDDEN_SETS = ['FUGUE', 'EOLE'];
 
     public function validate(Deck $deck, array $cardsData): array
     {
