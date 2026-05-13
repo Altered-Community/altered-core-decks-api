@@ -65,6 +65,9 @@ jobs:
           name: vendor-${{ github.sha }}
           path: vendor/
 
+      - name: Restore vendor bin permissions
+        run: chmod +x vendor/bin/*
+
       - name: PHP CS Fixer
         run: vendor/bin/php-cs-fixer fix --dry-run --diff
 
@@ -105,6 +108,9 @@ jobs:
         with:
           name: vendor-${{ github.sha }}
           path: vendor/
+
+      - name: Restore vendor bin permissions
+        run: chmod +x vendor/bin/*
 
       - name: Prepare test database
         env:
