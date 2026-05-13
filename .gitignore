@@ -1,4 +1,7 @@
 
+/.idea/
+/.envrc
+
 ###> symfony/framework-bundle ###
 /.env.local
 /.env.local.php

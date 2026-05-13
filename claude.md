@@ -1,5 +1,21 @@
 # CLAUDE.md — Altered Core
 
+## Codebase documentation
+
+Detailed codebase analysis lives in `docs/codebase/`. Read these before making broad changes.
+
+| Document | Contents |
+|---|---|
+| [`ARCHITECTURE.md`](docs/codebase/ARCHITECTURE.md) | Symfony/API Platform request flow, entity relationships, layer design |
+| [`STRUCTURE.md`](docs/codebase/STRUCTURE.md) | Directory layout, key files and their roles |
+| [`CONVENTIONS.md`](docs/codebase/CONVENTIONS.md) | PHP 8.4 style, serialization groups, filter patterns |
+| [`TESTING.md`](docs/codebase/TESTING.md) | Test setup — no tests exist yet, PHPUnit not installed |
+| [`STACK.md`](docs/codebase/STACK.md) | PHP 8.4, Symfony 7, API Platform 3, PostgreSQL, Keycloak |
+| [`INTEGRATIONS.md`](docs/codebase/INTEGRATIONS.md) | Keycloak SSO, PostgreSQL, Altered card game API |
+| [`CONCERNS.md`](docs/codebase/CONCERNS.md) | Known issues: IDOR on deck endpoints, missing repo methods, zero test coverage |
+
+---
+
 ## Stack
 
 - PHP 8.4 · Symfony 8 · Doctrine ORM · PostgreSQL
