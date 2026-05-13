@@ -3,6 +3,7 @@
 namespace App\Tests\Serializer;
 
 use App\Entity\Deck;
+use App\Enum\DeckFormat;
 use App\Serializer\BgaDeckSerializer;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
@@ -125,7 +126,7 @@ class BgaDeckSerializerTest extends TestCase
 
         $deck->method('getId')->willReturn($uuid);
         $deck->method('getName')->willReturn($name);
-        $deck->method('getFormat')->willReturn('standard');
+        $deck->method('getFormat')->willReturn(DeckFormat::Standard);
         $deck->method('getStats')->willReturn($stats);
 
         return $deck;

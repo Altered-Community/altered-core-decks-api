@@ -11,6 +11,7 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Metadata\ApiFilter;
+use App\Enum\DeckFormat;
 use App\Repository\DeckRepository;
 use App\State\DeckCollectionProvider;
 use App\State\DeckItemProvider;
@@ -78,9 +79,9 @@ class Deck
     #[Groups(['deck:read', 'deck:write'])]
     private ?string $description = null;
 
-    #[ORM\Column(length: 50, nullable: true)]
+    #[ORM\Column(nullable: true, enumType: DeckFormat::class)]
     #[Groups(['deck:read', 'deck:write'])]
-    private ?string $format = null;
+    private ?DeckFormat $format = null;
 
     #[ORM\Column]
     #[Groups(['deck:read', 'deck:write'])]
@@ -138,8 +139,8 @@ class Deck
     public function getDescription(): ?string { return $this->description; }
     public function setDescription(?string $description): self { $this->description = $description; return $this; }
 
-    public function getFormat(): ?string { return $this->format; }
-    public function setFormat(?string $format): self { $this->format = $format; return $this; }
+    public function getFormat(): ?DeckFormat { return $this->format; }
+    public function setFormat(?DeckFormat $format): self { $this->format = $format; return $this; }
 
     public function getIsPublic(): bool { return $this->isPublic; }
     public function setIsPublic(bool $isPublic): self { $this->isPublic = $isPublic; return $this; }
