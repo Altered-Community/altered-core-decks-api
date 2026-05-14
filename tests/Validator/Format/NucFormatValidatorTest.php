@@ -115,12 +115,12 @@ class NucFormatValidatorTest extends TestCase
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidNucDeck();
 
-        $ref             = 'ALT_ROC_B_AX_1_C';
+        $ref             = 'ALT_EOLE_B_AX_1_C';
         $deckCards[]     = $this->card($ref, 1);
         $cardsData[$ref] = $this->data($ref);
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
 
-        self::assertNotEmpty(array_filter($errors, fn ($e) => str_contains($e, 'ROC') && str_contains($e, 'forbidden')));
+        self::assertNotEmpty(array_filter($errors, fn ($e) => str_contains($e, 'EOLE') && str_contains($e, 'forbidden')));
     }
 }

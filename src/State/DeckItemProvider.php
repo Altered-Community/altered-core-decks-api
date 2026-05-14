@@ -27,7 +27,10 @@ final readonly class DeckItemProvider implements ProviderInterface
             throw new NotFoundHttpException();
         }
 
-        if ($deck->getIsPublic()) {
+        $isWriteOperation = in_array($operation->getMethod(), ['PATCH', 'PUT', 'DELETE'], true);
+
+        // Public decks are readable by anyone, but only writable by their owner
+        if (!$isWriteOperation && $deck->getIsPublic()) {
             return $deck;
         }
 
@@ -37,7 +40,7 @@ final readonly class DeckItemProvider implements ProviderInterface
             throw new UnauthorizedHttpException('Bearer');
         }
 
-        if ($deck->getUser() !== $user) {
+        if ($deck->getUser()->getId()->toRfc4122() !== $user->getId()->toRfc4122()) {
             throw new AccessDeniedHttpException();
         }
 

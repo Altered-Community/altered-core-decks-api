@@ -55,7 +55,26 @@ final readonly class BgaDeckSerializer
 
     public function buildCardElements(array $card): array
     {
-        return array_values(array_filter([$this->generateMainEffect($card)]));
+        return array_values(array_filter([$this->generateMainEffect($card), $this->generateSupportEffect($card)]));
+    }
+
+    private function generateSupportEffect(array $card): array
+    {
+        if (!array_key_exists('echoEffect', $card)) {
+            return [];
+        }
+
+        $cardEffectDisplays = [];
+        foreach (['effect1', 'effect2', 'effect3'] as $i => $effectKey) {
+            if (array_key_exists($effectKey, $card)) {
+                $cardEffectDisplays[] = $this->generateEffectDisplay($card[$effectKey], $i + 1);
+            }
+        }
+
+        return [
+            'cardElementType'    => ['reference' => 'SUPPORT_EFFECT'],
+            'cardEffectDisplays' => $cardEffectDisplays,
+        ];
     }
 
     private function generateMainEffect(array $card): array

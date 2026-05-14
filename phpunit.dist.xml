@@ -20,6 +20,7 @@
     <testsuites>
         <testsuite name="Unit">
             <directory>tests/Serializer</directory>
+            <directory>tests/State</directory>
             <directory>tests/Validator</directory>
         </testsuite>
         <testsuite name="Integration">
