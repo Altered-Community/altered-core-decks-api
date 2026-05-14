@@ -60,16 +60,11 @@ final readonly class BgaDeckSerializer
 
     private function generateSupportEffect(array $card): array
     {
-        if (!array_key_exists('echoEffect', $card)) {
+        if (!array_key_exists('echoEffect1', $card)) {
             return [];
         }
 
-        $cardEffectDisplays = [];
-        foreach (['effect1', 'effect2', 'effect3'] as $i => $effectKey) {
-            if (array_key_exists($effectKey, $card)) {
-                $cardEffectDisplays[] = $this->generateEffectDisplay($card[$effectKey], $i + 1);
-            }
-        }
+        $cardEffectDisplays[] = $this->generateEffectDisplay($card['echoEffect1'], 1);
 
         return [
             'cardElementType'    => ['reference' => 'SUPPORT_EFFECT'],
