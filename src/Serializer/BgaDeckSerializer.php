@@ -64,9 +64,6 @@ final readonly class BgaDeckSerializer
             return [];
         }
 
-        var_dump($card['echoEffect']);
-        die();
-
         $cardEffectDisplays[] = $this->generateEffectDisplay($card['echoEffect1'], 1);
 
         return [
