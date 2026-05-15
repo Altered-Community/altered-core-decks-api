@@ -41,7 +41,7 @@ class BgaDeckController extends AbstractController
             'STANDARD' => 'standard',
             'NO_UNIQUE' => 'nuc',
             'SANDBOX' => 'sandbox',
-            'SINGLETON'   => 'singleton',
+            'SINGLETON' => 'singleton',
             default => '',
         };
 

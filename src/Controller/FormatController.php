@@ -13,16 +13,16 @@ class FormatController extends AbstractController
     {
         return $this->json([
             [
-                'code'     => 'sandbox',
-                'label'    => 'Sandbox',
+                'code' => 'sandbox',
+                'label' => 'Sandbox',
                 'minCards' => 4,
                 'maxCards' => 100,
-                'limits'   => [
-                    'unique'            => null,
-                    'rare'              => null,
-                    'exalted'           => null,
-                    'maxCopiesPerName'  => null,
-                    'maxCopiesPerRarity'=> null,
+                'limits' => [
+                    'unique' => null,
+                    'rare' => null,
+                    'exalted' => null,
+                    'maxCopiesPerName' => null,
+                    'maxCopiesPerRarity' => null,
                 ],
             ],
             [
