@@ -121,6 +121,9 @@ class BgaDeckController extends AbstractController
     {
         $card = $this->alteredCoreClient->getCardByReferences($reference);
 
+        var_dump($card);
+        die();
+
         if (empty($card)) {
             throw new NotFoundHttpException();
         }
