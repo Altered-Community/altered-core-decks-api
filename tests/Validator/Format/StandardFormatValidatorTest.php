@@ -180,8 +180,8 @@ class StandardFormatValidatorTest extends TestCase
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
-        $ref             = 'ALT_EOLE_B_AX_1_C';
-        $deckCards[]     = $this->card($ref, 1);
+        $ref = 'ALT_EOLE_B_AX_1_C';
+        $deckCards[] = $this->card($ref, 1);
         $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_C', 'Eole Card');
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);

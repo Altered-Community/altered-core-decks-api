@@ -117,8 +117,8 @@ class NucFormatValidatorTest extends TestCase
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidNucDeck();
 
-        $ref             = 'ALT_EOLE_B_AX_1_C';
-        $deckCards[]     = $this->card($ref, 1);
+        $ref = 'ALT_EOLE_B_AX_1_C';
+        $deckCards[] = $this->card($ref, 1);
         $cardsData[$ref] = $this->data($ref);
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);

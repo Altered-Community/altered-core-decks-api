@@ -27,9 +27,6 @@
             <directory>tests/Api</directory>
             <directory>tests/Controller</directory>
         </testsuite>
-        <testsuite name="Project Test Suite">
-            <directory>tests</directory>
-        </testsuite>
     </testsuites>
 
     <source ignoreSuppressionOfDeprecations="true"

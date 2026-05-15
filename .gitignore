@@ -22,3 +22,6 @@
 ###> phpstan/phpstan ###
 /.phpstan.cache/
 ###< phpstan/phpstan ###
+
+.envrc
+.idea/

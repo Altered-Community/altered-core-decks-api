@@ -68,7 +68,7 @@ final readonly class BgaDeckSerializer
         $cardEffectDisplays[] = $this->generateEffectDisplay($card['echoEffect1'], 1);
 
         return [
-            'cardElementType'    => ['reference' => 'SUPPORT_EFFECT'],
+            'cardElementType' => ['reference' => 'SUPPORT_EFFECT'],
             'cardEffectDisplays' => $cardEffectDisplays,
         ];
     }

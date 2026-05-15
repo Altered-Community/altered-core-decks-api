@@ -30,6 +30,7 @@ class DeckItemProviderTest extends TestCase
     {
         $user = $this->createStub(User::class);
         $user->method('getId')->willReturn(Uuid::fromString($id));
+
         return $user;
     }
 
@@ -38,6 +39,7 @@ class DeckItemProviderTest extends TestCase
         $deck = $this->createStub(Deck::class);
         $deck->method('getIsPublic')->willReturn($isPublic);
         $deck->method('getUser')->willReturn($this->user($ownerId));
+
         return $deck;
     }
 
@@ -45,6 +47,7 @@ class DeckItemProviderTest extends TestCase
     {
         $repo = $this->createStub(DeckRepository::class);
         $repo->method('find')->willReturn($deck);
+
         return $repo;
     }
 
@@ -52,6 +55,7 @@ class DeckItemProviderTest extends TestCase
     {
         $security = $this->createStub(Security::class);
         $security->method('getUser')->willReturn($user);
+
         return $security;
     }
 
@@ -69,7 +73,7 @@ class DeckItemProviderTest extends TestCase
 
     public function testGetPublicDeckWithoutAuthReturnsIt(): void
     {
-        $deck   = $this->deck(true, self::OWNER_ID);
+        $deck = $this->deck(true, self::OWNER_ID);
         $result = $this->provider($this->repo($deck), $this->security(null))
             ->provide(new Get(), ['id' => 'any']);
 
@@ -78,7 +82,7 @@ class DeckItemProviderTest extends TestCase
 
     public function testGetPublicDeckByOtherUserReturnsIt(): void
     {
-        $deck   = $this->deck(true, self::OWNER_ID);
+        $deck = $this->deck(true, self::OWNER_ID);
         $result = $this->provider($this->repo($deck), $this->security($this->user(self::OTHER_ID)))
             ->provide(new Get(), ['id' => 'any']);
 
@@ -87,7 +91,7 @@ class DeckItemProviderTest extends TestCase
 
     public function testGetPublicDeckByOwnerReturnsIt(): void
     {
-        $deck   = $this->deck(true, self::OWNER_ID);
+        $deck = $this->deck(true, self::OWNER_ID);
         $result = $this->provider($this->repo($deck), $this->security($this->user(self::OWNER_ID)))
             ->provide(new Get(), ['id' => 'any']);
 
@@ -114,7 +118,7 @@ class DeckItemProviderTest extends TestCase
 
     public function testGetPrivateDeckByOwnerReturnsIt(): void
     {
-        $deck   = $this->deck(false, self::OWNER_ID);
+        $deck = $this->deck(false, self::OWNER_ID);
         $result = $this->provider($this->repo($deck), $this->security($this->user(self::OWNER_ID)))
             ->provide(new Get(), ['id' => 'any']);
 
@@ -141,7 +145,7 @@ class DeckItemProviderTest extends TestCase
 
     public function testPatchPublicDeckByOwnerReturnsIt(): void
     {
-        $deck   = $this->deck(true, self::OWNER_ID);
+        $deck = $this->deck(true, self::OWNER_ID);
         $result = $this->provider($this->repo($deck), $this->security($this->user(self::OWNER_ID)))
             ->provide(new Patch(), ['id' => 'any']);
 
@@ -160,7 +164,7 @@ class DeckItemProviderTest extends TestCase
 
     public function testDeletePublicDeckByOwnerReturnsIt(): void
     {
-        $deck   = $this->deck(true, self::OWNER_ID);
+        $deck = $this->deck(true, self::OWNER_ID);
         $result = $this->provider($this->repo($deck), $this->security($this->user(self::OWNER_ID)))
             ->provide(new Delete(), ['id' => 'any']);
 
