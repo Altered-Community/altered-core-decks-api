@@ -12,8 +12,8 @@ use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 
 class DeckNormalizerBgaTest extends TestCase
 {
-    private const HERO_REF  = 'ALT_CORE_B_AX_1_C';
-    private const DECK_ID   = '550e8400-e29b-41d4-a716-446655440000';
+    private const HERO_REF = 'ALT_CORE_B_AX_1_C';
+    private const DECK_ID = '550e8400-e29b-41d4-a716-446655440000';
     private const DECK_NAME = 'Test Deck';
 
     private DeckNormalizer $normalizer;
@@ -22,7 +22,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->inner      = $this->createStub(NormalizerInterface::class);
+        $this->inner = $this->createStub(NormalizerInterface::class);
         $this->coreClient = $this->createStub(AlteredCoreClient::class);
 
         $requestStack = $this->createStub(RequestStack::class);
@@ -47,34 +47,34 @@ class DeckNormalizerBgaTest extends TestCase
 
     private function buildDeckData(array $deckCards, array $formatErrors = []): array
     {
-        $legal          = $formatErrors === [];
+        $legal = [] === $formatErrors;
         $legalityDetail = ['hero' => $legal, 'deckSize' => $legal, 'global' => $legal];
 
         return [
-            'name'           => self::DECK_NAME,
-            'id'             => self::DECK_ID,
-            'stats'          => ['hero' => ['reference' => self::HERO_REF], 'totalCards' => count($deckCards)],
-            'formatErrors'   => $formatErrors,
-            'legal'          => $legal,
+            'name' => self::DECK_NAME,
+            'id' => self::DECK_ID,
+            'stats' => ['hero' => ['reference' => self::HERO_REF], 'totalCards' => count($deckCards)],
+            'formatErrors' => $formatErrors,
+            'legal' => $legal,
             'legalityDetail' => $legalityDetail,
-            'deckCards'      => $deckCards,
+            'deckCards' => $deckCards,
         ];
     }
 
     private function card(string $typeRef = 'character', array $subTypes = [], array $overrides = []): array
     {
         return array_merge([
-            'name'          => ['fr' => 'Carte Test', 'en' => 'Test Card'],
-            'cardType'      => ['reference' => $typeRef, 'name' => ucfirst($typeRef)],
-            'cardSubTypes'  => $subTypes,
-            'rarity'        => ['reference' => 'C'],
-            'faction'       => ['code' => 'AX'],
-            'mainCost'      => 3,
-            'recallCost'    => 2,
-            'forestPower'   => 1,
+            'name' => ['fr' => 'Carte Test', 'en' => 'Test Card'],
+            'cardType' => ['reference' => $typeRef, 'name' => ucfirst($typeRef)],
+            'cardSubTypes' => $subTypes,
+            'rarity' => ['reference' => 'C'],
+            'faction' => ['code' => 'AX'],
+            'mainCost' => 3,
+            'recallCost' => 2,
+            'forestPower' => 1,
             'mountainPower' => 2,
-            'oceanPower'    => 3,
-            'artists'       => [['name' => 'John Doe']],
+            'oceanPower' => 3,
+            'artists' => [['name' => 'John Doe']],
         ], $overrides);
     }
 
@@ -87,7 +87,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testOutputHasRequiredTopLevelKeys(): void
     {
-        $ref    = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card()]);
 
         self::assertArrayHasKey('name', $result);
@@ -101,7 +101,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testNameAndIdPassedThrough(): void
     {
-        $ref    = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card()]);
 
         self::assertSame(self::DECK_NAME, $result['name']);
@@ -113,7 +113,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testFactionReferenceComesFromLastCardFactionCode(): void
     {
-        $ref    = 'ALT_CORE_B_BR_5_C';
+        $ref = 'ALT_CORE_B_BR_5_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card('character', [], ['faction' => ['code' => 'BR']])]);
 
         self::assertSame(['reference' => 'BR'], $result['faction']);
@@ -121,7 +121,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testAlteratorReferenceIsHeroFromStats(): void
     {
-        $ref    = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card()]);
 
         self::assertSame(['reference' => self::HERO_REF], $result['alterator']);
@@ -131,7 +131,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testDeckLegalityShape(): void
     {
-        $ref    = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card()]);
 
         self::assertTrue($result['deckLegality']['resume']['globalValidity']);
@@ -143,7 +143,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testCardGroupedByTypeReference(): void
     {
-        $ref    = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $result = $this->normalize([$this->deckCard($ref, 2)], [$ref => $this->card('character')]);
 
         self::assertArrayHasKey('character', $result['deckCardsByType']);
@@ -154,7 +154,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testExpeditionPermanentGroupedAsPermanent(): void
     {
-        $ref    = 'ALT_CORE_B_AX_3_C';
+        $ref = 'ALT_CORE_B_AX_3_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card('expedition_permanent')]);
 
         self::assertArrayHasKey('permanent', $result['deckCardsByType']);
@@ -163,7 +163,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testLandmarkPermanentGroupedAsPermanent(): void
     {
-        $ref    = 'ALT_CORE_B_AX_4_C';
+        $ref = 'ALT_CORE_B_AX_4_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card('landmark_permanent')]);
 
         self::assertArrayHasKey('permanent', $result['deckCardsByType']);
@@ -199,7 +199,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testCardEntryShape(): void
     {
-        $ref    = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card()]);
 
         $entry = $result['deckCardsByType']['character']['deckUserListCard'][0];
@@ -220,7 +220,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testCardReferenceIsPreserved(): void
     {
-        $ref    = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card()]);
 
         $card = $result['deckCardsByType']['character']['deckUserListCard'][0]['card'];
@@ -229,7 +229,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testCardNameLocalized(): void
     {
-        $ref    = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card()]);
 
         $card = $result['deckCardsByType']['character']['deckUserListCard'][0]['card'];
@@ -238,7 +238,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testCardMainFactionShape(): void
     {
-        $ref    = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card()]);
 
         $card = $result['deckCardsByType']['character']['deckUserListCard'][0]['card'];
@@ -247,7 +247,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testCardIllustratorShape(): void
     {
-        $ref    = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card()]);
 
         $card = $result['deckCardsByType']['character']['deckUserListCard'][0]['card'];
@@ -256,7 +256,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testCardTypeShape(): void
     {
-        $ref    = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card('character')]);
 
         $card = $result['deckCardsByType']['character']['deckUserListCard'][0]['card'];
@@ -267,7 +267,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testElementsHasAllFiveKeys(): void
     {
-        $ref    = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card()]);
 
         $elements = $result['deckCardsByType']['character']['deckUserListCard'][0]['card']['elements'];
@@ -280,7 +280,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testElementValuesFromCardData(): void
     {
-        $ref    = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card()]);
 
         $elements = $result['deckCardsByType']['character']['deckUserListCard'][0]['card']['elements'];
@@ -295,7 +295,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testTypelineBuiltFromCardTypeAndSubTypes(): void
     {
-        $ref  = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $card = $this->card('character', [
             ['reference' => 'warrior', 'name' => 'Warrior'],
             ['reference' => 'mage', 'name' => 'Mage'],
@@ -308,7 +308,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testTypelineWithNoSubTypes(): void
     {
-        $ref    = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card('hero')]);
 
         $typeline = $result['deckCardsByType']['hero']['deckUserListCard'][0]['card']['typeline'];
@@ -317,7 +317,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testSubTypesAsArrayOfReferences(): void
     {
-        $ref  = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $card = $this->card('character', [
             ['reference' => 'warrior', 'name' => 'Warrior'],
         ]);
@@ -331,7 +331,7 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testNonUniqueCardHasNoUniqueReducedField(): void
     {
-        $ref    = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $this->card()]);
 
         $card = $result['deckCardsByType']['character']['deckUserListCard'][0]['card'];
@@ -341,12 +341,12 @@ class DeckNormalizerBgaTest extends TestCase
     public function testUniqueCardHasUniqueReducedField(): void
     {
         // Reference must contain '_U_' for str_contains detection
-        $ref  = 'ALT_CORE_B_AX_1_U_1';
+        $ref = 'ALT_CORE_B_AX_1_U_1';
         $card = $this->card('character', [], [
             'effect1' => [
-                'abilityTrigger'   => ['alteredId' => 'trigger-id'],
+                'abilityTrigger' => ['alteredId' => 'trigger-id'],
                 'abilityCondition' => ['alteredId' => 'condition-id'],
-                'abilityEffect'    => ['alteredId' => 'effect-id'],
+                'abilityEffect' => ['alteredId' => 'effect-id'],
             ],
         ]);
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $card]);
@@ -357,34 +357,34 @@ class DeckNormalizerBgaTest extends TestCase
 
     public function testUniqueReducedContainsEffectIds(): void
     {
-        $ref  = 'ALT_CORE_B_AX_1_U_1';
+        $ref = 'ALT_CORE_B_AX_1_U_1';
         $card = $this->card('character', [], [
             'effect1' => [
-                'abilityTrigger'   => ['alteredId' => 'trigger-id'],
+                'abilityTrigger' => ['alteredId' => 'trigger-id'],
                 'abilityCondition' => ['alteredId' => 'condition-id'],
-                'abilityEffect'    => ['alteredId' => 'effect-id'],
+                'abilityEffect' => ['alteredId' => 'effect-id'],
             ],
         ]);
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $card]);
 
         $uniqueReduced = $result['deckCardsByType']['character']['deckUserListCard'][0]['card']['uniqueReduced'];
         self::assertCount(1, $uniqueReduced);
-        self::assertSame([['trigger-id', 'condition-id', 'effect-id']], $uniqueReduced[0]['effects']);
+        self::assertSame(['trigger-id', 'condition-id', 'effect-id'], $uniqueReduced[0]['effects']);
     }
 
     public function testUniqueCardWithMultipleEffects(): void
     {
-        $ref  = 'ALT_CORE_B_AX_1_U_1';
+        $ref = 'ALT_CORE_B_AX_1_U_1';
         $card = $this->card('character', [], [
             'effect1' => [
-                'abilityTrigger'   => ['alteredId' => 't1'],
+                'abilityTrigger' => ['alteredId' => 't1'],
                 'abilityCondition' => ['alteredId' => 'c1'],
-                'abilityEffect'    => ['alteredId' => 'e1'],
+                'abilityEffect' => ['alteredId' => 'e1'],
             ],
             'effect2' => [
-                'abilityTrigger'   => ['alteredId' => 't2'],
+                'abilityTrigger' => ['alteredId' => 't2'],
                 'abilityCondition' => ['alteredId' => 'c2'],
-                'abilityEffect'    => ['alteredId' => 'e2'],
+                'abilityEffect' => ['alteredId' => 'e2'],
             ],
         ]);
         $result = $this->normalize([$this->deckCard($ref)], [$ref => $card]);

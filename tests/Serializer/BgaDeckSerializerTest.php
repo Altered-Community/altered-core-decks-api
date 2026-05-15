@@ -17,7 +17,7 @@ class BgaDeckSerializerTest extends TestCase
     protected function setUp(): void
     {
         $this->symfonySerializer = $this->createStub(NormalizerInterface::class);
-        $this->serializer        = new BgaDeckSerializer($this->symfonySerializer);
+        $this->serializer = new BgaDeckSerializer($this->symfonySerializer);
     }
 
     public function testCollectionEntryWithHero(): void
@@ -60,7 +60,7 @@ class BgaDeckSerializerTest extends TestCase
     public function testAdminRowWithHero(): void
     {
         $deck = $this->deckWithStats([
-            'hero'       => ['reference' => 'ALT_CORE_B_LY_7_U'],
+            'hero' => ['reference' => 'ALT_CORE_B_LY_7_U'],
             'totalCards' => 30,
         ]);
 
@@ -86,7 +86,7 @@ class BgaDeckSerializerTest extends TestCase
 
     public function testNormalizeItemDelegatesToSymfonySerializer(): void
     {
-        $deck     = $this->createStub(Deck::class);
+        $deck = $this->createStub(Deck::class);
         $expected = ['foo' => 'bar'];
 
         $normalizer = $this->createMock(NormalizerInterface::class);

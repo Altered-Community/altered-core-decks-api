@@ -14,8 +14,9 @@ interface DeckFormatValidatorInterface
     /**
      * Validate the deck against format rules.
      *
-     * @param  array<string, array> $cardsData  reference => card data from altered-core
-     * @return string[]  list of validation error messages (empty = valid)
+     * @param array<string, array> $cardsData reference => card data from altered-core
+     *
+     * @return string[] list of validation error messages (empty = valid)
      */
     public function validate(Deck $deck, array $cardsData): array;
 
@@ -32,7 +33,8 @@ interface DeckFormatValidatorInterface
      * Keys are rule identifiers, values are true (legal) / false (not legal).
      * Always includes a 'global' key with the overall result.
      *
-     * @param  array<string, array> $cardsData
+     * @param array<string, array> $cardsData
+     *
      * @return array<string, bool>
      */
     public function computeLegalityDetail(Deck $deck, array $cardsData): array;

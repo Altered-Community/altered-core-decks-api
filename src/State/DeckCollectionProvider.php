@@ -15,9 +15,10 @@ class DeckCollectionProvider implements ProviderInterface
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly Security $security,
-    ) {}
+    ) {
+    }
 
-public function provide(Operation $operation, array $uriVariables = [], array $context = []): iterable
+    public function provide(Operation $operation, array $uriVariables = [], array $context = []): iterable
     {
         $currentUser = $this->security->getUser();
 
@@ -27,7 +28,7 @@ public function provide(Operation $operation, array $uriVariables = [], array $c
                 ->getResult();
         }
 
-        return $this->getQueryBuilder($operation, $context)->getQuery()->getResult();
+        return $this->getQueryBuilder($operation, $context, null)->getQuery()->getResult();
     }
 
     private function getQueryBuilder(Operation $operation, array $context, ?User $currentUser): QueryBuilder

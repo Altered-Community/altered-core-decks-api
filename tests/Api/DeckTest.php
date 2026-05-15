@@ -15,12 +15,12 @@ class DeckTest extends WebTestCase
 
     protected function setUp(): void
     {
-        $this->client          = static::createClient();
+        $this->client = static::createClient();
         $this->alteredCoreMock = static::getContainer()->get('altered_core.mock_http_client');
         // Default: return empty card list (deck with no cards never triggers HTTP call,
         // but this prevents MockHttpClient from throwing if called unexpectedly)
         $this->alteredCoreMock->setResponseFactory(
-            static fn(): MockResponse => new MockResponse('[]', ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
+            static fn (): MockResponse => new MockResponse('[]', ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
         );
     }
 
@@ -29,20 +29,20 @@ class DeckTest extends WebTestCase
     private function makeToken(string $sub): string
     {
         return JWT::encode([
-            'sub'                => $sub,
+            'sub' => $sub,
             'preferred_username' => 'testuser',
-            'email'              => 'test@test.com',
-            'iss'                => 'dev',
-            'iat'                => time(),
-            'exp'                => time() + 3600,
+            'email' => 'test@test.com',
+            'iss' => 'dev',
+            'iat' => time(),
+            'exp' => time() + 3600,
         ], '$ecretf0rt3st_extended_for_hs256_tests', 'HS256');
     }
 
     private function authHeaders(string $sub): array
     {
         return [
-            'HTTP_AUTHORIZATION' => 'Bearer ' . $this->makeToken($sub),
-            'CONTENT_TYPE'       => 'application/json',
+            'HTTP_AUTHORIZATION' => 'Bearer '.$this->makeToken($sub),
+            'CONTENT_TYPE' => 'application/json',
         ];
     }
 
@@ -62,12 +62,12 @@ class DeckTest extends WebTestCase
 
     private function patch(string $sub, string $id, array $body): array
     {
-        $headers                  = $this->authHeaders($sub);
-        $headers['CONTENT_TYPE']  = 'application/merge-patch+json';
+        $headers = $this->authHeaders($sub);
+        $headers['CONTENT_TYPE'] = 'application/merge-patch+json';
 
         $this->client->request(
             'PATCH',
-            '/api/decks/' . $id,
+            '/api/decks/'.$id,
             [],
             [],
             $headers,
@@ -81,7 +81,7 @@ class DeckTest extends WebTestCase
     {
         $json = json_encode($cards);
         $this->alteredCoreMock->setResponseFactory(
-            static fn(): MockResponse => new MockResponse($json, ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
+            static fn (): MockResponse => new MockResponse($json, ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
         );
     }
 
@@ -93,7 +93,7 @@ class DeckTest extends WebTestCase
      */
     public function testPatchIsPublicSaved(): void
     {
-        $sub  = 'user-' . __FUNCTION__;
+        $sub = 'user-'.__FUNCTION__;
         $deck = $this->post($sub, ['name' => 'My Deck', 'isDraft' => true]);
         $this->assertResponseStatusCodeSame(201);
 
@@ -109,11 +109,11 @@ class DeckTest extends WebTestCase
      */
     public function testFormatErrorsStoredNotThrown(): void
     {
-        $sub  = 'user-' . __FUNCTION__;
+        $sub = 'user-'.__FUNCTION__;
         $deck = $this->post($sub, [
-            'name'     => 'Incomplete Deck',
-            'isDraft'  => false,
-            'format'   => 'standard',
+            'name' => 'Incomplete Deck',
+            'isDraft' => false,
+            'format' => 'standard',
             // no deckCards → deck will fail hero + size validation
         ]);
 
@@ -128,7 +128,7 @@ class DeckTest extends WebTestCase
      */
     public function testFormatErrorsNullWhenNoFormat(): void
     {
-        $sub  = 'user-' . __FUNCTION__;
+        $sub = 'user-'.__FUNCTION__;
         $deck = $this->post($sub, ['name' => 'Free Deck', 'isDraft' => false]);
 
         $this->assertResponseStatusCodeSame(201);
@@ -140,7 +140,7 @@ class DeckTest extends WebTestCase
      */
     public function testDeckSavedWhenAlteredCoreUnavailable(): void
     {
-        $sub  = 'user-' . __FUNCTION__;
+        $sub = 'user-'.__FUNCTION__;
         $deck = $this->post($sub, ['name' => 'My Deck', 'isDraft' => true]);
         $this->assertResponseStatusCodeSame(201);
 
@@ -150,8 +150,8 @@ class DeckTest extends WebTestCase
         );
 
         $updated = $this->patch($sub, $deck['id'], [
-            'isDraft'   => false,
-            'format'    => 'standard',
+            'isDraft' => false,
+            'format' => 'standard',
             'deckCards' => [
                 ['cardReference' => 'ALT_CORE_B_MU_1_C', 'quantity' => 1],
             ],
@@ -169,30 +169,30 @@ class DeckTest extends WebTestCase
      */
     public function testFormatErrorsNullOnValidDeck(): void
     {
-        $sub = 'user-' . __FUNCTION__;
+        $sub = 'user-'.__FUNCTION__;
 
         // Build 39 common card references (13 distinct refs × qty 3)
         $deckCards = [];
         $mockCards = [];
 
         // Hero
-        $heroRef     = 'ALT_CORE_B_AX_1_C';
+        $heroRef = 'ALT_CORE_B_AX_1_C';
         $deckCards[] = ['cardReference' => $heroRef, 'quantity' => 1];
         $mockCards[] = [
-            'reference'  => $heroRef,
-            'cardType'   => ['reference' => 'HERO_MAIN'],
-            'faction'    => ['code' => 'AX'],
+            'reference' => $heroRef,
+            'cardType' => ['reference' => 'HERO_MAIN'],
+            'faction' => ['code' => 'AX'],
             'cardRarity' => ['reference' => 'CORAX_C'],
         ];
 
         // 13 distinct common cards × qty 3 = 39
-        for ($i = 2; $i <= 14; $i++) {
-            $ref         = sprintf('ALT_CORE_B_AX_%d_C', $i);
+        for ($i = 2; $i <= 14; ++$i) {
+            $ref = sprintf('ALT_CORE_B_AX_%d_C', $i);
             $deckCards[] = ['cardReference' => $ref, 'quantity' => 3];
             $mockCards[] = [
-                'reference'  => $ref,
-                'cardType'   => ['reference' => 'PERMANENT'],
-                'faction'    => ['code' => 'AX'],
+                'reference' => $ref,
+                'cardType' => ['reference' => 'PERMANENT'],
+                'faction' => ['code' => 'AX'],
                 'cardRarity' => ['reference' => 'CORAX_C'],
             ];
         }
@@ -200,9 +200,9 @@ class DeckTest extends WebTestCase
         $this->mockAlteredCore($mockCards);
 
         $deck = $this->post($sub, [
-            'name'      => 'Valid Deck',
-            'isDraft'   => false,
-            'format'    => 'standard',
+            'name' => 'Valid Deck',
+            'isDraft' => false,
+            'format' => 'standard',
             'deckCards' => $deckCards,
         ]);
 

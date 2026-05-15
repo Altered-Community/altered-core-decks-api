@@ -14,15 +14,16 @@ final class AdminApiController extends AbstractController
 {
     public function __construct(
         private readonly DeckRepository $deckRepository,
-    ) {}
+    ) {
+    }
 
     #[Route('/stats', name: 'admin_api_stats', methods: ['GET'])]
     public function stats(): JsonResponse
     {
         return $this->json([
-            'decksToday'    => $this->deckRepository->countCreatedToday(),
+            'decksToday' => $this->deckRepository->countCreatedToday(),
             'decksThisWeek' => $this->deckRepository->countCreatedSince(new \DateTimeImmutable('-7 days')),
-            'decksTotal'    => $this->deckRepository->countTotal(),
+            'decksTotal' => $this->deckRepository->countTotal(),
         ]);
     }
 
@@ -35,12 +36,12 @@ final class AdminApiController extends AbstractController
             $stats = $row['stats'] ? json_decode((string) $row['stats'], true) : null;
 
             return [
-                'id'         => $row['id'],
-                'name'       => $row['name'],
-                'format'     => $row['format'],
-                'isPublic'   => (bool) $row['is_public'],
-                'isDraft'    => (bool) $row['is_draft'],
-                'createdAt'  => $row['created_at'],
+                'id' => $row['id'],
+                'name' => $row['name'],
+                'format' => $row['format'],
+                'isPublic' => (bool) $row['is_public'],
+                'isDraft' => (bool) $row['is_draft'],
+                'createdAt' => $row['created_at'],
                 'totalCards' => $stats['totalCards'] ?? null,
             ];
         }, $rows);

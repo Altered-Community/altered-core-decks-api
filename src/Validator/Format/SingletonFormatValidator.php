@@ -20,15 +20,25 @@ class SingletonFormatValidator extends AbstractDeckFormatValidator
         5 => ['sierra', 'sol', 'auraq', 'nadir', 'waru', 'gulrang', 'lindiwe', 'afanas', 'moyo'],
     ];
 
-    public function getFormat(): string { return 'singleton'; }
+    public function getFormat(): string
+    {
+        return 'singleton';
+    }
 
-    protected function getMinCards(): int { return 59; }
-    protected function getMaxCards(): int { return 79; }
+    protected function getMinCards(): int
+    {
+        return 59;
+    }
+
+    protected function getMaxCards(): int
+    {
+        return 79;
+    }
 
     protected function computeFormatRulesDetail(array $deckCards, array $cardsData, ?DeckCard $hero): array
     {
-        $groups      = $this->groupByName($deckCards, $cardsData);
-        $copiesOk    = true;
+        $groups = $this->groupByName($deckCards, $cardsData);
+        $copiesOk = true;
 
         foreach ($groups as $rarities) {
             if (array_sum($rarities) > 3) {
@@ -44,7 +54,7 @@ class SingletonFormatValidator extends AbstractDeckFormatValidator
         }
 
         return [
-            'copies'         => $copiesOk,
+            'copies' => $copiesOk,
             'uniqueQuantity' => $this->countUniqueCards($groups) <= $this->getUniqueLimitForHero($hero, $cardsData),
         ];
     }

@@ -10,20 +10,21 @@ use App\Entity\DeckCard;
 use App\Entity\User;
 use App\Validator\Format\DeckFormatValidatorFactory;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Psr\Log\LoggerInterface;
 
 class DeckStateProcessor implements ProcessorInterface
 {
     public function __construct(
-        private readonly EntityManagerInterface      $em,
-        private readonly Security                   $security,
-        private readonly AlteredCoreClient          $alteredCoreClient,
+        private readonly EntityManagerInterface $em,
+        private readonly Security $security,
+        private readonly AlteredCoreClient $alteredCoreClient,
         private readonly DeckFormatValidatorFactory $validatorFactory,
-        private readonly RequestStack               $requestStack,
-        private readonly LoggerInterface            $logger,
-    ) {}
+        private readonly RequestStack $requestStack,
+        private readonly LoggerInterface $logger,
+    ) {
+    }
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): Deck
     {
@@ -31,8 +32,9 @@ class DeckStateProcessor implements ProcessorInterface
         $isNew = !$data->getId();
 
         if ($isNew) {
-            /** @var User $user */
-            $user = $this->em->getReference(User::class, $this->security->getUser()->getId());
+            $currentUser = $this->security->getUser();
+            assert($currentUser instanceof User);
+            $user = $this->em->getReference(User::class, $currentUser->getId());
             $data->setUser($user);
         } else {
             $data->setUpdatedAt(new \DateTimeImmutable());
@@ -41,12 +43,12 @@ class DeckStateProcessor implements ProcessorInterface
 
         if (!$data->getIsDraft()) {
             $cardsData = $this->fetchCardsData($data);
-            $format    = $data->getFormat()?->value;
+            $format = $data->getFormat()?->value;
 
             if ($format && $this->validatorFactory->supports($format)) {
                 $validator = $this->validatorFactory->getValidator($format);
-                $errors    = $validator->validate($data, $cardsData);
-                $detail    = $validator->computeLegalityDetail($data, $cardsData);
+                $errors = $validator->validate($data, $cardsData);
+                $detail = $validator->computeLegalityDetail($data, $cardsData);
 
                 $data->setFormatErrors(empty($errors) ? null : $errors);
                 $data->setLegalityDetail($detail);
@@ -94,9 +96,10 @@ class DeckStateProcessor implements ProcessorInterface
             return $this->alteredCoreClient->getCardsByReferences($references, $locale);
         } catch (\Throwable $e) {
             $this->logger->error('AlteredCoreClient::getCardsByReferences failed', [
-                'error'      => $e->getMessage(),
+                'error' => $e->getMessage(),
                 'references' => $references,
             ]);
+
             return [];
         }
     }
@@ -110,19 +113,19 @@ class DeckStateProcessor implements ProcessorInterface
      */
     private function computeStats(Deck $deck, array $cardsData): array
     {
-        $hero     = null;
-        $total    = 0;
+        $hero = null;
+        $total = 0;
         $byRarity = ['C' => 0, 'R' => 0, 'U' => 0, 'E' => 0];
 
         foreach ($deck->getDeckCards() as $deckCard) {
-            $ref      = $deckCard->getCardReference();
-            $qty      = $deckCard->getQuantity();
+            $ref = $deckCard->getCardReference();
+            $qty = $deckCard->getQuantity();
             $cardData = $cardsData[$ref] ?? [];
 
             if ($cardData && $this->isHero($cardData)) {
                 $hero = [
                     'reference' => $ref,
-                    'name'      => $cardData['name'] ?? null,
+                    'name' => $cardData['name'] ?? null,
                     'imagePath' => $cardData['imagePath'] ?? null,
                 ];
                 continue;
@@ -135,37 +138,38 @@ class DeckStateProcessor implements ProcessorInterface
 
         return [
             'totalCards' => $total,
-            'hero'       => $hero,
-            'byRarity'   => $byRarity,
+            'hero' => $hero,
+            'byRarity' => $byRarity,
         ];
     }
 
     private function isHero(array $cardData): bool
     {
         $typeRef = $cardData['cardType']['reference'] ?? '';
-        return stripos($typeRef, 'HERO') !== false;
+
+        return false !== stripos($typeRef, 'HERO');
     }
 
     /**
      * Parses rarity from a card reference or CardGroup slug.
      *   Slug format    : AX-001-C, AX-020-R1, AX-021-R2, AX-001-U-185  → parts[2]
-     *   Reference format: ALT_CORE_B_OR_17_R1_045                       → parts[5]
+     *   Reference format: ALT_CORE_B_OR_17_R1_045                       → parts[5].
      */
     private function getRarityFromReference(string $ref): string
     {
         if (str_contains($ref, '-')) {
-            $parts  = explode('-', $ref);
+            $parts = explode('-', $ref);
             $rarity = strtoupper($parts[2] ?? 'C');
         } else {
-            $parts  = explode('_', $ref);
+            $parts = explode('_', $ref);
             $rarity = strtoupper($parts[5] ?? 'C');
         }
 
         return match ($rarity) {
-            'U'          => 'U',
-            'R1', 'R2'   => 'R',
+            'U' => 'U',
+            'R1', 'R2' => 'R',
             'E', 'EXALT' => 'E',
-            default      => 'C',
+            default => 'C',
         };
     }
 

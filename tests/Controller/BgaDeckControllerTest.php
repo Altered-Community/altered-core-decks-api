@@ -15,10 +15,10 @@ class BgaDeckControllerTest extends WebTestCase
 
     protected function setUp(): void
     {
-        $this->client          = static::createClient();
+        $this->client = static::createClient();
         $this->alteredCoreMock = static::getContainer()->get('altered_core.mock_http_client');
         $this->alteredCoreMock->setResponseFactory(
-            static fn(): MockResponse => new MockResponse('[]', ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
+            static fn (): MockResponse => new MockResponse('[]', ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
         );
     }
 
@@ -27,20 +27,20 @@ class BgaDeckControllerTest extends WebTestCase
     private function makeToken(string $sub): string
     {
         return JWT::encode([
-            'sub'                => $sub,
+            'sub' => $sub,
             'preferred_username' => 'bgauser',
-            'email'              => 'bga@test.com',
-            'iss'                => 'dev',
-            'iat'                => time(),
-            'exp'                => time() + 3600,
+            'email' => 'bga@test.com',
+            'iss' => 'dev',
+            'iat' => time(),
+            'exp' => time() + 3600,
         ], '$ecretf0rt3st_extended_for_hs256_tests', 'HS256');
     }
 
     private function authHeaders(string $sub): array
     {
         return [
-            'HTTP_AUTHORIZATION' => 'Bearer ' . $this->makeToken($sub),
-            'CONTENT_TYPE'       => 'application/json',
+            'HTTP_AUTHORIZATION' => 'Bearer '.$this->makeToken($sub),
+            'CONTENT_TYPE' => 'application/json',
         ];
     }
 
@@ -55,21 +55,21 @@ class BgaDeckControllerTest extends WebTestCase
     {
         $json = json_encode(array_values($cards));
         $this->alteredCoreMock->setResponseFactory(
-            static fn(): MockResponse => new MockResponse($json, ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
+            static fn (): MockResponse => new MockResponse($json, ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
         );
     }
 
     private function heroCard(string $ref = 'ALT_CORE_B_AX_1_C'): array
     {
         return [
-            'reference'  => $ref,
-            'cardType'   => ['reference' => 'HERO_MAIN', 'name' => 'Hero'],
+            'reference' => $ref,
+            'cardType' => ['reference' => 'HERO_MAIN', 'name' => 'Hero'],
             'cardSubTypes' => [],
-            'faction'    => ['code' => 'AX'],
+            'faction' => ['code' => 'AX'],
             'cardRarity' => ['reference' => 'CORAX_C'],
-            'name'       => ['fr' => 'Héros Test', 'en' => 'Test Hero'],
-            'artists'    => [['name' => 'Artist']],
-            'mainCost'   => null,
+            'name' => ['fr' => 'Héros Test', 'en' => 'Test Hero'],
+            'artists' => [['name' => 'Artist']],
+            'mainCost' => null,
             'recallCost' => null,
             'forestPower' => null,
             'mountainPower' => null,
@@ -80,18 +80,18 @@ class BgaDeckControllerTest extends WebTestCase
     private function characterCard(string $ref = 'ALT_CORE_B_AX_2_C'): array
     {
         return [
-            'reference'    => $ref,
-            'cardType'     => ['reference' => 'character', 'name' => 'Character'],
+            'reference' => $ref,
+            'cardType' => ['reference' => 'character', 'name' => 'Character'],
             'cardSubTypes' => [['reference' => 'warrior', 'name' => 'Warrior']],
-            'faction'      => ['code' => 'AX'],
-            'cardRarity'   => ['reference' => 'CORAX_C'],
-            'name'         => ['fr' => 'Guerrier', 'en' => 'Warrior'],
-            'artists'      => [['name' => 'Artist']],
-            'mainCost'     => 3,
-            'recallCost'   => 2,
-            'forestPower'  => 1,
+            'faction' => ['code' => 'AX'],
+            'cardRarity' => ['reference' => 'CORAX_C'],
+            'name' => ['fr' => 'Guerrier', 'en' => 'Warrior'],
+            'artists' => [['name' => 'Artist']],
+            'mainCost' => 3,
+            'recallCost' => 2,
+            'forestPower' => 1,
             'mountainPower' => 2,
-            'oceanPower'   => 3,
+            'oceanPower' => 3,
         ];
     }
 
@@ -106,7 +106,7 @@ class BgaDeckControllerTest extends WebTestCase
 
     public function testCollectionReturns200(): void
     {
-        $sub = 'bga-' . __FUNCTION__;
+        $sub = 'bga-'.__FUNCTION__;
         $this->client->request('GET', '/api/bga/decks', [], [], $this->authHeaders($sub));
 
         $this->assertResponseIsSuccessful();
@@ -114,7 +114,7 @@ class BgaDeckControllerTest extends WebTestCase
 
     public function testCollectionResponseHasMemberAndView(): void
     {
-        $sub  = 'bga-' . __FUNCTION__;
+        $sub = 'bga-'.__FUNCTION__;
         $this->client->request('GET', '/api/bga/decks', [], [], $this->authHeaders($sub));
         $data = json_decode($this->client->getResponse()->getContent(), true);
 
@@ -124,7 +124,7 @@ class BgaDeckControllerTest extends WebTestCase
 
     public function testCollectionMemberIsArray(): void
     {
-        $sub  = 'bga-' . __FUNCTION__;
+        $sub = 'bga-'.__FUNCTION__;
         $this->client->request('GET', '/api/bga/decks', [], [], $this->authHeaders($sub));
         $data = json_decode($this->client->getResponse()->getContent(), true);
 
@@ -133,7 +133,7 @@ class BgaDeckControllerTest extends WebTestCase
 
     public function testCollectionHydraViewShape(): void
     {
-        $sub  = 'bga-' . __FUNCTION__;
+        $sub = 'bga-'.__FUNCTION__;
         $this->client->request('GET', '/api/bga/decks', [], [], $this->authHeaders($sub));
         $view = json_decode($this->client->getResponse()->getContent(), true)['hydra:view'];
 
@@ -146,7 +146,7 @@ class BgaDeckControllerTest extends WebTestCase
 
     public function testCollectionMemberEntryShape(): void
     {
-        $sub = 'bga-' . __FUNCTION__;
+        $sub = 'bga-'.__FUNCTION__;
 
         $this->mockCards($this->heroCard(), $this->characterCard());
 
@@ -155,7 +155,7 @@ class BgaDeckControllerTest extends WebTestCase
         // So any deck created here won't appear in the collection with the current debug code.
         // This test pins the member entry shape for when a deck IS returned.
         $deck = $this->createDeck($sub, [
-            'name'    => 'BGA Test Deck',
+            'name' => 'BGA Test Deck',
             'isDraft' => true,
         ]);
         self::assertNotEmpty($deck['id']);
@@ -182,20 +182,20 @@ class BgaDeckControllerTest extends WebTestCase
 
     public function testItemReturns200ForExistingDeck(): void
     {
-        $sub  = 'bga-' . __FUNCTION__;
+        $sub = 'bga-'.__FUNCTION__;
         $deck = $this->createDeck($sub, ['name' => 'Simple BGA Deck', 'isDraft' => true]);
 
-        $this->client->request('GET', '/api/bga/decks/' . $deck['id']);
+        $this->client->request('GET', '/api/bga/decks/'.$deck['id']);
 
         $this->assertResponseIsSuccessful();
     }
 
     public function testItemResponseHasIdAndName(): void
     {
-        $sub  = 'bga-' . __FUNCTION__;
+        $sub = 'bga-'.__FUNCTION__;
         $deck = $this->createDeck($sub, ['name' => 'Named Deck', 'isDraft' => true]);
 
-        $this->client->request('GET', '/api/bga/decks/' . $deck['id']);
+        $this->client->request('GET', '/api/bga/decks/'.$deck['id']);
         $data = json_decode($this->client->getResponse()->getContent(), true);
 
         self::assertSame('Named Deck', $data['name']);
@@ -217,13 +217,13 @@ class BgaDeckControllerTest extends WebTestCase
 
     public function testCardResponseHasRequiredKeys(): void
     {
-        $ref  = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $card = $this->characterCard($ref);
         $this->alteredCoreMock->setResponseFactory(
             new MockResponse(json_encode($card), ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
         );
 
-        $this->client->request('GET', '/api/bga/cards/' . $ref);
+        $this->client->request('GET', '/api/bga/cards/'.$ref);
         $data = json_decode($this->client->getResponse()->getContent(), true);
 
         $this->assertResponseIsSuccessful();
@@ -239,13 +239,13 @@ class BgaDeckControllerTest extends WebTestCase
 
     public function testCardReferenceAndFactionShape(): void
     {
-        $ref  = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $card = $this->characterCard($ref);
         $this->alteredCoreMock->setResponseFactory(
             new MockResponse(json_encode($card), ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
         );
 
-        $this->client->request('GET', '/api/bga/cards/' . $ref);
+        $this->client->request('GET', '/api/bga/cards/'.$ref);
         $data = json_decode($this->client->getResponse()->getContent(), true);
 
         self::assertSame($ref, $data['reference']);
@@ -256,13 +256,13 @@ class BgaDeckControllerTest extends WebTestCase
 
     public function testCardElementsHasAllPowerKeys(): void
     {
-        $ref  = 'ALT_CORE_B_AX_2_C';
+        $ref = 'ALT_CORE_B_AX_2_C';
         $card = $this->characterCard($ref);
         $this->alteredCoreMock->setResponseFactory(
             new MockResponse(json_encode($card), ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
         );
 
-        $this->client->request('GET', '/api/bga/cards/' . $ref);
+        $this->client->request('GET', '/api/bga/cards/'.$ref);
         $data = json_decode($this->client->getResponse()->getContent(), true);
 
         $elements = $data['elements'];
@@ -277,20 +277,20 @@ class BgaDeckControllerTest extends WebTestCase
 
     public function testCardWithEffectsHasCardElementsShape(): void
     {
-        $ref  = 'ALT_CORE_B_AX_3_C';
+        $ref = 'ALT_CORE_B_AX_3_C';
         $card = array_merge($this->characterCard($ref), [
             'effect1' => [
-                'abilityKey'       => 'ABILITY_1',
-                'abilityTrigger'   => ['alteredId' => 'trigger-id', 'text' => ['fr' => 'Quand']],
+                'abilityKey' => 'ABILITY_1',
+                'abilityTrigger' => ['alteredId' => 'trigger-id', 'text' => ['fr' => 'Quand']],
                 'abilityCondition' => ['alteredId' => 'condition-id', 'text' => ['fr' => 'Si']],
-                'abilityEffect'    => ['alteredId' => 'effect-id', 'text' => ['fr' => 'Alors']],
+                'abilityEffect' => ['alteredId' => 'effect-id', 'text' => ['fr' => 'Alors']],
             ],
         ]);
         $this->alteredCoreMock->setResponseFactory(
             new MockResponse(json_encode($card), ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
         );
 
-        $this->client->request('GET', '/api/bga/cards/' . $ref);
+        $this->client->request('GET', '/api/bga/cards/'.$ref);
         $data = json_decode($this->client->getResponse()->getContent(), true);
 
         $this->assertResponseIsSuccessful();
@@ -321,26 +321,26 @@ class BgaDeckControllerTest extends WebTestCase
 
     public function testCardWithTwoEffectsHasTwoDisplays(): void
     {
-        $ref  = 'ALT_CORE_B_AX_4_C';
+        $ref = 'ALT_CORE_B_AX_4_C';
         $card = array_merge($this->characterCard($ref), [
             'effect1' => [
-                'abilityKey'       => 'ABILITY_1',
-                'abilityTrigger'   => ['alteredId' => 't1', 'text' => 'T1'],
+                'abilityKey' => 'ABILITY_1',
+                'abilityTrigger' => ['alteredId' => 't1', 'text' => 'T1'],
                 'abilityCondition' => ['alteredId' => 'c1', 'text' => 'C1'],
-                'abilityEffect'    => ['alteredId' => 'e1', 'text' => 'E1'],
+                'abilityEffect' => ['alteredId' => 'e1', 'text' => 'E1'],
             ],
             'effect2' => [
-                'abilityKey'       => 'ABILITY_2',
-                'abilityTrigger'   => ['alteredId' => 't2', 'text' => 'T2'],
+                'abilityKey' => 'ABILITY_2',
+                'abilityTrigger' => ['alteredId' => 't2', 'text' => 'T2'],
                 'abilityCondition' => ['alteredId' => 'c2', 'text' => 'C2'],
-                'abilityEffect'    => ['alteredId' => 'e2', 'text' => 'E2'],
+                'abilityEffect' => ['alteredId' => 'e2', 'text' => 'E2'],
             ],
         ]);
         $this->alteredCoreMock->setResponseFactory(
             new MockResponse(json_encode($card), ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
         );
 
-        $this->client->request('GET', '/api/bga/cards/' . $ref);
+        $this->client->request('GET', '/api/bga/cards/'.$ref);
         $data = json_decode($this->client->getResponse()->getContent(), true);
 
         $displays = $data['cardElements'][0]['cardEffectDisplays'];

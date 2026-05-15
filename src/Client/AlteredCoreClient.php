@@ -10,9 +10,10 @@ class AlteredCoreClient
 {
     public function __construct(
         private readonly HttpClientInterface $httpClient,
-        private readonly CacheInterface      $cache,
-        private readonly string              $alteredCoreUrl,
-    ) {}
+        private readonly CacheInterface $cache,
+        private readonly string $alteredCoreUrl,
+    ) {
+    }
 
     public function getBaseUrl(): string
     {
@@ -23,9 +24,9 @@ class AlteredCoreClient
      * Fetch card data for a list of references from altered-core.
      * Results are cached per reference for 1 hour.
      *
-     * @param  string[] $references
-     * @param  string   $locale
-     * @return array<string, array>  reference => card data
+     * @param string[] $references
+     *
+     * @return array<string, array> reference => card data
      */
     public function getCardsByReferences(array $references, string $locale = 'fr'): array
     {
@@ -33,31 +34,32 @@ class AlteredCoreClient
             return [];
         }
 
-        $missing  = [];
-        $result   = [];
+        $missing = [];
+        $result = [];
 
         // Check cache per reference
         foreach ($references as $ref) {
-            $cacheKey = 'card_' . md5($ref . '_' . $locale);
-            $cached   = $this->cache->get($cacheKey, function (ItemInterface $item) use ($ref) {
+            $cacheKey = 'card_'.md5($ref.'_'.$locale);
+            $cached = $this->cache->get($cacheKey, function (ItemInterface $item) {
                 $item->expiresAfter(3600);
-                return null; // will be populated after batch fetch
+
+                return null; // sentinel: missing from cache, will be batch-fetched
             });
 
-            if ($cached !== null) {
+            if (null !== $cached) { // @phpstan-ignore notIdentical.alwaysFalse
                 $result[$ref] = $cached;
             } else {
                 $missing[] = $ref;
             }
         }
 
-        if (empty($missing)) {
+        if (empty($missing)) { // @phpstan-ignore empty.variable
             return $result;
         }
 
         // Batch fetch missing references
-        $response = $this->httpClient->request('POST', $this->alteredCoreUrl . '/api/cards/batch', [
-            'json'  => ['references' => $missing],
+        $response = $this->httpClient->request('POST', $this->alteredCoreUrl.'/api/cards/batch', [
+            'json' => ['references' => $missing],
             'query' => ['locale' => $locale],
         ]);
 
@@ -65,15 +67,18 @@ class AlteredCoreClient
 
         // Index by reference and cache individually
         foreach ($cards as $card) {
-            $ref      = $card['reference'] ?? null;
-            if (!$ref) continue;
+            $ref = $card['reference'] ?? null;
+            if (!$ref) {
+                continue;
+            }
 
             $result[$ref] = $card;
 
-            $cacheKey = 'card_' . md5($ref . '_' . $locale);
+            $cacheKey = 'card_'.md5($ref.'_'.$locale);
             $this->cache->delete($cacheKey);
             $this->cache->get($cacheKey, function (ItemInterface $item) use ($card) {
                 $item->expiresAfter(3600);
+
                 return $card;
             });
         }
@@ -81,35 +86,34 @@ class AlteredCoreClient
         return $result;
     }
 
-
     /**
      * Fetch card data for a list of references from altered-core.
      * Results are cached per reference for 1 hour.
      *
-     * @param  string $reference
-     * @param  string $locale
-     * @return array<string, array>  reference => card data
+     * @return array<string, array> reference => card data
      */
     public function getCardByReferences(string $reference, string $locale = 'en'): array
     {
-        $cacheKey = 'card_' . md5($reference . '_' . $locale);
-        $cached   = $this->cache->get($cacheKey, function (ItemInterface $item) use ($reference) {
+        $cacheKey = 'card_'.md5($reference.'_'.$locale);
+        $cached = $this->cache->get($cacheKey, function (ItemInterface $item) {
             $item->expiresAfter(3600);
-            return null; // will be populated after batch fetch
+
+            return null; // sentinel: missing from cache, will be fetched
         });
 
-        if ($cached !== null) {
+        if (null !== $cached) { // @phpstan-ignore notIdentical.alwaysFalse
             return $cached;
         }
 
         // Batch fetch missing references
-        $response = $this->httpClient->request('GET', $this->alteredCoreUrl . '/api/cards/reference/' . $reference . '?locale=' . $locale);
+        $response = $this->httpClient->request('GET', $this->alteredCoreUrl.'/api/cards/reference/'.$reference.'?locale='.$locale);
 
         $card = $response->toArray();
 
         $this->cache->delete($cacheKey);
         $this->cache->get($cacheKey, function (ItemInterface $item) use ($card) {
             $item->expiresAfter(3600);
+
             return $card;
         });
 

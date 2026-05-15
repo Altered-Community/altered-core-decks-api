@@ -6,20 +6,22 @@ root = true
 
 [*]
 charset = utf-8
-insert_final_newline = true
 end_of_line = lf
 indent_style = space
 indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
 
 [**/{Dockerfile,Caddyfile,*.sh}]
 indent_style = tab
 
-[{compose.*yaml,.devcontainer/compose.*yaml,.github/**/*.yaml}]
+[{compose.*yaml,.devcontainer/compose.*yaml,.github/**/*.yaml,*.json}]
 indent_size = 2
 
 [**.md]
 indent_size = unset
 indent_style = unset
+trim_trailing_whitespace = false
 
 [Makefile]
 indent_style = tab

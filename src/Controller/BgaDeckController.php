@@ -16,35 +16,36 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class BgaDeckController extends AbstractController
 {
-    private const BGA_VALID_FORMATS = ['standard', 'nuc'/*,'sandbox'*/];
+    private const BGA_VALID_FORMATS = ['standard', 'nuc' /* , 'sandbox' */];
 
     public function __construct(
-        private readonly DeckRepository    $deckRepository,
-        private readonly Security          $security,
+        private readonly DeckRepository $deckRepository,
+        private readonly Security $security,
         private readonly BgaDeckSerializer $bgaDeckSerializer,
         private readonly AlteredCoreClient $alteredCoreClient,
-    ) {}
+    ) {
+    }
 
     #[Route('/api/bga/decks', name: 'api_bga_decks_collection', methods: ['GET'])]
     public function collection(Request $request): JsonResponse
     {
-        $page         = max(1, (int) $request->query->get('page', 1));
+        $page = max(1, (int) $request->query->get('page', 1));
         $itemsPerPage = min(100, max(1, (int) $request->query->get('itemsPerPage', 20)));
-        $name         = (string) $request->query->get('name', '');
-        $hero         = (string) $request->query->get('hero', '');
+        $name = (string) $request->query->get('name', '');
+        $hero = (string) $request->query->get('hero', '');
         // BGA sends faction.reference[] — PHP replaces dots with underscores when parsing query strings
-        $factions     = $request->query->all('faction_reference') ?: ['AX', 'BR', 'MU', 'LY', 'OR', 'YZ'];
-        $eventFormat  = strtoupper((string) $request->query->get('eventFormat', ''));
+        $factions = $request->query->all('faction_reference') ?: ['AX', 'BR', 'MU', 'LY', 'OR', 'YZ'];
+        $eventFormat = strtoupper((string) $request->query->get('eventFormat', ''));
 
         $format = match ($eventFormat) {
-            'STANDARD'  => 'standard',
+            'STANDARD' => 'standard',
             'NO_UNIQUE' => 'nuc',
-            'SANDBOX'   => 'sandbox',
-            default     => '',
+            'SANDBOX' => 'sandbox',
+            default => '',
         };
 
-        $user  = $this->security->getUser();
-        $user  = $user instanceof User ? $user : null;
+        $user = $this->security->getUser();
+        $user = $user instanceof User ? $user : null;
 
         $decks = $this->deckRepository->findBgaDecks($user, $page, $itemsPerPage, $name, $factions, $hero, $format, self::BGA_VALID_FORMATS);
         $total = $this->deckRepository->countBgaDecks($user, $name, $factions, $hero, $format, self::BGA_VALID_FORMATS);
@@ -57,32 +58,31 @@ class BgaDeckController extends AbstractController
 
             return [
                 'alterator' => ['reference' => $heroRef],
-                'faction'   => ['reference' => $faction],
-                'id'        => (string) $deck->getId(),
-                'name'      => $deck->getName(),
+                'faction' => ['reference' => $faction],
+                'id' => (string) $deck->getId(),
+                'name' => $deck->getName(),
                 'cardCount' => $deck->getStats()['totalCards'] ?? 0,
-                'format'    => $deck->getFormat()?->value,
+                'format' => $deck->getFormat()?->value,
             ];
         }, $decks);
 
         return $this->json([
-            'hydra:member'     => $deckData,
+            'hydra:member' => $deckData,
             'hydra:totalItems' => $total,
-            'hydra:view'       => $this->buildHydraView($request, $page, $lastPage),
+            'hydra:view' => $this->buildHydraView($request, $page, $lastPage),
         ]);
     }
 
     private function buildHydraView(Request $request, int $page, int $lastPage): array
     {
-        $params  = $request->query->all();
-        $buildUrl = static fn(int $p): string =>
-            '/api/bga/decks?' . http_build_query(array_merge($params, ['page' => $p]));
+        $params = $request->query->all();
+        $buildUrl = static fn (int $p): string => '/api/bga/decks?'.http_build_query(array_merge($params, ['page' => $p]));
 
         $view = [
-            '@id'         => $buildUrl($page),
-            '@type'       => 'hydra:PartialCollectionView',
+            '@id' => $buildUrl($page),
+            '@type' => 'hydra:PartialCollectionView',
             'hydra:first' => $buildUrl(1),
-            'hydra:last'  => $buildUrl($lastPage),
+            'hydra:last' => $buildUrl($lastPage),
         ];
 
         if ($page < $lastPage) {
@@ -121,29 +121,25 @@ class BgaDeckController extends AbstractController
     {
         $card = $this->alteredCoreClient->getCardByReferences($reference);
 
-        var_dump($card);
-        die();
-
         if (empty($card)) {
             throw new NotFoundHttpException();
         }
 
         return $this->json([
-            'reference'    => $card['reference'],
-            'mainFaction'  => ['reference' => $card['faction']['code']],
-            'name'         => $card['name'],
-            'cardType'     => ['reference' => $card['cardType']['reference']],
-            'subTypes'     => $card['cardSubTypes'],
-            'illustrator'  => ['nickName' => $card['artists'][0]['name']],
-            'elements'     => [
-                'MAIN_COST'      => $card['mainCost'],
-                'RECALL_COST'    => $card['recallCost'],
-                'FOREST_POWER'   => $card['forestPower'],
+            'reference' => $card['reference'],
+            'mainFaction' => ['reference' => $card['faction']['code']],
+            'name' => $card['name'],
+            'cardType' => ['reference' => $card['cardType']['reference']],
+            'subTypes' => $card['cardSubTypes'],
+            'illustrator' => ['nickName' => $card['artists'][0]['name']],
+            'elements' => [
+                'MAIN_COST' => $card['mainCost'],
+                'RECALL_COST' => $card['recallCost'],
+                'FOREST_POWER' => $card['forestPower'],
                 'MOUNTAIN_POWER' => $card['mountainPower'],
-                'OCEAN_POWER'    => $card['oceanPower'],
+                'OCEAN_POWER' => $card['oceanPower'],
             ],
             'cardElements' => $this->bgaDeckSerializer->buildCardElements($card),
         ]);
     }
-
 }

@@ -37,14 +37,44 @@ class DeckCard
     #[Groups(['deck:read:detail', 'deck:write'])]
     private int $quantity = 1;
 
-    public function getId(): ?int { return $this->id; }
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
 
-    public function getDeck(): Deck { return $this->deck; }
-    public function setDeck(Deck $deck): self { $this->deck = $deck; return $this; }
+    public function getDeck(): Deck
+    {
+        return $this->deck;
+    }
 
-    public function getCardReference(): string { return $this->cardReference; }
-    public function setCardReference(string $cardReference): self { $this->cardReference = $cardReference; return $this; }
+    public function setDeck(Deck $deck): self
+    {
+        $this->deck = $deck;
 
-    public function getQuantity(): int { return $this->quantity; }
-    public function setQuantity(int $quantity): self { $this->quantity = $quantity; return $this; }
+        return $this;
+    }
+
+    public function getCardReference(): string
+    {
+        return $this->cardReference;
+    }
+
+    public function setCardReference(string $cardReference): self
+    {
+        $this->cardReference = $cardReference;
+
+        return $this;
+    }
+
+    public function getQuantity(): int
+    {
+        return $this->quantity;
+    }
+
+    public function setQuantity(int $quantity): self
+    {
+        $this->quantity = $quantity;
+
+        return $this;
+    }
 }

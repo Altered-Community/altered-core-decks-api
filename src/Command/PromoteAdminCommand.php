@@ -28,10 +28,11 @@ final class PromoteAdminCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $email = $input->getArgument('email');
-        $user  = $this->userRepository->findOneBy(['email' => $email]);
+        $user = $this->userRepository->findOneBy(['email' => $email]);
 
-        if ($user === null) {
+        if (null === $user) {
             $output->writeln("<error>No user found with email: {$email}</error>");
+
             return Command::FAILURE;
         }
 
@@ -39,6 +40,7 @@ final class PromoteAdminCommand extends Command
         $this->em->flush();
 
         $output->writeln("<info>{$email} is now admin.</info>");
+
         return Command::SUCCESS;
     }
 }

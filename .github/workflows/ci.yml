@@ -6,15 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  PHP_EXTENSIONS: pdo_pgsql, apcu, intl, zip
+
 jobs:
-  tests:
-    name: Tests PHP ${{ matrix.php }}
-    runs-on: self-hosted
-
-    strategy:
-      matrix:
-        php: ['8.4']
-
+  setup:
+    name: Install dependencies
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,11 +20,11 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php }}
-          extensions: pdo_pgsql, apcu, intl, zip
+          php-version: '8.4'
+          extensions: ${{ env.PHP_EXTENSIONS }}
           coverage: none
 
-      - name: Cache Composer
+      - name: Cache Composer packages
         uses: actions/cache@v4
         with:
           path: ~/.composer/cache
@@ -38,6 +36,84 @@ jobs:
           COMPOSER_HOME: /tmp/composer
           COMPOSER_ALLOW_SUPERUSER: 1
         run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Upload vendor
+        uses: actions/upload-artifact@v4
+        with:
+          name: vendor-${{ github.sha }}
+          path: vendor/
+          retention-days: 1
+
+  code-quality:
+    name: Code Quality
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          coverage: none
+
+      - name: Download vendor
+        uses: actions/download-artifact@v4
+        with:
+          name: vendor-${{ github.sha }}
+          path: vendor/
+
+      - name: Restore vendor bin permissions
+        run: chmod +x vendor/bin/*
+
+      - name: PHP CS Fixer
+        run: vendor/bin/php-cs-fixer fix --dry-run --diff
+
+      - name: Warm up dev cache (for PHPStan Symfony extension)
+        env:
+          APP_ENV: dev
+          APP_SECRET: ci-secret
+          DATABASE_URL: postgresql://ci:ci@localhost/ci?serverVersion=16&charset=utf8
+        run: php bin/console cache:warmup --env=dev
+
+      - name: PHPStan
+        env:
+          APP_ENV: dev
+          APP_SECRET: ci-secret
+          DATABASE_URL: postgresql://ci:ci@localhost/ci?serverVersion=16&charset=utf8
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=512M
+
+  tests:
+    name: Tests PHP ${{ matrix.php }}
+    needs: setup
+    # Secrets (DATABASE_URL) are not available on fork PRs — skip tests there.
+    # They run on push to main and on PRs opened from within the same repo.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        php: ['8.4']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          coverage: none
+
+      - name: Download vendor
+        uses: actions/download-artifact@v4
+        with:
+          name: vendor-${{ github.sha }}
+          path: vendor/
+
+      - name: Restore vendor bin permissions
+        run: chmod +x vendor/bin/*
 
       - name: Prepare test database
         env:

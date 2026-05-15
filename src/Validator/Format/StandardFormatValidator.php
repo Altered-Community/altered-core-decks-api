@@ -10,10 +10,20 @@ use App\Entity\DeckCard;
  */
 class StandardFormatValidator extends AbstractDeckFormatValidator
 {
-    public function getFormat(): string { return 'standard'; }
+    public function getFormat(): string
+    {
+        return 'standard';
+    }
 
-    protected function getMinCards(): int { return 39; }
-    protected function getMaxCards(): int { return 59; }
+    protected function getMinCards(): int
+    {
+        return 39;
+    }
+
+    protected function getMaxCards(): int
+    {
+        return 59;
+    }
 
     protected function validateFormatRules(array $deckCards, array $cardsData, ?DeckCard $hero): array
     {
@@ -45,9 +55,9 @@ class StandardFormatValidator extends AbstractDeckFormatValidator
         $groups = $this->groupByName($deckCards, $cardsData);
 
         return [
-            'copies'          => $this->validateMaxCopiesPerName($groups, 3) === [],
-            'uniqueQuantity'  => $this->countUniqueCards($groups) <= 3,
-            'rareQuantity'    => $this->countByRarity($groups, 'R1') <= 15,
+            'copies' => [] === $this->validateMaxCopiesPerName($groups, 3),
+            'uniqueQuantity' => $this->countUniqueCards($groups) <= 3,
+            'rareQuantity' => $this->countByRarity($groups, 'R1') <= 15,
             'exaltedQuantity' => $this->countByRarity($groups, 'R2') <= 3,
         ];
     }

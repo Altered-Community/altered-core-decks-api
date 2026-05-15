@@ -78,7 +78,7 @@ class DeckRepository extends ServiceEntityRepository
         $rsm = new ResultSetMappingBuilder($this->getEntityManager());
         $rsm->addRootEntityFromClassMetadata(Deck::class, 'd');
 
-        $heroFilter = $hero !== null ? "AND d.stats->'hero'->>'reference' = :hero" : '';
+        $heroFilter = null !== $hero ? "AND d.stats->'hero'->>'reference' = :hero" : '';
 
         $sql = "SELECT {$rsm->generateSelectClause(['d' => 'd'])}
                 FROM deck d
@@ -90,7 +90,7 @@ class DeckRepository extends ServiceEntityRepository
             ->setParameter('limit', $itemsPerPage)
             ->setParameter('offset', ($page - 1) * $itemsPerPage);
 
-        if ($hero !== null) {
+        if (null !== $hero) {
             $query->setParameter('hero', $hero);
         }
 
@@ -102,7 +102,7 @@ class DeckRepository extends ServiceEntityRepository
         $params = [];
         $heroFilter = '';
 
-        if ($hero !== null) {
+        if (null !== $hero) {
             $heroFilter = "AND stats->'hero'->>'reference' = :hero";
             $params['hero'] = $hero;
         }
@@ -119,7 +119,7 @@ class DeckRepository extends ServiceEntityRepository
         $rsm->addRootEntityFromClassMetadata(Deck::class, 'd');
 
         [$conditions, $params] = $this->buildBgaConditions($user, $name, $factions, $hero, $format, $validFormats);
-        $where = 'WHERE ' . implode(' AND ', $conditions);
+        $where = 'WHERE '.implode(' AND ', $conditions);
 
         $sql = "SELECT {$rsm->generateSelectClause(['d' => 'd'])} FROM deck d {$where} ORDER BY d.created_at DESC LIMIT :limit OFFSET :offset";
 
@@ -136,7 +136,7 @@ class DeckRepository extends ServiceEntityRepository
     public function countBgaDecks(?User $user, string $name, array $factions, string $hero, string $format, array $validFormats = []): int
     {
         [$conditions, $params] = $this->buildBgaConditions($user, $name, $factions, $hero, $format, $validFormats);
-        $where = 'WHERE ' . implode(' AND ', $conditions);
+        $where = 'WHERE '.implode(' AND ', $conditions);
 
         return (int) $this->getEntityManager()->getConnection()->fetchOne(
             "SELECT COUNT(*) FROM deck d {$where}",
@@ -147,44 +147,44 @@ class DeckRepository extends ServiceEntityRepository
     private function buildBgaConditions(?User $user, string $name, array $factions, string $hero, string $format, array $validFormats = []): array
     {
         $conditions = ['d.legal = true'];
-        $params     = [];
+        $params = [];
 
         if ($user) {
             $conditions[] = 'd.user_id = :userId';
             $params['userId'] = (string) $user->getId();
         }
 
-        if ($name !== '') {
+        if ('' !== $name) {
             $conditions[] = 'd.name ILIKE :name';
-            $params['name'] = '%' . $name . '%';
+            $params['name'] = '%'.$name.'%';
         }
 
-        if ($hero !== '') {
+        if ('' !== $hero) {
             $conditions[] = "d.stats->'hero'->>'reference' = :hero";
             $params['hero'] = $hero;
         }
 
-        if ($format !== '') {
+        if ('' !== $format) {
             $conditions[] = 'd.format = :format';
             $params['format'] = $format;
         } elseif (!empty($validFormats)) {
             $inList = [];
             foreach ($validFormats as $i => $fmt) {
-                $key          = 'fmt' . $i;
-                $inList[]     = ':' . $key;
+                $key = 'fmt'.$i;
+                $inList[] = ':'.$key;
                 $params[$key] = $fmt;
             }
-            $conditions[] = 'd.format IN (' . implode(', ', $inList) . ')';
+            $conditions[] = 'd.format IN ('.implode(', ', $inList).')';
         }
 
         if (!empty($factions)) {
             $inList = [];
             foreach ($factions as $i => $faction) {
-                $key          = 'faction' . $i;
-                $inList[]     = ':' . $key;
+                $key = 'faction'.$i;
+                $inList[] = ':'.$key;
                 $params[$key] = $faction;
             }
-            $conditions[] = "split_part(d.stats->'hero'->>'reference', '_', 4) IN (" . implode(', ', $inList) . ")";
+            $conditions[] = "split_part(d.stats->'hero'->>'reference', '_', 4) IN (".implode(', ', $inList).')';
         }
 
         return [$conditions, $params];

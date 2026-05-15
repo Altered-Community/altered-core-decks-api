@@ -1,4 +1,7 @@
 services:
+    logger:
+        class: Psr\Log\NullLogger
+
     altered_core.mock_http_client:
         class: Symfony\Component\HttpClient\MockHttpClient
         public: true

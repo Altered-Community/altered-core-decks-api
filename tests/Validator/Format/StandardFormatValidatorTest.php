@@ -24,6 +24,7 @@ class StandardFormatValidatorTest extends TestCase
         $card = new DeckCard();
         $card->setCardReference($ref);
         $card->setQuantity($qty);
+
         return $card;
     }
 
@@ -31,22 +32,23 @@ class StandardFormatValidatorTest extends TestCase
     {
         $deck = $this->createStub(Deck::class);
         $deck->method('getDeckCards')->willReturn(new ArrayCollection($cards));
+
         return $deck;
     }
 
     private function data(
         string $ref,
-        string $typeRef   = 'PERMANENT',
-        string $faction   = 'AX',
+        string $typeRef = 'PERMANENT',
+        string $faction = 'AX',
         string $rarityRef = 'CORAX_C',
-        string $name      = '',
+        string $name = '',
     ): array {
         return [
-            'reference'  => $ref,
-            'cardType'   => ['reference' => $typeRef],
-            'faction'    => ['code' => $faction],
+            'reference' => $ref,
+            'cardType' => ['reference' => $typeRef],
+            'faction' => ['code' => $faction],
             'cardRarity' => ['reference' => $rarityRef],
-            'name'       => $name ?: $ref,
+            'name' => $name ?: $ref,
         ];
     }
 
@@ -61,13 +63,13 @@ class StandardFormatValidatorTest extends TestCase
         $cardsData = [];
         $deckCards = [];
 
-        $heroRef             = 'ALT_CORE_B_AX_0_C';
-        $deckCards[]         = $this->card($heroRef, 1);
+        $heroRef = 'ALT_CORE_B_AX_0_C';
+        $deckCards[] = $this->card($heroRef, 1);
         $cardsData[$heroRef] = $this->data($heroRef, 'HERO_MAIN', $faction);
 
-        for ($i = 1; $i <= 13; $i++) {
-            $ref             = sprintf('ALT_CORE_B_%s_%d_C', $faction, $i);
-            $deckCards[]     = $this->card($ref, 3);
+        for ($i = 1; $i <= 13; ++$i) {
+            $ref = sprintf('ALT_CORE_B_%s_%d_C', $faction, $i);
+            $deckCards[] = $this->card($ref, 3);
             $cardsData[$ref] = $this->data($ref, 'PERMANENT', $faction);
         }
 
@@ -89,7 +91,7 @@ class StandardFormatValidatorTest extends TestCase
 
     public function testMissingHeroReturnsError(): void
     {
-        $ref  = 'ALT_CORE_B_AX_1_C';
+        $ref = 'ALT_CORE_B_AX_1_C';
         $deck = $this->deck($this->card($ref, 3));
 
         $errors = $this->validator->validate($deck, [$ref => $this->data($ref)]);
@@ -99,7 +101,7 @@ class StandardFormatValidatorTest extends TestCase
 
     public function testHeroQuantityAboveOneReturnsError(): void
     {
-        $ref  = 'ALT_CORE_B_AX_0_C';
+        $ref = 'ALT_CORE_B_AX_0_C';
         $deck = $this->deck($this->card($ref, 2));
 
         $errors = $this->validator->validate($deck, [$ref => $this->data($ref, 'HERO_MAIN')]);
@@ -112,11 +114,11 @@ class StandardFormatValidatorTest extends TestCase
     public function testDeckTooSmallReturnsError(): void
     {
         $heroRef = 'ALT_CORE_B_AX_0_C';
-        $ref     = 'ALT_CORE_B_AX_1_C';
-        $deck    = $this->deck($this->card($heroRef, 1), $this->card($ref, 1));
+        $ref = 'ALT_CORE_B_AX_1_C';
+        $deck = $this->deck($this->card($heroRef, 1), $this->card($ref, 1));
         $cardsData = [
             $heroRef => $this->data($heroRef, 'HERO_MAIN'),
-            $ref     => $this->data($ref),
+            $ref => $this->data($ref),
         ];
 
         $errors = $this->validator->validate($deck, $cardsData);
@@ -126,14 +128,14 @@ class StandardFormatValidatorTest extends TestCase
 
     public function testDeckTooLargeReturnsError(): void
     {
-        $heroRef   = 'ALT_CORE_B_AX_0_C';
+        $heroRef = 'ALT_CORE_B_AX_0_C';
         $cardsData = [$heroRef => $this->data($heroRef, 'HERO_MAIN')];
         $deckCards = [$this->card($heroRef, 1)];
 
         // 20 distinct cards × qty 3 = 60 non-hero cards (max is 59)
-        for ($i = 1; $i <= 20; $i++) {
-            $ref             = sprintf('ALT_CORE_B_AX_%d_C', $i);
-            $deckCards[]     = $this->card($ref, 3);
+        for ($i = 1; $i <= 20; ++$i) {
+            $ref = sprintf('ALT_CORE_B_AX_%d_C', $i);
+            $deckCards[] = $this->card($ref, 3);
             $cardsData[$ref] = $this->data($ref);
         }
 
@@ -150,8 +152,8 @@ class StandardFormatValidatorTest extends TestCase
 
         // Replace last card with a card from a different faction
         array_pop($deckCards);
-        $brRef             = 'ALT_CORE_B_BR_99_C';
-        $deckCards[]       = $this->card($brRef, 3);
+        $brRef = 'ALT_CORE_B_BR_99_C';
+        $deckCards[] = $this->card($brRef, 3);
         $cardsData[$brRef] = $this->data($brRef, 'PERMANENT', 'BR');
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
@@ -165,9 +167,9 @@ class StandardFormatValidatorTest extends TestCase
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
-        $ref               = 'ALT_FUGUE_B_AX_1_C';
-        $deckCards[]       = $this->card($ref, 1);
-        $cardsData[$ref]   = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_C', 'Fugue Card');
+        $ref = 'ALT_FUGUE_B_AX_1_C';
+        $deckCards[] = $this->card($ref, 1);
+        $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_C', 'Fugue Card');
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
 
@@ -178,8 +180,8 @@ class StandardFormatValidatorTest extends TestCase
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
-        $ref             = 'ALT_EOLE_B_AX_1_C';
-        $deckCards[]     = $this->card($ref, 1);
+        $ref = 'ALT_EOLE_B_AX_1_C';
+        $deckCards[] = $this->card($ref, 1);
         $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_C', 'Eole Card');
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
@@ -191,8 +193,8 @@ class StandardFormatValidatorTest extends TestCase
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
-        $ref             = 'ALT_NEWSET_B_AX_1_C';
-        $deckCards[]     = $this->card($ref, 1);
+        $ref = 'ALT_NEWSET_B_AX_1_C';
+        $deckCards[] = $this->card($ref, 1);
         $cardsData[$ref] = $this->data($ref);
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
@@ -206,8 +208,8 @@ class StandardFormatValidatorTest extends TestCase
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
-        $ref               = 'ALT_CORE_B_AX_1_C';
-        $cardsData[$ref]   = array_merge($cardsData[$ref], ['isBanned' => true]);
+        $ref = 'ALT_CORE_B_AX_1_C';
+        $cardsData[$ref] = array_merge($cardsData[$ref], ['isBanned' => true]);
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
 
@@ -218,7 +220,7 @@ class StandardFormatValidatorTest extends TestCase
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
-        $ref             = 'ALT_CORE_B_AX_1_C';
+        $ref = 'ALT_CORE_B_AX_1_C';
         $cardsData[$ref] = array_merge($cardsData[$ref], ['isSuspended' => true]);
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
@@ -233,8 +235,8 @@ class StandardFormatValidatorTest extends TestCase
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
         // Add a R1 variant of card 1 with qty 2 → same name = 3(C) + 2(R1) = 5 copies
-        $refR1             = 'ALT_CORE_B_AX_1_R1';
-        $deckCards[]       = $this->card($refR1, 2);
+        $refR1 = 'ALT_CORE_B_AX_1_R1';
+        $deckCards[] = $this->card($refR1, 2);
         $cardsData[$refR1] = $this->data($refR1, 'PERMANENT', 'AX', 'CORAX_R1', 'ALT_CORE_B_AX_1_C');
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
@@ -248,9 +250,9 @@ class StandardFormatValidatorTest extends TestCase
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
-        for ($i = 1; $i <= 4; $i++) {
-            $ref             = sprintf('ALT_CORE_B_AX_%d_U', $i);
-            $deckCards[]     = $this->card($ref, 1);
+        for ($i = 1; $i <= 4; ++$i) {
+            $ref = sprintf('ALT_CORE_B_AX_%d_U', $i);
+            $deckCards[] = $this->card($ref, 1);
             $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_U', "Unique $i");
         }
 
@@ -263,9 +265,9 @@ class StandardFormatValidatorTest extends TestCase
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
-        for ($i = 1; $i <= 3; $i++) {
-            $ref             = sprintf('ALT_CORE_B_AX_%d_U', $i);
-            $deckCards[]     = $this->card($ref, 1);
+        for ($i = 1; $i <= 3; ++$i) {
+            $ref = sprintf('ALT_CORE_B_AX_%d_U', $i);
+            $deckCards[] = $this->card($ref, 1);
             $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_U', "Unique $i");
         }
 
@@ -281,9 +283,9 @@ class StandardFormatValidatorTest extends TestCase
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
         // 6 distinct rare cards × qty 3 = 18 rares
-        for ($i = 1; $i <= 6; $i++) {
-            $ref             = sprintf('ALT_CORE_B_AX_%d_R1', $i);
-            $deckCards[]     = $this->card($ref, 3);
+        for ($i = 1; $i <= 6; ++$i) {
+            $ref = sprintf('ALT_CORE_B_AX_%d_R1', $i);
+            $deckCards[] = $this->card($ref, 3);
             $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_R1', "Rare $i");
         }
 
@@ -299,9 +301,9 @@ class StandardFormatValidatorTest extends TestCase
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
         // 2 distinct exalted × qty 2 = 4 exalted (R2)
-        for ($i = 1; $i <= 2; $i++) {
-            $ref             = sprintf('ALT_CORE_B_AX_%d_R2', $i);
-            $deckCards[]     = $this->card($ref, 2);
+        for ($i = 1; $i <= 2; ++$i) {
+            $ref = sprintf('ALT_CORE_B_AX_%d_R2', $i);
+            $deckCards[] = $this->card($ref, 2);
             $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_R2', "Exalted $i");
         }
 

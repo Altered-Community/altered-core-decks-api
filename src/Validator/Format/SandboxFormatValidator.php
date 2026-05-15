@@ -15,19 +15,29 @@ use App\Entity\DeckCard;
  */
 class SandboxFormatValidator extends AbstractDeckFormatValidator
 {
-    public function getFormat(): string { return 'sandbox'; }
+    public function getFormat(): string
+    {
+        return 'sandbox';
+    }
 
-    protected function getMinCards(): int { return 1; }
-    protected function getMaxCards(): int { return 100; }
+    protected function getMinCards(): int
+    {
+        return 1;
+    }
+
+    protected function getMaxCards(): int
+    {
+        return 100;
+    }
 
     protected function computeFormatRulesDetail(array $deckCards, array $cardsData, ?DeckCard $hero): array
     {
         $groups = $this->groupByName($deckCards, $cardsData);
 
         return [
-            'copies'          => $this->validateMaxCopiesPerName($groups, 3) === [],
-            'uniqueQuantity'  => $this->countUniqueCards($groups) === 0,
-            'rareQuantity'    => $this->countByRarity($groups, 'R1') <= 15,
+            'copies' => [] === $this->validateMaxCopiesPerName($groups, 3),
+            'uniqueQuantity' => 0 === $this->countUniqueCards($groups),
+            'rareQuantity' => $this->countByRarity($groups, 'R1') <= 15,
             'exaltedQuantity' => $this->countByRarity($groups, 'R2') <= 3,
         ];
     }

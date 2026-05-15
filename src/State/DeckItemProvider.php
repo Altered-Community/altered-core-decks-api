@@ -2,7 +2,10 @@
 
 namespace App\State;
 
+use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Operation;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Put;
 use ApiPlatform\State\ProviderInterface;
 use App\Entity\Deck;
 use App\Entity\User;
@@ -16,10 +19,11 @@ final readonly class DeckItemProvider implements ProviderInterface
 {
     public function __construct(
         private DeckRepository $deckRepository,
-        private Security       $security,
-    ) {}
+        private Security $security,
+    ) {
+    }
 
-    public function provide(Operation $operation, array $uriVariables = [], array $context = []): ?Deck
+    public function provide(Operation $operation, array $uriVariables = [], array $context = []): Deck
     {
         $deck = $this->deckRepository->find($uriVariables['id']);
 
@@ -27,7 +31,7 @@ final readonly class DeckItemProvider implements ProviderInterface
             throw new NotFoundHttpException();
         }
 
-        $isWriteOperation = in_array($operation->getMethod(), ['PATCH', 'PUT', 'DELETE'], true);
+        $isWriteOperation = $operation instanceof Patch || $operation instanceof Put || $operation instanceof Delete;
 
         // Public decks are readable by anyone, but only writable by their owner
         if (!$isWriteOperation && $deck->getIsPublic()) {

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -e
+
+STAGED_PHP=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.php$' || true)
+
+if [ -z "$STAGED_PHP" ]; then
+    exit 0
+fi
+
+echo "Running PHP CS Fixer..."
+docker compose exec -T php vendor/bin/php-cs-fixer fix --config .php-cs-fixer.dist.php --dry-run --diff $STAGED_PHP
+CS_EXIT=$?
+
+echo "Running PHPStan..."
+docker compose exec -T php vendor/bin/phpstan analyse --no-progress --memory-limit=512M
+STAN_EXIT=$?
+
+if [ $CS_EXIT -ne 0 ]; then
+    echo ""
+    echo "CS Fixer found issues. Run: make cs-fix"
+    exit 1
+fi
+
+if [ $STAN_EXIT -ne 0 ]; then
+    echo ""
+    echo "PHPStan found issues. Run: make phpstan"
+    exit 1
+fi
