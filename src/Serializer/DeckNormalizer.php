@@ -149,7 +149,7 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
 
                     $uniqueReduced[] = ['effects' => $ids];
                 }
-                if (array_key_exists('echoEffect1', $card)) {
+                if (array_key_exists('echoEffect1', $card) && null !== $card['echoEffect1']) {
                     $effect = $card['echoEffect1'];
                     $ids = array_values(array_filter([
                         $effect['abilityTrigger']['alteredId'] ?? null,
@@ -157,7 +157,7 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
                         $effect['abilityEffect']['alteredId'] ?? null,
                     ], fn ($id) => null !== $id));
 
-                    $uniqueReduced[] = ['effects' => [$ids]];
+                    $uniqueReduced[] = ['effects' => $ids];
                 }
             }
 

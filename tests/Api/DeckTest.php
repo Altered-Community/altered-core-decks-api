@@ -159,8 +159,9 @@ class DeckTest extends WebTestCase
 
         // 200, not 500
         $this->assertResponseIsSuccessful();
-        // format errors because cardsData was empty (no hero found, not enough cards)
-        $this->assertNotEmpty($updated['formatErrors']);
+        // legality is not recomputed when altered-core is unavailable — previous state preserved
+        $this->assertNull($updated['formatErrors']);
+        $this->assertNull($updated['legalityDetail']);
     }
 
     /**
