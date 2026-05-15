@@ -369,7 +369,7 @@ class DeckNormalizerBgaTest extends TestCase
 
         $uniqueReduced = $result['deckCardsByType']['character']['deckUserListCard'][0]['card']['uniqueReduced'];
         self::assertCount(1, $uniqueReduced);
-        self::assertSame([['trigger-id', 'condition-id', 'effect-id']], $uniqueReduced[0]['effects']);
+        self::assertSame(['trigger-id', 'condition-id', 'effect-id'], $uniqueReduced[0]['effects']);
     }
 
     public function testUniqueCardWithMultipleEffects(): void
