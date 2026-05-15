@@ -15,7 +15,7 @@ class FormatController extends AbstractController
             [
                 'code'     => 'sandbox',
                 'label'    => 'Sandbox',
-                'minCards' => 1,
+                'minCards' => 4,
                 'maxCards' => 100,
                 'limits'   => [
                     'unique'            => null,

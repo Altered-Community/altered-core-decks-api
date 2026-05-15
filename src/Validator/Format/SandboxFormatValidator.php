@@ -22,7 +22,7 @@ class SandboxFormatValidator extends AbstractDeckFormatValidator
 
     protected function getMinCards(): int
     {
-        return 1;
+        return 4;
     }
 
     protected function getMaxCards(): int
