@@ -45,21 +45,23 @@ class DeckStateProcessor implements ProcessorInterface
             $cardsData = $this->fetchCardsData($data);
             $format = $data->getFormat()?->value;
 
-            if ($format && $this->validatorFactory->supports($format)) {
-                $validator = $this->validatorFactory->getValidator($format);
-                $errors = $validator->validate($data, $cardsData);
-                $detail = $validator->computeLegalityDetail($data, $cardsData);
+            if ($cardsData !== null) {
+                if ($format && $this->validatorFactory->supports($format)) {
+                    $validator = $this->validatorFactory->getValidator($format);
+                    $errors = $validator->validate($data, $cardsData);
+                    $detail = $validator->computeLegalityDetail($data, $cardsData);
 
-                $data->setFormatErrors(empty($errors) ? null : $errors);
-                $data->setLegalityDetail($detail);
-                $data->setLegal($detail['global']);
-            } else {
-                $data->setFormatErrors(null);
-                $data->setLegalityDetail(null);
-                $data->setLegal(false);
+                    $data->setFormatErrors(empty($errors) ? null : $errors);
+                    $data->setLegalityDetail($detail);
+                    $data->setLegal($detail['global']);
+                } else {
+                    $data->setFormatErrors(null);
+                    $data->setLegalityDetail(null);
+                    $data->setLegal(false);
+                }
             }
 
-            $data->setStats($this->computeStats($data, $cardsData));
+            $data->setStats($this->computeStats($data, $cardsData ?? []));
         } else {
             $data->setStats(null);
             $data->setFormatErrors(null);
@@ -75,11 +77,11 @@ class DeckStateProcessor implements ProcessorInterface
 
     /**
      * Fetches card data for all cards in the deck from altered-core.
-     * Returns an empty array if the deck has no cards.
+     * Returns [] for empty decks, null when the API call fails.
      *
-     * @return array<string, array>
+     * @return array<string, array>|null
      */
-    private function fetchCardsData(Deck $deck): array
+    private function fetchCardsData(Deck $deck): ?array
     {
         $references = array_map(
             fn (DeckCard $dc) => $dc->getCardReference(),
@@ -100,7 +102,7 @@ class DeckStateProcessor implements ProcessorInterface
                 'references' => $references,
             ]);
 
-            return [];
+            return null;
         }
     }
 

@@ -54,8 +54,10 @@ class SingletonFormatValidator extends AbstractDeckFormatValidator
         }
 
         return [
-            'copies' => $copiesOk,
-            'uniqueQuantity' => $this->countUniqueCards($groups) <= $this->getUniqueLimitForHero($hero, $cardsData),
+            'copies'          => $copiesOk,
+            'uniqueQuantity'  => $this->countUniqueCards($groups) <= $this->getUniqueLimitForHero($hero, $cardsData),
+            'rareQuantity'    => true,
+            'exaltedQuantity' => true,
         ];
     }
 
