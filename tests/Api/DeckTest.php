@@ -77,6 +77,17 @@ class DeckTest extends WebTestCase
         return json_decode($this->client->getResponse()->getContent(), true) ?? [];
     }
 
+    private function delete(string $sub, string $id): void
+    {
+        $this->client->request(
+            'DELETE',
+            '/api/decks/'.$id,
+            [],
+            [],
+            $this->authHeaders($sub),
+        );
+    }
+
     private function mockAlteredCore(array $cards): void
     {
         $json = json_encode($cards);
@@ -101,6 +112,49 @@ class DeckTest extends WebTestCase
         $this->assertResponseIsSuccessful();
         $this->assertTrue($updated['isPublic']);
         $this->assertNull($updated['formatErrors']);
+    }
+
+    public function testDeleteOwnDeckReturns204(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $deck = $this->post($sub, ['name' => 'To Delete', 'isDraft' => true]);
+        $this->assertResponseStatusCodeSame(201);
+
+        $this->delete($sub, $deck['id']);
+        $this->assertResponseStatusCodeSame(204);
+
+        // Verify it's gone
+        $this->client->request('GET', '/api/decks/'.$deck['id'], [], [], $this->authHeaders($sub));
+        $this->assertResponseStatusCodeSame(404);
+    }
+
+    public function testDeleteByAnotherUserReturns403(): void
+    {
+        $owner = 'owner-'.__FUNCTION__;
+        $other = 'other-'.__FUNCTION__;
+
+        $deck = $this->post($owner, ['name' => 'My Deck', 'isDraft' => true]);
+        $this->assertResponseStatusCodeSame(201);
+
+        $this->delete($other, $deck['id']);
+        $this->assertResponseStatusCodeSame(403);
+    }
+
+    public function testDeleteWithoutAuthReturns401(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $deck = $this->post($sub, ['name' => 'My Deck', 'isDraft' => true]);
+        $this->assertResponseStatusCodeSame(201);
+
+        $this->client->request('DELETE', '/api/decks/'.$deck['id']);
+        $this->assertResponseStatusCodeSame(401);
+    }
+
+    public function testDeleteNonExistentDeckReturns404(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $this->delete($sub, '00000000-0000-0000-0000-000000000000');
+        $this->assertResponseStatusCodeSame(404);
     }
 
     /**

@@ -49,7 +49,10 @@ use Symfony\Component\Validator\Constraints as Assert;
             denormalizationContext: ['groups' => ['deck:write']],
             processor: DeckStateProcessor::class,
         ),
-        new Delete(),
+        new Delete(
+            requirements: ['id' => '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'],
+            provider: DeckItemProvider::class,
+        ),
     ],
     paginationItemsPerPage: 20,
 )]
