@@ -32,7 +32,7 @@ class BgaDeckSerializerTest extends TestCase
         self::assertSame('AX', $result['faction']);
         self::assertSame('deck-name', $result['deckName']);
         self::assertSame('550e8400-e29b-41d4-a716-446655440000', $result['apiId']);
-        self::assertSame(0, $result['cardCount']);
+        self::assertSame(0, $result['cardQuantity']);
     }
 
     public function testCollectionEntryWithoutHero(): void
@@ -43,7 +43,7 @@ class BgaDeckSerializerTest extends TestCase
 
         self::assertNull($result['hero']);
         self::assertNull($result['faction']);
-        self::assertSame(0, $result['cardCount']);
+        self::assertSame(0, $result['cardQuantity']);
     }
 
     public function testCollectionEntryFactionFromReferenceParts(): void

@@ -62,7 +62,7 @@ class BgaDeckController extends AbstractController
                 'faction' => ['reference' => $faction],
                 'id' => (string) $deck->getId(),
                 'name' => $deck->getName(),
-                'cardCount' => $deck->getStats()['totalCards'] ?? 0,
+                'cardQuantity' => $deck->getStats()['totalCards'] ?? 0,
                 'format' => $deck->getFormat()?->value,
             ];
         }, $decks);
