@@ -22,7 +22,7 @@ final readonly class BgaDeckSerializer
             'faction' => $faction,
             'apiId' => (string) $deck->getId(),
             'deckName' => $deck->getName(),
-            'cardCount' => $deck->getStats()['totalCards'] ?? 0,
+            'cardQuantity' => $deck->getStats()['totalCards'] ?? 0,
         ];
     }
 

@@ -29,9 +29,15 @@ class PublicDeckController extends AbstractController
 
         $data = $this->serializer->normalize($decks, 'json', ['groups' => ['deck:read']]);
 
+        $lastPage = max(1, (int) ceil($total / $itemsPerPage));
+
         return $this->json([
             'member' => $data,
             'totalItems' => $total,
+            'currentPage' => $page,
+            'lastPage' => $lastPage,
+            'nextPage' => $page < $lastPage ? $page + 1 : null,
+            'previousPage' => $page > 1 ? $page - 1 : null,
         ]);
     }
 }
