@@ -25,12 +25,12 @@
                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none">
         </div>
         <div>
-            <label class="block text-xs text-gray-500 mb-1" for="format">Format</label>
-            <select id="format" name="format"
+            <label class="block text-xs text-gray-500 mb-1" for="eventFormat">Event format (BGA)</label>
+            <select id="eventFormat" name="eventFormat"
                     class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 outline-none">
                 <option value="">Tous</option>
-                {% for fmt in formats %}
-                    <option value="{{ fmt }}" {% if filters.format == fmt %}selected{% endif %}>{{ fmt }}</option>
+                {% for fmt in eventFormats %}
+                    <option value="{{ fmt }}" {% if filters.eventFormat == fmt %}selected{% endif %}>{{ fmt }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -38,7 +38,7 @@
                 class="bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
             Filtrer
         </button>
-        {% if filters.name or filters.format %}
+        {% if filters.name or filters.eventFormat %}
             <a href="{{ path('admin_bga_index') }}"
                class="text-sm text-gray-400 hover:text-gray-600 transition self-center">Réinitialiser</a>
         {% endif %}
@@ -84,12 +84,12 @@
         {% if lastPage > 1 %}
             <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-center gap-2">
                 {% if page > 1 %}
-                    <a href="{{ path('admin_bga_index', { page: page - 1, name: filters.name, format: filters.format }) }}"
+                    <a href="{{ path('admin_bga_index', { page: page - 1, name: filters.name, eventFormat: filters.eventFormat }) }}"
                        class="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-50 transition">Précédent</a>
                 {% endif %}
                 <span class="text-sm text-gray-500">Page {{ page }} / {{ lastPage }}</span>
                 {% if page < lastPage %}
-                    <a href="{{ path('admin_bga_index', { page: page + 1, name: filters.name, format: filters.format }) }}"
+                    <a href="{{ path('admin_bga_index', { page: page + 1, name: filters.name, eventFormat: filters.eventFormat }) }}"
                        class="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-50 transition">Suivant</a>
                 {% endif %}
             </div>

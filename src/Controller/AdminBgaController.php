@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Deck;
+use App\Enum\BgaEventFormat;
 use App\Repository\DeckRepository;
 use App\Serializer\BgaDeckSerializer;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -12,8 +13,6 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class AdminBgaController extends AbstractController
 {
-    private const BGA_VALID_FORMATS = ['standard', 'nuc', 'sandbox'];
-
     public function __construct(
         private readonly DeckRepository $deckRepository,
         private readonly BgaDeckSerializer $bgaSerializer,
@@ -28,13 +27,14 @@ final class AdminBgaController extends AbstractController
         }
 
         $name = (string) $request->query->get('name', '');
-        $format = (string) $request->query->get('format', '');
+        $eventFormat = strtoupper((string) $request->query->get('eventFormat', ''));
         $page = max(1, (int) $request->query->get('page', 1));
         $items = 20;
 
         $factions = ['AX', 'BR', 'MU', 'LY', 'OR', 'YZ'];
-        $decks = $this->deckRepository->findBgaDecks(null, $page, $items, $name, $factions, '', $format, self::BGA_VALID_FORMATS);
-        $total = $this->deckRepository->countBgaDecks(null, $name, $factions, '', $format, self::BGA_VALID_FORMATS);
+        $formats = BgaEventFormat::tryFrom($eventFormat)?->toDeckFormats() ?? [];
+        $decks = $this->deckRepository->findBgaDecks(null, $page, $items, $name, $factions, '', $formats);
+        $total = $this->deckRepository->countBgaDecks(null, $name, $factions, '', $formats);
         $lastPage = max(1, (int) ceil($total / $items));
 
         $rows = array_map(fn (Deck $deck) => $this->bgaSerializer->adminRow($deck), $decks);
@@ -44,8 +44,8 @@ final class AdminBgaController extends AbstractController
             'total' => $total,
             'page' => $page,
             'lastPage' => $lastPage,
-            'filters' => compact('name', 'format'),
-            'formats' => self::BGA_VALID_FORMATS,
+            'filters' => compact('name', 'eventFormat'),
+            'eventFormats' => array_map(static fn (BgaEventFormat $f) => $f->value, BgaEventFormat::cases()),
         ]);
     }
 

@@ -113,12 +113,16 @@ class DeckRepository extends ServiceEntityRepository
         );
     }
 
-    public function findBgaDecks(?User $user, int $page, int $itemsPerPage, string $name, array $factions, string $hero, string $format, array $validFormats = []): array
+    public function findBgaDecks(?User $user, int $page, int $itemsPerPage, string $name, array $factions, string $hero, array $formats): array
     {
+        if (empty($formats)) {
+            return [];
+        }
+
         $rsm = new ResultSetMappingBuilder($this->getEntityManager());
         $rsm->addRootEntityFromClassMetadata(Deck::class, 'd');
 
-        [$conditions, $params] = $this->buildBgaConditions($user, $name, $factions, $hero, $format, $validFormats);
+        [$conditions, $params] = $this->buildBgaConditions($user, $name, $factions, $hero, $formats);
         $where = 'WHERE '.implode(' AND ', $conditions);
 
         $sql = "SELECT {$rsm->generateSelectClause(['d' => 'd'])} FROM deck d {$where} ORDER BY d.created_at DESC LIMIT :limit OFFSET :offset";
@@ -133,9 +137,13 @@ class DeckRepository extends ServiceEntityRepository
         return $query->getResult();
     }
 
-    public function countBgaDecks(?User $user, string $name, array $factions, string $hero, string $format, array $validFormats = []): int
+    public function countBgaDecks(?User $user, string $name, array $factions, string $hero, array $formats): int
     {
-        [$conditions, $params] = $this->buildBgaConditions($user, $name, $factions, $hero, $format, $validFormats);
+        if (empty($formats)) {
+            return 0;
+        }
+
+        [$conditions, $params] = $this->buildBgaConditions($user, $name, $factions, $hero, $formats);
         $where = 'WHERE '.implode(' AND ', $conditions);
 
         return (int) $this->getEntityManager()->getConnection()->fetchOne(
@@ -144,7 +152,7 @@ class DeckRepository extends ServiceEntityRepository
         );
     }
 
-    private function buildBgaConditions(?User $user, string $name, array $factions, string $hero, string $format, array $validFormats = []): array
+    private function buildBgaConditions(?User $user, string $name, array $factions, string $hero, array $formats): array
     {
         $conditions = ['d.legal = true'];
         $params = [];
@@ -164,12 +172,9 @@ class DeckRepository extends ServiceEntityRepository
             $params['hero'] = $hero;
         }
 
-        if ('' !== $format) {
-            $conditions[] = 'd.format = :format';
-            $params['format'] = $format;
-        } elseif (!empty($validFormats)) {
+        if (!empty($formats)) {
             $inList = [];
-            foreach ($validFormats as $i => $fmt) {
+            foreach ($formats as $i => $fmt) {
                 $key = 'fmt'.$i;
                 $inList[] = ':'.$key;
                 $params[$key] = $fmt;

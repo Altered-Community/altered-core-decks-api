@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Client\AlteredCoreClient;
 use App\Entity\Deck;
 use App\Entity\User;
+use App\Enum\BgaEventFormat;
 use App\Repository\DeckRepository;
 use App\Serializer\BgaDeckSerializer;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -16,8 +17,6 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class BgaDeckController extends AbstractController
 {
-    private const BGA_VALID_FORMATS = ['standard', 'nuc', 'singleton_nuc', 'sandbox'];
-
     public function __construct(
         private readonly DeckRepository $deckRepository,
         private readonly Security $security,
@@ -36,21 +35,13 @@ class BgaDeckController extends AbstractController
         // BGA sends faction.reference[] — PHP replaces dots with underscores when parsing query strings
         $factions = $request->query->all('faction_reference') ?: ['AX', 'BR', 'MU', 'LY', 'OR', 'YZ'];
         $eventFormat = strtoupper((string) $request->query->get('eventFormat', ''));
-
-        $format = match ($eventFormat) {
-            'STANDARD' => 'standard',
-            'NO_UNIQUE' => 'nuc',
-            'SANDBOX' => 'sandbox',
-            'SINGLETON' => 'singleton',
-            'SINGLETON_NUC' => 'singleton_nuc',
-            default => '',
-        };
+        $formats = BgaEventFormat::tryFrom($eventFormat)?->toDeckFormats() ?? [];
 
         $user = $this->security->getUser();
         $user = $user instanceof User ? $user : null;
 
-        $decks = $this->deckRepository->findBgaDecks($user, $page, $itemsPerPage, $name, $factions, $hero, $format, self::BGA_VALID_FORMATS);
-        $total = $this->deckRepository->countBgaDecks($user, $name, $factions, $hero, $format, self::BGA_VALID_FORMATS);
+        $decks = $this->deckRepository->findBgaDecks($user, $page, $itemsPerPage, $name, $factions, $hero, $formats);
+        $total = $this->deckRepository->countBgaDecks($user, $name, $factions, $hero, $formats);
 
         $lastPage = max(1, (int) ceil($total / $itemsPerPage));
 
