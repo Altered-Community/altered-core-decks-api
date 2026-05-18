@@ -233,9 +233,10 @@
             <!-- Formats -->
             <div class="mb-6 grid grid-cols-3 gap-3">
                 {% for fmt in [
-                    { code: 'standard',  desc: '39 cards, hero + 38 deck cards' },
-                    { code: 'nuc',       desc: 'No Unique Cards variant' },
-                    { code: 'singleton', desc: 'Max 1 copy of each card' },
+                    { code: 'standard',      desc: '40 cards, hero + 39 deck cards' },
+                    { code: 'nuc',           desc: 'No Unique Cards variant' },
+                    { code: 'singleton',     desc: 'Max 1 copy of each card' },
+                    { code: 'singleton_nuc', desc: 'Singleton without Unique cards' },
                 ] %}
                 <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
                     <div class="text-violet-400 font-mono text-sm font-semibold mb-1">{{ fmt.code }}</div>
