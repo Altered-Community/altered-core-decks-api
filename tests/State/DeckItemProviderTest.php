@@ -154,6 +154,14 @@ class DeckItemProviderTest extends TestCase
 
     // ── DELETE on public deck ─────────────────────────────────────────────────
 
+    public function testDeletePublicDeckWithoutAuthThrows401(): void
+    {
+        $this->expectException(UnauthorizedHttpException::class);
+
+        $this->provider($this->repo($this->deck(true, self::OWNER_ID)), $this->security(null))
+            ->provide(new Delete(), ['id' => 'any']);
+    }
+
     public function testDeletePublicDeckByOtherUserThrows403(): void
     {
         $this->expectException(AccessDeniedHttpException::class);
@@ -165,6 +173,33 @@ class DeckItemProviderTest extends TestCase
     public function testDeletePublicDeckByOwnerReturnsIt(): void
     {
         $deck = $this->deck(true, self::OWNER_ID);
+        $result = $this->provider($this->repo($deck), $this->security($this->user(self::OWNER_ID)))
+            ->provide(new Delete(), ['id' => 'any']);
+
+        self::assertSame($deck, $result);
+    }
+
+    // ── DELETE on private deck ────────────────────────────────────────────────
+
+    public function testDeletePrivateDeckWithoutAuthThrows401(): void
+    {
+        $this->expectException(UnauthorizedHttpException::class);
+
+        $this->provider($this->repo($this->deck(false, self::OWNER_ID)), $this->security(null))
+            ->provide(new Delete(), ['id' => 'any']);
+    }
+
+    public function testDeletePrivateDeckByOtherUserThrows403(): void
+    {
+        $this->expectException(AccessDeniedHttpException::class);
+
+        $this->provider($this->repo($this->deck(false, self::OWNER_ID)), $this->security($this->user(self::OTHER_ID)))
+            ->provide(new Delete(), ['id' => 'any']);
+    }
+
+    public function testDeletePrivateDeckByOwnerReturnsIt(): void
+    {
+        $deck = $this->deck(false, self::OWNER_ID);
         $result = $this->provider($this->repo($deck), $this->security($this->user(self::OWNER_ID)))
             ->provide(new Delete(), ['id' => 'any']);
 
