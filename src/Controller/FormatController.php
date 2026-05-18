@@ -69,6 +69,19 @@ class FormatController extends AbstractController
                     5 => ['sierra', 'sol', 'auraq', 'nadir', 'waru', 'gulrang', 'lindiwe', 'afanas', 'moyo'],
                 ],
             ],
+            [
+                'code' => 'singleton_nuc',
+                'label' => 'Singleton NUC',
+                'minCards' => 59,
+                'maxCards' => 79,
+                'limits' => [
+                    'unique' => 0,
+                    'rare' => null,
+                    'exalted' => null,
+                    'maxCopiesPerName' => 3,
+                    'maxCopiesPerRarity' => 1,
+                ],
+            ],
         ]);
     }
 }
