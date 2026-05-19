@@ -19,6 +19,7 @@ use App\State\DeckStateProcessor;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -26,6 +27,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: DeckRepository::class)]
 #[ORM\Index(name: 'idx_deck_user', fields: ['user'])]
 #[ORM\Index(name: 'idx_deck_format', fields: ['format'])]
+#[UniqueEntity(fields: ['alteredId'], ignoreNull: true, message: 'This deck already exists.')]
 #[ApiResource(
     operations: [
         new GetCollection(
@@ -61,6 +63,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     'isPublic' => 'exact',
     'isDraft' => 'exact',
     'user' => 'exact',
+    'alteredId' => 'exact',
 ])]
 #[ApiFilter(OrderFilter::class, properties: ['createdAt', 'updatedAt', 'name'])]
 class Deck
@@ -128,6 +131,10 @@ class Deck
     #[ORM\Column(type: 'json', nullable: true)]
     #[Groups(['deck:read'])]
     private ?array $legalityDetail = null;
+
+    #[ORM\Column(length: 255, nullable: true, unique: true)]
+    #[Groups(['deck:read', 'deck:write'])]
+    private ?string $alteredId = null;
 
     public function __construct()
     {
@@ -295,6 +302,18 @@ class Deck
     public function setLegalityDetail(?array $legalityDetail): self
     {
         $this->legalityDetail = $legalityDetail;
+
+        return $this;
+    }
+
+    public function getAlteredId(): ?string
+    {
+        return $this->alteredId;
+    }
+
+    public function setAlteredId(?string $alteredId): self
+    {
+        $this->alteredId = $alteredId;
 
         return $this;
     }
