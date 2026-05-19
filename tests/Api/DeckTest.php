@@ -157,6 +157,79 @@ class DeckTest extends WebTestCase
         $this->assertResponseStatusCodeSame(404);
     }
 
+    // ── alteredId ─────────────────────────────────────────────────────────────
+
+    public function testPostWithAlteredIdSavesIt(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $deck = $this->post($sub, ['name' => 'My Deck', 'isDraft' => true, 'alteredId' => 'altered-abc-123']);
+        $this->assertResponseStatusCodeSame(201);
+        $this->assertSame('altered-abc-123', $deck['alteredId']);
+    }
+
+    public function testPostWithoutAlteredIdReturnsNull(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $deck = $this->post($sub, ['name' => 'My Deck', 'isDraft' => true]);
+        $this->assertResponseStatusCodeSame(201);
+        $this->assertNull($deck['alteredId']);
+    }
+
+    public function testDuplicateAlteredIdReturns422(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $this->post($sub, ['name' => 'First', 'isDraft' => true, 'alteredId' => 'same-altered-id']);
+        $this->assertResponseStatusCodeSame(201);
+
+        $this->post($sub, ['name' => 'Second', 'isDraft' => true, 'alteredId' => 'same-altered-id']);
+        $this->assertResponseStatusCodeSame(422);
+
+        $body = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertSame('alteredId', $body['violations'][0]['propertyPath']);
+    }
+
+    public function testDuplicateAlteredIdAcrossUserReturns422(): void
+    {
+        $this->post('user-a-'.__FUNCTION__, ['name' => 'Deck A', 'isDraft' => true, 'alteredId' => 'shared-altered-id']);
+        $this->assertResponseStatusCodeSame(201);
+
+        $this->post('user-b-'.__FUNCTION__, ['name' => 'Deck B', 'isDraft' => true, 'alteredId' => 'shared-altered-id']);
+        $this->assertResponseStatusCodeSame(422);
+    }
+
+    public function testNullAlteredIdAllowedOnMultipleDecks(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $this->post($sub, ['name' => 'Deck 1', 'isDraft' => true]);
+        $this->assertResponseStatusCodeSame(201);
+        $this->post($sub, ['name' => 'Deck 2', 'isDraft' => true]);
+        $this->assertResponseStatusCodeSame(201);
+    }
+
+    public function testPatchAlteredIdUpdatesIt(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $deck = $this->post($sub, ['name' => 'My Deck', 'isDraft' => true]);
+        $this->assertResponseStatusCodeSame(201);
+
+        $updated = $this->patch($sub, $deck['id'], ['alteredId' => 'new-altered-id']);
+        $this->assertResponseIsSuccessful();
+        $this->assertSame('new-altered-id', $updated['alteredId']);
+    }
+
+    public function testPatchAlteredIdToExistingReturns422(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $this->post($sub, ['name' => 'Deck A', 'isDraft' => true, 'alteredId' => 'taken-id']);
+        $this->assertResponseStatusCodeSame(201);
+
+        $deckB = $this->post($sub, ['name' => 'Deck B', 'isDraft' => true]);
+        $this->assertResponseStatusCodeSame(201);
+
+        $this->patch($sub, $deckB['id'], ['alteredId' => 'taken-id']);
+        $this->assertResponseStatusCodeSame(422);
+    }
+
     /**
      * A non-draft deck with a format saves even when format rules are broken.
      * Errors go to formatErrors, not a 422.
