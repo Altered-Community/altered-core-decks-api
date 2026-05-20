@@ -49,6 +49,7 @@ use Symfony\Component\Validator\Constraints as Assert;
         new Patch(
             normalizationContext: ['groups' => ['deck:read']],
             denormalizationContext: ['groups' => ['deck:write']],
+            provider: DeckItemProvider::class,
             processor: DeckStateProcessor::class,
         ),
         new Delete(

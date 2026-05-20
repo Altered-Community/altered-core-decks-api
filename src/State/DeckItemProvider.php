@@ -3,6 +3,7 @@
 namespace App\State;
 
 use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Put;
@@ -10,6 +11,7 @@ use ApiPlatform\State\ProviderInterface;
 use App\Entity\Deck;
 use App\Entity\User;
 use App\Repository\DeckRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -19,6 +21,7 @@ final readonly class DeckItemProvider implements ProviderInterface
 {
     public function __construct(
         private DeckRepository $deckRepository,
+        private EntityManagerInterface $em,
         private Security $security,
     ) {
     }
