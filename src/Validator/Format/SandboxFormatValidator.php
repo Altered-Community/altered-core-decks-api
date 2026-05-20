@@ -6,12 +6,9 @@ use App\Entity\DeckCard;
 
 /**
  * Sandbox format rules:
- * - 39 to 59 cards (excluding hero) + 1 hero
- * - Max 3 copies of cards with the same name (all rarities combined)
- * - All cards from the same faction
- * - Max 15 rares (R1), max 3 exalted (R2), 0 Unique
+ * - 4 to 100 cards (excluding hero) + 1 hero
+ * - No faction restriction
  * - Suspended and banned cards allowed
- * - Only cards from the supported set whitelist
  */
 class SandboxFormatValidator extends AbstractDeckFormatValidator
 {
@@ -38,6 +35,11 @@ class SandboxFormatValidator extends AbstractDeckFormatValidator
     protected function allowSuspendedCards(): bool
     {
         return true;
+    }
+
+    protected function validateFaction(array $deckCards, array $cardsData): array
+    {
+        return [];
     }
 
     protected function computeFormatRulesDetail(array $deckCards, array $cardsData, ?DeckCard $hero): array

@@ -124,4 +124,44 @@ class SandboxFormatValidatorTest extends TestCase
         self::assertTrue($detail['bannedCards']);
         self::assertTrue($detail['suspendedCards']);
     }
+
+    // ── No faction restriction ────────────────────────────────────────────────
+
+    public function testMultipleFactionsDeckHasNoErrors(): void
+    {
+        $heroRef = 'ALT_CORE_B_AX_0_C';
+        $cardsData = [
+            $heroRef => $this->data($heroRef, 'HERO_MAIN', 'AX'),
+        ];
+        $deckCards = [$this->card($heroRef)];
+
+        foreach (['AX', 'LY', 'MU', 'OR', 'YZ'] as $i => $faction) {
+            $ref = sprintf('ALT_CORE_B_%s_%d_C', $faction, $i + 1);
+            $deckCards[] = $this->card($ref);
+            $cardsData[$ref] = $this->data($ref, 'PERMANENT', $faction);
+        }
+
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
+
+        self::assertSame([], $errors);
+    }
+
+    public function testLegalityDetailFactionAlwaysTrue(): void
+    {
+        $heroRef = 'ALT_CORE_B_AX_0_C';
+        $cardsData = [
+            $heroRef => $this->data($heroRef, 'HERO_MAIN', 'AX'),
+        ];
+        $deckCards = [$this->card($heroRef)];
+
+        foreach (['AX', 'LY', 'MU', 'OR'] as $i => $faction) {
+            $ref = sprintf('ALT_CORE_B_%s_%d_C', $faction, $i + 1);
+            $deckCards[] = $this->card($ref);
+            $cardsData[$ref] = $this->data($ref, 'PERMANENT', $faction);
+        }
+
+        $detail = $this->validator->computeLegalityDetail($this->deck(...$deckCards), $cardsData);
+
+        self::assertTrue($detail['faction']);
+    }
 }
