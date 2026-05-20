@@ -38,6 +38,11 @@ final readonly class DeckItemProvider implements ProviderInterface
 
         // Public decks are readable by anyone, but only writable by their owner
         if (!$isWriteOperation && $deck->getIsPublic()) {
+            if ($operation instanceof Get) {
+                $deck->incrementViewCount();
+                $this->em->flush();
+            }
+
             return $deck;
         }
 

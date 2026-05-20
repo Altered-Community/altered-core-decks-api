@@ -2,7 +2,9 @@
 
 namespace App\Controller;
 
+use App\Entity\User;
 use App\Repository\DeckRepository;
+use App\Repository\DeckUpvoteRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -13,6 +15,7 @@ class PublicDeckController extends AbstractController
 {
     public function __construct(
         private readonly DeckRepository $deckRepository,
+        private readonly DeckUpvoteRepository $deckUpvoteRepository,
         private readonly NormalizerInterface $serializer,
     ) {
     }
@@ -23,11 +26,31 @@ class PublicDeckController extends AbstractController
         $page = max(1, (int) $request->query->get('page', 1));
         $itemsPerPage = min(1000, max(1, (int) $request->query->get('itemsPerPage', 30)));
         $hero = $request->query->get('hero') ?: null;
+        $cardReference = $request->query->get('cardName') ?: $request->query->get('cardReference') ?: null;
 
-        $decks = $this->deckRepository->findPublic($page, $itemsPerPage, $hero);
-        $total = $this->deckRepository->countPublic($hero);
+        $orderBy = match ($request->query->get('sortBy', 'recent')) {
+            'upvotes' => 'upvote_count',
+            'views' => 'view_count',
+            default => 'created_at',
+        };
 
-        $data = $this->serializer->normalize($decks, 'json', ['groups' => ['deck:read']]);
+        $decks = $this->deckRepository->findPublic($page, $itemsPerPage, $hero, $cardReference, $orderBy, 'DESC');
+        $total = $this->deckRepository->countPublic($hero, $cardReference);
+
+        /** @var array<int, array<string, mixed>> $data */
+        $data = $this->serializer->normalize($decks, 'json', ['groups' => ['deck:read']]) ?? [];
+
+        $user = $this->getUser();
+        $upvotedSet = [];
+
+        if ($user instanceof User && !empty($decks)) {
+            $upvotedIds = $this->deckUpvoteRepository->findUpvotedDeckIdsByUser($decks, $user);
+            $upvotedSet = array_flip($upvotedIds);
+        }
+
+        foreach ($data as $i => $deck) {
+            $data[$i]['hasUpvoted'] = isset($upvotedSet[$deck['id']]);
+        }
 
         $lastPage = max(1, (int) ceil($total / $itemsPerPage));
 
