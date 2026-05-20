@@ -290,6 +290,29 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
     }
 
     /**
+     * Validates that each individual Unique card (rarity U) has quantity = 1.
+     * Multiple different Unique references sharing the same name are allowed (alteration variants).
+     *
+     * @param DeckCard[] $deckCards
+     */
+    protected function validateUniqueQuantity(array $deckCards, array $cardsData): array
+    {
+        $errors = [];
+        foreach ($deckCards as $deckCard) {
+            $data = $cardsData[$deckCard->getCardReference()] ?? [];
+            if ('U' === $this->getRarityCode($data) && $deckCard->getQuantity() > 1) {
+                $errors[] = sprintf(
+                    'Unique card "%s" can only have 1 copy (got %d).',
+                    $this->getCardName($data),
+                    $deckCard->getQuantity(),
+                );
+            }
+        }
+
+        return $errors;
+    }
+
+    /**
      * Validates max N copies of cards sharing the same name (all rarities combined).
      *
      * @param array<string, array<string, int>> $groups
