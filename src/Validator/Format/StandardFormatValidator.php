@@ -31,6 +31,7 @@ class StandardFormatValidator extends AbstractDeckFormatValidator
         $groups = $this->groupByName($deckCards, $cardsData);
 
         $errors = array_merge($errors, $this->validateMaxCopiesPerName($groups, 3));
+        $errors = array_merge($errors, $this->validateUniqueQuantity($deckCards, $cardsData));
 
         $uniqueCount = $this->countUniqueCards($groups);
         if ($uniqueCount > 3) {
@@ -55,7 +56,7 @@ class StandardFormatValidator extends AbstractDeckFormatValidator
         $groups = $this->groupByName($deckCards, $cardsData);
 
         return [
-            'copies' => [] === $this->validateMaxCopiesPerName($groups, 3),
+            'copies' => [] === $this->validateMaxCopiesPerName($groups, 3) && [] === $this->validateUniqueQuantity($deckCards, $cardsData),
             'uniqueQuantity' => $this->countUniqueCards($groups) <= 3,
             'rareQuantity' => $this->countByRarity($groups, 'R1') <= 15,
             'exaltedQuantity' => $this->countByRarity($groups, 'R2') <= 3,

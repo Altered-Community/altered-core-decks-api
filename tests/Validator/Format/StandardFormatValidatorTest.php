@@ -276,6 +276,38 @@ class StandardFormatValidatorTest extends TestCase
         self::assertEmpty(array_filter($errors, fn ($e) => str_contains($e, 'Unique cards')));
     }
 
+    // ── Standard-specific: unique quantity per reference ─────────────────────
+
+    public function testUniqueCardWithQuantity2ReturnsError(): void
+    {
+        [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
+
+        $ref = 'ALT_CORE_B_AX_1_U_001';
+        $deckCards[] = $this->card($ref, 2);
+        $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_U', 'My Unique');
+
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
+
+        self::assertNotEmpty(array_filter($errors, fn ($e) => str_contains($e, '1 copy')));
+    }
+
+    public function testTwoDifferentUniqueRefsWithSameNameIsValid(): void
+    {
+        [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
+
+        // Two alteration variants of the same Unique — different refs, same name, qty=1 each
+        $ref1 = 'ALT_CORE_B_AX_1_U_001';
+        $ref2 = 'ALT_CORE_B_AX_1_U_185';
+        $deckCards[] = $this->card($ref1, 1);
+        $deckCards[] = $this->card($ref2, 1);
+        $cardsData[$ref1] = $this->data($ref1, 'PERMANENT', 'AX', 'CORAX_U', 'My Unique');
+        $cardsData[$ref2] = $this->data($ref2, 'PERMANENT', 'AX', 'CORAX_U', 'My Unique');
+
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
+
+        self::assertEmpty(array_filter($errors, fn ($e) => str_contains($e, '1 copy')));
+    }
+
     // ── Standard-specific: rare limit ────────────────────────────────────────
 
     public function testMoreThan15RaresReturnsError(): void
