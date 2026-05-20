@@ -34,13 +34,13 @@ class SingletonNucFormatValidatorTest extends TestCase
         return $deck;
     }
 
-    private function data(string $ref, string $typeRef = 'PERMANENT', string $faction = 'AX', string $rarityRef = 'CORAX_C', string $name = ''): array
+    private function data(string $ref, string $typeRef = 'PERMANENT', string $faction = 'AX', string $rarityRef = 'COMMON', string $name = ''): array
     {
         return [
             'reference' => $ref,
             'cardType' => ['reference' => $typeRef],
             'faction' => ['code' => $faction],
-            'cardRarity' => ['reference' => $rarityRef],
+            'rarity' => ['reference' => $rarityRef],
             'name' => $name ?: $ref,
         ];
     }
@@ -53,7 +53,7 @@ class SingletonNucFormatValidatorTest extends TestCase
     private function buildMinimalValidSingletonDeck(string $heroName = 'Sierra'): array
     {
         $heroRef = 'ALT_CORE_B_AX_0_C';
-        $cardsData = [$heroRef => $this->data($heroRef, 'HERO_MAIN', 'AX', 'CORAX_C', $heroName)];
+        $cardsData = [$heroRef => $this->data($heroRef, 'HERO_MAIN', 'AX', 'COMMON', $heroName)];
         $deckCards = [$this->card($heroRef, 1)];
 
         for ($i = 1; $i <= 20; ++$i) {
@@ -61,15 +61,15 @@ class SingletonNucFormatValidatorTest extends TestCase
 
             $refC = sprintf('ALT_CORE_B_AX_%d_C', $i);
             $deckCards[] = $this->card($refC, 1);
-            $cardsData[$refC] = $this->data($refC, 'PERMANENT', 'AX', 'CORAX_C', $name);
+            $cardsData[$refC] = $this->data($refC, 'PERMANENT', 'AX', 'COMMON', $name);
 
             $refR1 = sprintf('ALT_CORE_B_AX_%d_R1', $i);
             $deckCards[] = $this->card($refR1, 1);
-            $cardsData[$refR1] = $this->data($refR1, 'PERMANENT', 'AX', 'CORAX_R1', $name);
+            $cardsData[$refR1] = $this->data($refR1, 'PERMANENT', 'AX', 'RARE', $name);
 
             $refR2 = sprintf('ALT_CORE_B_AX_%d_R2', $i);
             $deckCards[] = $this->card($refR2, 1);
-            $cardsData[$refR2] = $this->data($refR2, 'PERMANENT', 'AX', 'CORAX_R2', $name);
+            $cardsData[$refR2] = $this->data($refR2, 'PERMANENT', 'AX', 'RARE', $name);
         }
 
         return [$cardsData, $deckCards];
@@ -96,7 +96,7 @@ class SingletonNucFormatValidatorTest extends TestCase
 
         $refU = 'ALT_CORE_B_AX_99_U';
         $deckCards[] = $this->card($refU, 1);
-        $cardsData[$refU] = $this->data($refU, 'PERMANENT', 'AX', 'CORAX_U', 'Unique-only 1');
+        $cardsData[$refU] = $this->data($refU, 'PERMANENT', 'AX', 'UNIQUE', 'Unique-only 1');
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
 

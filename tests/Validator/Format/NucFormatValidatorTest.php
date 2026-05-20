@@ -34,13 +34,13 @@ class NucFormatValidatorTest extends TestCase
         return $deck;
     }
 
-    private function data(string $ref, string $typeRef = 'PERMANENT', string $faction = 'AX', string $rarityRef = 'CORAX_C', string $name = ''): array
+    private function data(string $ref, string $typeRef = 'PERMANENT', string $faction = 'AX', string $rarityRef = 'COMMON', string $name = ''): array
     {
         return [
             'reference' => $ref,
             'cardType' => ['reference' => $typeRef],
             'faction' => ['code' => $faction],
-            'cardRarity' => ['reference' => $rarityRef],
+            'rarity' => ['reference' => $rarityRef],
             'name' => $name ?: $ref,
         ];
     }
@@ -76,7 +76,7 @@ class NucFormatValidatorTest extends TestCase
 
         $ref = 'ALT_CORE_B_AX_99_U';
         $deckCards[] = $this->card($ref, 1);
-        $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_U', 'Unique Card');
+        $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'UNIQUE', 'Unique Card');
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
 
@@ -90,7 +90,7 @@ class NucFormatValidatorTest extends TestCase
         for ($i = 1; $i <= 6; ++$i) {
             $ref = sprintf('ALT_CORE_B_AX_%d_R1', $i);
             $deckCards[] = $this->card($ref, 3);
-            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_R1', "Rare $i");
+            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'RARE', "Rare $i");
         }
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
@@ -105,7 +105,7 @@ class NucFormatValidatorTest extends TestCase
         for ($i = 1; $i <= 2; ++$i) {
             $ref = sprintf('ALT_CORE_B_AX_%d_R2', $i);
             $deckCards[] = $this->card($ref, 2);
-            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_R2', "Exalted $i");
+            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'RARE', "Exalted $i");
         }
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);

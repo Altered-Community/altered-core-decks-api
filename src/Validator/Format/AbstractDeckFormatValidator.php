@@ -138,15 +138,17 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
 
     protected function getRarityCode(array $cardData): string
     {
-        $ref = $cardData['cardRarity']['reference'] ?? '';
-        if (str_contains($ref, '_U')) {
+        $rarityRef = $cardData['rarity']['reference'] ?? '';
+
+        if ('UNIQUE' === $rarityRef) {
             return 'U';
         }
-        if (str_contains($ref, '_R2')) {
-            return 'R2';
-        }
-        if (str_contains($ref, '_R1')) {
-            return 'R1';
+
+        if ('RARE' === $rarityRef) {
+            // API returns RARE for both R1 and R2 — use parts[5] of the card reference to distinguish
+            $parts = explode('_', $cardData['reference'] ?? '');
+
+            return 'R2' === strtoupper($parts[5] ?? '') ? 'R2' : 'R1';
         }
 
         return 'C';

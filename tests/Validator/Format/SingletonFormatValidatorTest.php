@@ -34,13 +34,13 @@ class SingletonFormatValidatorTest extends TestCase
         return $deck;
     }
 
-    private function data(string $ref, string $typeRef = 'PERMANENT', string $faction = 'AX', string $rarityRef = 'CORAX_C', string $name = ''): array
+    private function data(string $ref, string $typeRef = 'PERMANENT', string $faction = 'AX', string $rarityRef = 'COMMON', string $name = ''): array
     {
         return [
             'reference' => $ref,
             'cardType' => ['reference' => $typeRef],
             'faction' => ['code' => $faction],
-            'cardRarity' => ['reference' => $rarityRef],
+            'rarity' => ['reference' => $rarityRef],
             'name' => $name ?: $ref,
         ];
     }
@@ -54,7 +54,7 @@ class SingletonFormatValidatorTest extends TestCase
     private function buildMinimalValidSingletonDeck(string $heroName = 'Sierra'): array
     {
         $heroRef = 'ALT_CORE_B_AX_0_C';
-        $cardsData = [$heroRef => $this->data($heroRef, 'HERO_MAIN', 'AX', 'CORAX_C', $heroName)];
+        $cardsData = [$heroRef => $this->data($heroRef, 'HERO_MAIN', 'AX', 'COMMON', $heroName)];
         $deckCards = [$this->card($heroRef, 1)];
 
         // 20 card names, each with 1 common + 1 rare + 1 exalted = 3 per name = 60 total
@@ -63,15 +63,15 @@ class SingletonFormatValidatorTest extends TestCase
 
             $refC = sprintf('ALT_CORE_B_AX_%d_C', $i);
             $deckCards[] = $this->card($refC, 1);
-            $cardsData[$refC] = $this->data($refC, 'PERMANENT', 'AX', 'CORAX_C', $name);
+            $cardsData[$refC] = $this->data($refC, 'PERMANENT', 'AX', 'COMMON', $name);
 
             $refR1 = sprintf('ALT_CORE_B_AX_%d_R1', $i);
             $deckCards[] = $this->card($refR1, 1);
-            $cardsData[$refR1] = $this->data($refR1, 'PERMANENT', 'AX', 'CORAX_R1', $name);
+            $cardsData[$refR1] = $this->data($refR1, 'PERMANENT', 'AX', 'RARE', $name);
 
             $refR2 = sprintf('ALT_CORE_B_AX_%d_R2', $i);
             $deckCards[] = $this->card($refR2, 1);
-            $cardsData[$refR2] = $this->data($refR2, 'PERMANENT', 'AX', 'CORAX_R2', $name);
+            $cardsData[$refR2] = $this->data($refR2, 'PERMANENT', 'AX', 'RARE', $name);
         }
 
         return [$cardsData, $deckCards];
@@ -92,7 +92,7 @@ class SingletonFormatValidatorTest extends TestCase
 
         // Replace first common card with qty 2 (same rarity, same name)
         $ref = 'ALT_CORE_B_AX_1_C';
-        $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_C', 'Card 1');
+        $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'COMMON', 'Card 1');
 
         foreach ($deckCards as &$dc) {
             if ($dc->getCardReference() === $ref) {
@@ -113,7 +113,7 @@ class SingletonFormatValidatorTest extends TestCase
         // Add a unique copy of "Card 1" → total becomes 4 (C + R1 + R2 + U)
         $refU = 'ALT_CORE_B_AX_1_U';
         $deckCards[] = $this->card($refU, 1);
-        $cardsData[$refU] = $this->data($refU, 'PERMANENT', 'AX', 'CORAX_U', 'Card 1');
+        $cardsData[$refU] = $this->data($refU, 'PERMANENT', 'AX', 'UNIQUE', 'Card 1');
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
 
@@ -128,7 +128,7 @@ class SingletonFormatValidatorTest extends TestCase
         for ($i = 1; $i <= 5; ++$i) {
             $ref = sprintf('ALT_CORE_B_AX_%d_U', $i);
             $deckCards[] = $this->card($ref, 1);
-            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_U', "Unique-only $i");
+            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'UNIQUE', "Unique-only $i");
         }
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
@@ -144,7 +144,7 @@ class SingletonFormatValidatorTest extends TestCase
         for ($i = 1; $i <= 4; ++$i) {
             $ref = sprintf('ALT_CORE_B_AX_%d_U', $i);
             $deckCards[] = $this->card($ref, 1);
-            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_U', "Unique-only $i");
+            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'UNIQUE', "Unique-only $i");
         }
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
@@ -160,7 +160,7 @@ class SingletonFormatValidatorTest extends TestCase
         for ($i = 1; $i <= 4; ++$i) {
             $ref = sprintf('ALT_CORE_B_AX_%d_U', $i);
             $deckCards[] = $this->card($ref, 1);
-            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'CORAX_U', "Unique-only $i");
+            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'UNIQUE', "Unique-only $i");
         }
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
