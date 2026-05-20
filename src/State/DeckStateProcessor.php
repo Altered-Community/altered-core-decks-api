@@ -46,6 +46,13 @@ class DeckStateProcessor implements ProcessorInterface
             $format = $data->getFormat()?->value;
 
             if (null !== $cardsData) {
+                foreach ($data->getDeckCards() as $deckCard) {
+                    $cardInfo = $cardsData[$deckCard->getCardReference()] ?? null;
+                    if ($cardInfo) {
+                        $deckCard->setName($cardInfo['name'] ?? null);
+                    }
+                }
+
                 if ($format && $this->validatorFactory->supports($format)) {
                     $validator = $this->validatorFactory->getValidator($format);
                     $errors = $validator->validate($data, $cardsData);

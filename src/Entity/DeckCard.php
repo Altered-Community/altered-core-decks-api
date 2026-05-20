@@ -32,8 +32,12 @@ class DeckCard
     #[Groups(['deck:read:detail', 'deck:write'])]
     private string $cardReference;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['deck:read:detail'])]
+    private ?string $name = null;
+
     #[ORM\Column(type: 'smallint')]
-    #[Assert\Range(min: 1, max: 3)]
+    #[Assert\Range(min: 1)]
     #[Groups(['deck:read:detail', 'deck:write'])]
     private int $quantity = 1;
 
@@ -62,6 +66,18 @@ class DeckCard
     public function setCardReference(string $cardReference): self
     {
         $this->cardReference = $cardReference;
+
+        return $this;
+    }
+
+    public function getName(): ?string
+    {
+        return $this->name;
+    }
+
+    public function setName(?string $name): self
+    {
+        $this->name = $name;
 
         return $this;
     }

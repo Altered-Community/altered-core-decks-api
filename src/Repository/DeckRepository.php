@@ -73,68 +73,64 @@ class DeckRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function findPublic(int $page, int $itemsPerPage, ?string $hero = null, ?string $cardReference = null, string $orderBy = 'created_at', string $orderDir = 'DESC'): array
+    public function findPublic(int $page, int $itemsPerPage, ?string $hero = null, ?string $cardName = null, string $orderBy = 'created_at'): array
     {
         $rsm = new ResultSetMappingBuilder($this->getEntityManager());
         $rsm->addRootEntityFromClassMetadata(Deck::class, 'd');
 
-        [$extraJoin, $conditions, $params] = $this->buildPublicConditions($hero, $cardReference);
+        [$join, $where, $params] = $this->buildPublicFilters($hero, $cardName);
 
-        $allowedOrderBy = ['created_at', 'upvote_count', 'view_count', 'name'];
+        $allowedOrderBy = ['created_at', 'upvote_count', 'view_count'];
         $col = in_array($orderBy, $allowedOrderBy, true) ? $orderBy : 'created_at';
-        $dir = 'ASC' === strtoupper($orderDir) ? 'ASC' : 'DESC';
 
         $sql = "SELECT {$rsm->generateSelectClause(['d' => 'd'])}
-                FROM deck d {$extraJoin}
-                WHERE ".implode(' AND ', $conditions)."
-                ORDER BY d.{$col} {$dir}
+                FROM deck d {$join}
+                WHERE {$where}
+                ORDER BY d.{$col} DESC
                 LIMIT :limit OFFSET :offset";
 
-        $query = $this->getEntityManager()->createNativeQuery($sql, $rsm);
+        $query = $this->getEntityManager()->createNativeQuery($sql, $rsm)
+            ->setParameter('limit', $itemsPerPage)
+            ->setParameter('offset', ($page - 1) * $itemsPerPage);
+
         foreach ($params as $key => $value) {
             $query->setParameter($key, $value);
         }
-        $query->setParameter('limit', $itemsPerPage);
-        $query->setParameter('offset', ($page - 1) * $itemsPerPage);
 
         return $query->getResult();
     }
 
-    public function countPublic(?string $hero = null, ?string $cardReference = null): int
+    public function countPublic(?string $hero = null, ?string $cardName = null): int
     {
-        [, $conditions, $params] = $this->buildPublicConditions($hero, $cardReference);
-
-        $cardJoin = null !== $cardReference
-            ? 'JOIN deck_card dc ON dc.deck_id = d.id'
-            : '';
+        [$join, $where, $params] = $this->buildPublicFilters($hero, $cardName);
 
         return (int) $this->getEntityManager()->getConnection()->fetchOne(
-            "SELECT COUNT(DISTINCT d.id) FROM deck d {$cardJoin} WHERE ".implode(' AND ', $conditions),
+            "SELECT COUNT(DISTINCT d.id) FROM deck d {$join} WHERE {$where}",
             $params,
         );
     }
 
     /**
-     * @return array{0: string, 1: string[], 2: array<string, mixed>}
+     * @return array{0: string, 1: string, 2: array<string, mixed>}
      */
-    private function buildPublicConditions(?string $hero, ?string $cardReference): array
+    private function buildPublicFilters(?string $hero, ?string $cardName): array
     {
-        $conditions = ['d.is_public = true', 'd.is_draft = false'];
+        $where = 'd.is_public = true AND d.is_draft = false';
+        $join = '';
         $params = [];
-        $extraJoin = '';
 
         if (null !== $hero) {
-            $conditions[] = "d.stats->'hero'->>'reference' = :hero";
+            $where .= " AND d.stats->'hero'->>'reference' = :hero";
             $params['hero'] = $hero;
         }
 
-        if (null !== $cardReference) {
-            $extraJoin = 'JOIN deck_card dc ON dc.deck_id = d.id';
-            $conditions[] = 'dc.card_reference = :cardReference';
-            $params['cardReference'] = $cardReference;
+        if (null !== $cardName) {
+            $join = 'JOIN deck_card dc ON dc.deck_id = d.id';
+            $where .= ' AND dc.name ILIKE :cardName';
+            $params['cardName'] = '%'.$cardName.'%';
         }
 
-        return [$extraJoin, $conditions, $params];
+        return [$join, $where, $params];
     }
 
     public function findBgaDecks(?User $user, int $page, int $itemsPerPage, string $name, array $factions, string $hero, string $format, array $validFormats = []): array

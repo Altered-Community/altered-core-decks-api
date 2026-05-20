@@ -316,6 +316,55 @@ class DeckTest extends WebTestCase
         $this->assertNull($updated['legalityDetail']);
     }
 
+    /**
+     * A non-draft standard deck with a valid hero and enough cards has null formatErrors.
+     * altered-core is mocked to return proper card data.
+     */
+    public function testFormatErrorsNullOnValidDeck(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+
+        // Build 39 common card references (13 distinct refs × qty 3)
+        $deckCards = [];
+        $mockCards = [];
+
+        // Hero
+        $heroRef = 'ALT_CORE_B_AX_1_C';
+        $deckCards[] = ['cardReference' => $heroRef, 'quantity' => 1];
+        $mockCards[] = [
+            'reference' => $heroRef,
+            'cardType' => ['reference' => 'HERO_MAIN'],
+            'faction' => ['code' => 'AX'],
+            'cardRarity' => ['reference' => 'CORAX_C'],
+        ];
+
+        // 13 distinct common cards × qty 3 = 39
+        for ($i = 2; $i <= 14; ++$i) {
+            $ref = sprintf('ALT_CORE_B_AX_%d_C', $i);
+            $deckCards[] = ['cardReference' => $ref, 'quantity' => 3];
+            $mockCards[] = [
+                'reference' => $ref,
+                'cardType' => ['reference' => 'PERMANENT'],
+                'faction' => ['code' => 'AX'],
+                'cardRarity' => ['reference' => 'CORAX_C'],
+            ];
+        }
+
+        $this->mockAlteredCore($mockCards);
+
+        $deck = $this->post($sub, [
+            'name' => 'Valid Deck',
+            'isDraft' => false,
+            'format' => 'standard',
+            'deckCards' => $deckCards,
+        ]);
+
+        $this->assertResponseStatusCodeSame(201);
+        $this->assertNull($deck['formatErrors']);
+        $this->assertNotNull($deck['stats']);
+        $this->assertSame(39, $deck['stats']['totalCards']);
+    }
+
     // ── Upvote ────────────────────────────────────────────────────────────────
 
     public function testUpvotePublicDeckToggles(): void
@@ -356,7 +405,6 @@ class DeckTest extends WebTestCase
 
         $deck = $this->post($owner, ['name' => 'Private Deck', 'isDraft' => false]);
         $this->assertResponseStatusCodeSame(201);
-        // deck stays private (isPublic defaults to false)
 
         $this->upvote($voter, $deck['id']);
         $this->assertResponseStatusCodeSame(404);
@@ -413,10 +461,8 @@ class DeckTest extends WebTestCase
         $deck = $this->post($owner, ['name' => 'Deck '.__FUNCTION__, 'isDraft' => false]);
         $this->assertResponseStatusCodeSame(201);
         $this->patch($owner, $deck['id'], ['isPublic' => true]);
-
         $this->upvote($voter, $deck['id']);
 
-        // other user did not upvote
         $data = $this->getPublic(['itemsPerPage' => 1000], $other);
         $found = array_values(array_filter($data['member'], fn ($d) => $d['id'] === $deck['id']));
         $this->assertNotEmpty($found);
@@ -437,24 +483,65 @@ class DeckTest extends WebTestCase
         }
     }
 
+    // ── Card name search ──────────────────────────────────────────────────────
+
+    public function testCardNamePopulatedFromAlteredCore(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $cardRef = 'ALT_CORE_B_AX_1_C';
+
+        $this->mockAlteredCore([[
+            'reference' => $cardRef,
+            'name' => 'Morgane',
+            'cardType' => ['reference' => 'PERMANENT'],
+            'faction' => ['code' => 'AX'],
+            'cardRarity' => ['reference' => 'CORAX_C'],
+        ]]);
+
+        $this->post($sub, [
+            'name' => 'Deck With Morgane '.__FUNCTION__,
+            'isDraft' => false,
+            'isPublic' => true,
+            'deckCards' => [['cardReference' => $cardRef, 'quantity' => 1]],
+        ]);
+        $this->assertResponseStatusCodeSame(201);
+
+        // Verify the name was persisted: the cardName filter only works when deck_card.name is stored
+        $result = $this->getPublic(['cardName' => 'Morgane']);
+        $this->assertGreaterThanOrEqual(1, $result['totalItems']);
+    }
+
     public function testPublicDecksFilterByCardName(): void
     {
         $sub = 'user-'.__FUNCTION__;
         $cardRef = 'ALT_CORE_B_AX_2_C';
 
+        $this->mockAlteredCore([[
+            'reference' => $cardRef,
+            'name' => 'Morgane',
+            'cardType' => ['reference' => 'PERMANENT'],
+            'faction' => ['code' => 'AX'],
+            'cardRarity' => ['reference' => 'CORAX_C'],
+        ]]);
+
         $deckWith = $this->post($sub, [
-            'name' => 'Deck With Card '.__FUNCTION__,
+            'name' => 'Deck With Morgane '.__FUNCTION__,
             'isDraft' => false,
             'deckCards' => [['cardReference' => $cardRef, 'quantity' => 1]],
         ]);
         $this->assertResponseStatusCodeSame(201);
         $this->patch($sub, $deckWith['id'], ['isPublic' => true]);
 
-        $deckWithout = $this->post($sub, ['name' => 'Deck Without Card '.__FUNCTION__, 'isDraft' => false]);
+        // reset mock — second deck has no cards, altered-core won't be called
+        $this->alteredCoreMock->setResponseFactory(
+            static fn (): MockResponse => new MockResponse('[]', ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
+        );
+
+        $deckWithout = $this->post($sub, ['name' => 'Deck Without Morgane '.__FUNCTION__, 'isDraft' => false]);
         $this->assertResponseStatusCodeSame(201);
         $this->patch($sub, $deckWithout['id'], ['isPublic' => true]);
 
-        $data = $this->getPublic(['cardName' => $cardRef, 'itemsPerPage' => 1000]);
+        $data = $this->getPublic(['cardName' => 'Morgane', 'itemsPerPage' => 1000]);
         $this->assertResponseIsSuccessful();
 
         $ids = array_column($data['member'], 'id');
@@ -462,52 +549,35 @@ class DeckTest extends WebTestCase
         $this->assertNotContains($deckWithout['id'], $ids);
     }
 
-    /**
-     * A non-draft standard deck with a valid hero and enough cards has null formatErrors.
-     * altered-core is mocked to return proper card data.
-     */
-    public function testFormatErrorsNullOnValidDeck(): void
+    public function testPublicDecksFilterByCardNameCaseInsensitive(): void
     {
         $sub = 'user-'.__FUNCTION__;
+        $cardRef = 'ALT_CORE_B_AX_3_C';
 
-        // Build 39 common card references (13 distinct refs × qty 3)
-        $deckCards = [];
-        $mockCards = [];
-
-        // Hero
-        $heroRef = 'ALT_CORE_B_AX_1_C';
-        $deckCards[] = ['cardReference' => $heroRef, 'quantity' => 1];
-        $mockCards[] = [
-            'reference' => $heroRef,
-            'cardType' => ['reference' => 'HERO_MAIN'],
+        $this->mockAlteredCore([[
+            'reference' => $cardRef,
+            'name' => 'Morgane',
+            'cardType' => ['reference' => 'PERMANENT'],
             'faction' => ['code' => 'AX'],
             'cardRarity' => ['reference' => 'CORAX_C'],
-        ];
-
-        // 13 distinct common cards × qty 3 = 39
-        for ($i = 2; $i <= 14; ++$i) {
-            $ref = sprintf('ALT_CORE_B_AX_%d_C', $i);
-            $deckCards[] = ['cardReference' => $ref, 'quantity' => 3];
-            $mockCards[] = [
-                'reference' => $ref,
-                'cardType' => ['reference' => 'PERMANENT'],
-                'faction' => ['code' => 'AX'],
-                'cardRarity' => ['reference' => 'CORAX_C'],
-            ];
-        }
-
-        $this->mockAlteredCore($mockCards);
+        ]]);
 
         $deck = $this->post($sub, [
-            'name' => 'Valid Deck',
+            'name' => 'Deck '.__FUNCTION__,
             'isDraft' => false,
-            'format' => 'standard',
-            'deckCards' => $deckCards,
+            'deckCards' => [['cardReference' => $cardRef, 'quantity' => 1]],
         ]);
-
         $this->assertResponseStatusCodeSame(201);
-        $this->assertNull($deck['formatErrors']);
-        $this->assertNotNull($deck['stats']);
-        $this->assertSame(39, $deck['stats']['totalCards']);
+        $this->patch($sub, $deck['id'], ['isPublic' => true]);
+
+        // lowercase search → still matches
+        $data = $this->getPublic(['cardName' => 'morgane', 'itemsPerPage' => 1000]);
+        $this->assertResponseIsSuccessful();
+        $this->assertContains($deck['id'], array_column($data['member'], 'id'));
+
+        // partial search → still matches
+        $data = $this->getPublic(['cardName' => 'morg', 'itemsPerPage' => 1000]);
+        $this->assertResponseIsSuccessful();
+        $this->assertContains($deck['id'], array_column($data['member'], 'id'));
     }
 }

@@ -146,6 +146,21 @@ class SandboxFormatValidatorTest extends TestCase
         self::assertSame([], $errors);
     }
 
+    // ── No quantity limit ─────────────────────────────────────────────────────
+
+    public function testQuantityAboveThreeHasNoErrors(): void
+    {
+        [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
+
+        $ref = 'ALT_CORE_B_AX_5_C';
+        $deckCards[] = $this->card($ref, 5);
+        $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX');
+
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
+
+        self::assertSame([], $errors);
+    }
+
     public function testLegalityDetailFactionAlwaysTrue(): void
     {
         $heroRef = 'ALT_CORE_B_AX_0_C';

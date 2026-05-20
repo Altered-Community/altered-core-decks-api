@@ -26,7 +26,7 @@ class PublicDeckController extends AbstractController
         $page = max(1, (int) $request->query->get('page', 1));
         $itemsPerPage = min(1000, max(1, (int) $request->query->get('itemsPerPage', 30)));
         $hero = $request->query->get('hero') ?: null;
-        $cardReference = $request->query->get('cardName') ?: $request->query->get('cardReference') ?: null;
+        $cardName = $request->query->get('cardName') ?: null;
 
         $orderBy = match ($request->query->get('sortBy', 'recent')) {
             'upvotes' => 'upvote_count',
@@ -34,15 +34,14 @@ class PublicDeckController extends AbstractController
             default => 'created_at',
         };
 
-        $decks = $this->deckRepository->findPublic($page, $itemsPerPage, $hero, $cardReference, $orderBy, 'DESC');
-        $total = $this->deckRepository->countPublic($hero, $cardReference);
+        $decks = $this->deckRepository->findPublic($page, $itemsPerPage, $hero, $cardName, $orderBy);
+        $total = $this->deckRepository->countPublic($hero, $cardName);
 
         /** @var array<int, array<string, mixed>> $data */
         $data = $this->serializer->normalize($decks, 'json', ['groups' => ['deck:read']]) ?? [];
 
-        $user = $this->getUser();
         $upvotedSet = [];
-
+        $user = $this->getUser();
         if ($user instanceof User && !empty($decks)) {
             $upvotedIds = $this->deckUpvoteRepository->findUpvotedDeckIdsByUser($decks, $user);
             $upvotedSet = array_flip($upvotedIds);
