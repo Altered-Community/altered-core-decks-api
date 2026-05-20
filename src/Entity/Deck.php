@@ -66,7 +66,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     'user' => 'exact',
     'alteredId' => 'exact',
 ])]
-#[ApiFilter(OrderFilter::class, properties: ['createdAt', 'updatedAt', 'name'])]
+#[ApiFilter(OrderFilter::class, properties: ['createdAt', 'updatedAt', 'name', 'viewCount', 'upvoteCount'])]
 class Deck
 {
     #[ORM\Id]
@@ -136,6 +136,14 @@ class Deck
     #[ORM\Column(length: 255, nullable: true, unique: true)]
     #[Groups(['deck:read', 'deck:write'])]
     private ?string $alteredId = null;
+
+    #[ORM\Column(options: ['default' => 0])]
+    #[Groups(['deck:read'])]
+    private int $viewCount = 0;
+
+    #[ORM\Column(options: ['default' => 0])]
+    #[Groups(['deck:read'])]
+    private int $upvoteCount = 0;
 
     public function __construct()
     {
@@ -315,6 +323,37 @@ class Deck
     public function setAlteredId(?string $alteredId): self
     {
         $this->alteredId = $alteredId;
+
+        return $this;
+    }
+
+    public function getViewCount(): int
+    {
+        return $this->viewCount;
+    }
+
+    public function incrementViewCount(): self
+    {
+        ++$this->viewCount;
+
+        return $this;
+    }
+
+    public function getUpvoteCount(): int
+    {
+        return $this->upvoteCount;
+    }
+
+    public function incrementUpvoteCount(): self
+    {
+        ++$this->upvoteCount;
+
+        return $this;
+    }
+
+    public function decrementUpvoteCount(): self
+    {
+        $this->upvoteCount = max(0, $this->upvoteCount - 1);
 
         return $this;
     }

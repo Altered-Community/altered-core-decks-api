@@ -73,44 +73,68 @@ class DeckRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function findPublic(int $page, int $itemsPerPage, ?string $hero = null): array
+    public function findPublic(int $page, int $itemsPerPage, ?string $hero = null, ?string $cardReference = null, string $orderBy = 'created_at', string $orderDir = 'DESC'): array
     {
         $rsm = new ResultSetMappingBuilder($this->getEntityManager());
         $rsm->addRootEntityFromClassMetadata(Deck::class, 'd');
 
-        $heroFilter = null !== $hero ? "AND d.stats->'hero'->>'reference' = :hero" : '';
+        [$extraJoin, $conditions, $params] = $this->buildPublicConditions($hero, $cardReference);
+
+        $allowedOrderBy = ['created_at', 'upvote_count', 'view_count', 'name'];
+        $col = in_array($orderBy, $allowedOrderBy, true) ? $orderBy : 'created_at';
+        $dir = 'ASC' === strtoupper($orderDir) ? 'ASC' : 'DESC';
 
         $sql = "SELECT {$rsm->generateSelectClause(['d' => 'd'])}
-                FROM deck d
-                WHERE d.is_public = true AND d.is_draft = false {$heroFilter}
-                ORDER BY d.created_at DESC
+                FROM deck d {$extraJoin}
+                WHERE ".implode(' AND ', $conditions)."
+                ORDER BY d.{$col} {$dir}
                 LIMIT :limit OFFSET :offset";
 
-        $query = $this->getEntityManager()->createNativeQuery($sql, $rsm)
-            ->setParameter('limit', $itemsPerPage)
-            ->setParameter('offset', ($page - 1) * $itemsPerPage);
-
-        if (null !== $hero) {
-            $query->setParameter('hero', $hero);
+        $query = $this->getEntityManager()->createNativeQuery($sql, $rsm);
+        foreach ($params as $key => $value) {
+            $query->setParameter($key, $value);
         }
+        $query->setParameter('limit', $itemsPerPage);
+        $query->setParameter('offset', ($page - 1) * $itemsPerPage);
 
         return $query->getResult();
     }
 
-    public function countPublic(?string $hero = null): int
+    public function countPublic(?string $hero = null, ?string $cardReference = null): int
     {
+        [, $conditions, $params] = $this->buildPublicConditions($hero, $cardReference);
+
+        $cardJoin = null !== $cardReference
+            ? 'JOIN deck_card dc ON dc.deck_id = d.id'
+            : '';
+
+        return (int) $this->getEntityManager()->getConnection()->fetchOne(
+            "SELECT COUNT(DISTINCT d.id) FROM deck d {$cardJoin} WHERE ".implode(' AND ', $conditions),
+            $params,
+        );
+    }
+
+    /**
+     * @return array{0: string, 1: string[], 2: array<string, mixed>}
+     */
+    private function buildPublicConditions(?string $hero, ?string $cardReference): array
+    {
+        $conditions = ['d.is_public = true', 'd.is_draft = false'];
         $params = [];
-        $heroFilter = '';
+        $extraJoin = '';
 
         if (null !== $hero) {
-            $heroFilter = "AND stats->'hero'->>'reference' = :hero";
+            $conditions[] = "d.stats->'hero'->>'reference' = :hero";
             $params['hero'] = $hero;
         }
 
-        return (int) $this->getEntityManager()->getConnection()->fetchOne(
-            "SELECT COUNT(*) FROM deck WHERE is_public = true AND is_draft = false {$heroFilter}",
-            $params,
-        );
+        if (null !== $cardReference) {
+            $extraJoin = 'JOIN deck_card dc ON dc.deck_id = d.id';
+            $conditions[] = 'dc.card_reference = :cardReference';
+            $params['cardReference'] = $cardReference;
+        }
+
+        return [$extraJoin, $conditions, $params];
     }
 
     public function findBgaDecks(?User $user, int $page, int $itemsPerPage, string $name, array $factions, string $hero, string $format, array $validFormats = []): array

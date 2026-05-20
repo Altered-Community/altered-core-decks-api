@@ -96,6 +96,31 @@ class DeckTest extends WebTestCase
         );
     }
 
+    private function upvote(string $sub, string $id): array
+    {
+        $this->client->request(
+            'POST',
+            '/api/decks/'.$id.'/upvote',
+            [],
+            [],
+            $this->authHeaders($sub),
+        );
+
+        return json_decode($this->client->getResponse()->getContent(), true) ?? [];
+    }
+
+    private function getPublic(array $params = [], ?string $sub = null): array
+    {
+        $headers = ['CONTENT_TYPE' => 'application/json'];
+        if (null !== $sub) {
+            $headers['HTTP_AUTHORIZATION'] = 'Bearer '.$this->makeToken($sub);
+        }
+
+        $this->client->request('GET', '/api/decks/public', $params, [], $headers);
+
+        return json_decode($this->client->getResponse()->getContent(), true) ?? [];
+    }
+
     // ── Tests ─────────────────────────────────────────────────────────────────
 
     /**
@@ -289,6 +314,152 @@ class DeckTest extends WebTestCase
         // legality is not recomputed when altered-core is unavailable — previous state preserved
         $this->assertNull($updated['formatErrors']);
         $this->assertNull($updated['legalityDetail']);
+    }
+
+    // ── Upvote ────────────────────────────────────────────────────────────────
+
+    public function testUpvotePublicDeckToggles(): void
+    {
+        $owner = 'owner-'.__FUNCTION__;
+        $voter = 'voter-'.__FUNCTION__;
+
+        $deck = $this->post($owner, ['name' => 'Popular Deck', 'isDraft' => false]);
+        $this->assertResponseStatusCodeSame(201);
+        $this->patch($owner, $deck['id'], ['isPublic' => true]);
+
+        $result = $this->upvote($voter, $deck['id']);
+        $this->assertResponseIsSuccessful();
+        $this->assertTrue($result['hasUpvoted']);
+        $this->assertSame(1, $result['upvoteCount']);
+
+        $result = $this->upvote($voter, $deck['id']);
+        $this->assertResponseIsSuccessful();
+        $this->assertFalse($result['hasUpvoted']);
+        $this->assertSame(0, $result['upvoteCount']);
+    }
+
+    public function testUpvoteWithoutAuthReturns401(): void
+    {
+        $owner = 'owner-'.__FUNCTION__;
+        $deck = $this->post($owner, ['name' => 'Deck', 'isDraft' => false]);
+        $this->assertResponseStatusCodeSame(201);
+        $this->patch($owner, $deck['id'], ['isPublic' => true]);
+
+        $this->client->request('POST', '/api/decks/'.$deck['id'].'/upvote');
+        $this->assertResponseStatusCodeSame(401);
+    }
+
+    public function testUpvotePrivateDeckReturns404(): void
+    {
+        $owner = 'owner-'.__FUNCTION__;
+        $voter = 'voter-'.__FUNCTION__;
+
+        $deck = $this->post($owner, ['name' => 'Private Deck', 'isDraft' => false]);
+        $this->assertResponseStatusCodeSame(201);
+        // deck stays private (isPublic defaults to false)
+
+        $this->upvote($voter, $deck['id']);
+        $this->assertResponseStatusCodeSame(404);
+    }
+
+    public function testUpvoteNonExistentDeckReturns404(): void
+    {
+        $this->upvote('user-'.__FUNCTION__, '00000000-0000-0000-0000-000000000000');
+        $this->assertResponseStatusCodeSame(404);
+    }
+
+    // ── Public deck list ──────────────────────────────────────────────────────
+
+    public function testPublicDeckListHasUpvotedFalseForAnonymous(): void
+    {
+        $owner = 'owner-'.__FUNCTION__;
+        $deck = $this->post($owner, ['name' => 'Public Deck '.__FUNCTION__, 'isDraft' => false]);
+        $this->assertResponseStatusCodeSame(201);
+        $this->patch($owner, $deck['id'], ['isPublic' => true]);
+
+        $data = $this->getPublic(['itemsPerPage' => 1000]);
+        $this->assertResponseIsSuccessful();
+
+        $found = array_values(array_filter($data['member'], fn ($d) => $d['id'] === $deck['id']));
+        $this->assertNotEmpty($found, 'Deck should appear in public listing');
+        $this->assertFalse($found[0]['hasUpvoted']);
+    }
+
+    public function testPublicDeckListHasUpvotedTrueAfterUpvote(): void
+    {
+        $owner = 'owner-'.__FUNCTION__;
+        $voter = 'voter-'.__FUNCTION__;
+
+        $deck = $this->post($owner, ['name' => 'Popular Deck '.__FUNCTION__, 'isDraft' => false]);
+        $this->assertResponseStatusCodeSame(201);
+        $this->patch($owner, $deck['id'], ['isPublic' => true]);
+
+        $this->upvote($voter, $deck['id']);
+
+        $data = $this->getPublic(['itemsPerPage' => 1000], $voter);
+        $this->assertResponseIsSuccessful();
+
+        $found = array_values(array_filter($data['member'], fn ($d) => $d['id'] === $deck['id']));
+        $this->assertNotEmpty($found, 'Deck should appear in public listing');
+        $this->assertTrue($found[0]['hasUpvoted']);
+    }
+
+    public function testPublicDeckListHasUpvotedFalseForOtherUser(): void
+    {
+        $owner = 'owner-'.__FUNCTION__;
+        $voter = 'voter-'.__FUNCTION__;
+        $other = 'other-'.__FUNCTION__;
+
+        $deck = $this->post($owner, ['name' => 'Deck '.__FUNCTION__, 'isDraft' => false]);
+        $this->assertResponseStatusCodeSame(201);
+        $this->patch($owner, $deck['id'], ['isPublic' => true]);
+
+        $this->upvote($voter, $deck['id']);
+
+        // other user did not upvote
+        $data = $this->getPublic(['itemsPerPage' => 1000], $other);
+        $found = array_values(array_filter($data['member'], fn ($d) => $d['id'] === $deck['id']));
+        $this->assertNotEmpty($found);
+        $this->assertFalse($found[0]['hasUpvoted']);
+    }
+
+    public function testPublicDecksSortByParam(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $deck = $this->post($sub, ['name' => 'Deck '.__FUNCTION__, 'isDraft' => false]);
+        $this->assertResponseStatusCodeSame(201);
+        $this->patch($sub, $deck['id'], ['isPublic' => true]);
+
+        foreach (['recent', 'upvotes', 'views'] as $sortBy) {
+            $data = $this->getPublic(['sortBy' => $sortBy]);
+            $this->assertResponseIsSuccessful();
+            $this->assertArrayHasKey('member', $data);
+        }
+    }
+
+    public function testPublicDecksFilterByCardName(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $cardRef = 'ALT_CORE_B_AX_2_C';
+
+        $deckWith = $this->post($sub, [
+            'name' => 'Deck With Card '.__FUNCTION__,
+            'isDraft' => false,
+            'deckCards' => [['cardReference' => $cardRef, 'quantity' => 1]],
+        ]);
+        $this->assertResponseStatusCodeSame(201);
+        $this->patch($sub, $deckWith['id'], ['isPublic' => true]);
+
+        $deckWithout = $this->post($sub, ['name' => 'Deck Without Card '.__FUNCTION__, 'isDraft' => false]);
+        $this->assertResponseStatusCodeSame(201);
+        $this->patch($sub, $deckWithout['id'], ['isPublic' => true]);
+
+        $data = $this->getPublic(['cardName' => $cardRef, 'itemsPerPage' => 1000]);
+        $this->assertResponseIsSuccessful();
+
+        $ids = array_column($data['member'], 'id');
+        $this->assertContains($deckWith['id'], $ids);
+        $this->assertNotContains($deckWithout['id'], $ids);
     }
 
     /**
