@@ -9,6 +9,7 @@ use App\Entity\Deck;
 use App\Entity\User;
 use App\Repository\DeckRepository;
 use App\State\DeckItemProvider;
+use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -23,7 +24,7 @@ class DeckItemProviderTest extends TestCase
 
     private function provider(DeckRepository $repo, Security $security): DeckItemProvider
     {
-        return new DeckItemProvider($repo, $security);
+        return new DeckItemProvider($repo, $this->createStub(EntityManagerInterface::class), $security);
     }
 
     private function user(string $id): User
@@ -146,6 +147,33 @@ class DeckItemProviderTest extends TestCase
     public function testPatchPublicDeckByOwnerReturnsIt(): void
     {
         $deck = $this->deck(true, self::OWNER_ID);
+        $result = $this->provider($this->repo($deck), $this->security($this->user(self::OWNER_ID)))
+            ->provide(new Patch(), ['id' => 'any']);
+
+        self::assertSame($deck, $result);
+    }
+
+    // ── PATCH on private deck ─────────────────────────────────────────────────
+
+    public function testPatchPrivateDeckWithoutAuthThrows401(): void
+    {
+        $this->expectException(UnauthorizedHttpException::class);
+
+        $this->provider($this->repo($this->deck(false, self::OWNER_ID)), $this->security(null))
+            ->provide(new Patch(), ['id' => 'any']);
+    }
+
+    public function testPatchPrivateDeckByOtherUserThrows403(): void
+    {
+        $this->expectException(AccessDeniedHttpException::class);
+
+        $this->provider($this->repo($this->deck(false, self::OWNER_ID)), $this->security($this->user(self::OTHER_ID)))
+            ->provide(new Patch(), ['id' => 'any']);
+    }
+
+    public function testPatchPrivateDeckByOwnerReturnsIt(): void
+    {
+        $deck = $this->deck(false, self::OWNER_ID);
         $result = $this->provider($this->repo($deck), $this->security($this->user(self::OWNER_ID)))
             ->provide(new Patch(), ['id' => 'any']);
 
