@@ -1,0 +1,127 @@
+<?php
+
+namespace App\Tests\Validator\Format;
+
+use App\Entity\Deck;
+use App\Entity\DeckCard;
+use App\Validator\Format\SandboxFormatValidator;
+use Doctrine\Common\Collections\ArrayCollection;
+use PHPUnit\Framework\TestCase;
+
+class SandboxFormatValidatorTest extends TestCase
+{
+    private SandboxFormatValidator $validator;
+
+    protected function setUp(): void
+    {
+        $this->validator = new SandboxFormatValidator();
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private function card(string $ref, int $qty = 1): DeckCard
+    {
+        $card = new DeckCard();
+        $card->setCardReference($ref);
+        $card->setQuantity($qty);
+
+        return $card;
+    }
+
+    private function deck(DeckCard ...$cards): Deck
+    {
+        $deck = $this->createStub(Deck::class);
+        $deck->method('getDeckCards')->willReturn(new ArrayCollection($cards));
+
+        return $deck;
+    }
+
+    private function data(
+        string $ref,
+        string $typeRef = 'PERMANENT',
+        string $faction = 'AX',
+        string $rarityRef = 'CORAX_C',
+        string $name = '',
+    ): array {
+        return [
+            'reference' => $ref,
+            'cardType' => ['reference' => $typeRef],
+            'faction' => ['code' => $faction],
+            'cardRarity' => ['reference' => $rarityRef],
+            'name' => $name ?: $ref,
+        ];
+    }
+
+    /**
+     * Builds 1 hero + 4 distinct commons = minimal valid sandbox deck.
+     *
+     * @return array{0: array<string, array>, 1: DeckCard[]}
+     */
+    private function buildMinimalValidDeck(string $faction = 'AX'): array
+    {
+        $cardsData = [];
+        $deckCards = [];
+
+        $heroRef = 'ALT_CORE_B_AX_0_C';
+        $deckCards[] = $this->card($heroRef);
+        $cardsData[$heroRef] = $this->data($heroRef, 'HERO_MAIN', $faction);
+
+        for ($i = 1; $i <= 4; ++$i) {
+            $ref = sprintf('ALT_CORE_B_%s_%d_C', $faction, $i);
+            $deckCards[] = $this->card($ref);
+            $cardsData[$ref] = $this->data($ref, 'PERMANENT', $faction);
+        }
+
+        return [$cardsData, $deckCards];
+    }
+
+    // ── Happy path ────────────────────────────────────────────────────────────
+
+    public function testValidDeckHasNoErrors(): void
+    {
+        [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
+
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
+
+        self::assertSame([], $errors);
+    }
+
+    // ── Banned / suspended allowed ────────────────────────────────────────────
+
+    public function testBannedCardIsAllowed(): void
+    {
+        [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
+
+        $ref = 'ALT_CORE_B_AX_1_C';
+        $cardsData[$ref] = array_merge($cardsData[$ref], ['isBanned' => true]);
+
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
+
+        self::assertEmpty(array_filter($errors, fn ($e) => str_contains($e, 'banned')));
+    }
+
+    public function testSuspendedCardIsAllowed(): void
+    {
+        [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
+
+        $ref = 'ALT_CORE_B_AX_1_C';
+        $cardsData[$ref] = array_merge($cardsData[$ref], ['isSuspended' => true]);
+
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
+
+        self::assertEmpty(array_filter($errors, fn ($e) => str_contains($e, 'suspended')));
+    }
+
+    public function testLegalityDetailReportsBannedAndSuspendedAsLegal(): void
+    {
+        [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
+
+        $ref = 'ALT_CORE_B_AX_1_C';
+        $cardsData[$ref] = array_merge($cardsData[$ref], ['isBanned' => true, 'isSuspended' => true]);
+
+        $detail = $this->validator->computeLegalityDetail($this->deck(...$deckCards), $cardsData);
+
+        self::assertTrue($detail['bannedCards']);
+        self::assertTrue($detail['suspendedCards']);
+    }
+}
