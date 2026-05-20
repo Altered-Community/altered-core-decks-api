@@ -40,14 +40,14 @@ class SandboxFormatValidatorTest extends TestCase
         string $ref,
         string $typeRef = 'PERMANENT',
         string $faction = 'AX',
-        string $rarityRef = 'CORAX_C',
+        string $rarityRef = 'COMMON',
         string $name = '',
     ): array {
         return [
             'reference' => $ref,
             'cardType' => ['reference' => $typeRef],
             'faction' => ['code' => $faction],
-            'cardRarity' => ['reference' => $rarityRef],
+            'rarity' => ['reference' => $rarityRef],
             'name' => $name ?: $ref,
         ];
     }
