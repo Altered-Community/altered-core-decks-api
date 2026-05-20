@@ -332,11 +332,11 @@ class StandardFormatValidatorTest extends TestCase
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
-        // 2 distinct exalted × qty 2 = 4 exalted (R2)
-        for ($i = 1; $i <= 2; ++$i) {
-            $ref = sprintf('ALT_CORE_B_AX_%d_R2', $i);
-            $deckCards[] = $this->card($ref, 2);
-            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'RARE', "Exalted $i");
+        // 4 distinct exalted cards (EXALTED rarity)
+        for ($i = 1; $i <= 4; ++$i) {
+            $ref = sprintf('ALT_CORE_B_AX_%d_E', $i);
+            $deckCards[] = $this->card($ref, 1);
+            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'EXALTED', "Exalted $i");
         }
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);

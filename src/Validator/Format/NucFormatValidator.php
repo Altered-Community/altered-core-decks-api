@@ -36,8 +36,8 @@ class NucFormatValidator extends AbstractDeckFormatValidator
         return [
             'copies' => [] === $this->validateMaxCopiesPerName($groups, 3),
             'uniqueQuantity' => 0 === $this->countUniqueCards($groups),
-            'rareQuantity' => $this->countByRarity($groups, 'R1') <= 15,
-            'exaltedQuantity' => $this->countByRarity($groups, 'R2') <= 3,
+            'rareQuantity' => ($this->countByRarity($groups, 'R1') + $this->countByRarity($groups, 'R2')) <= 15,
+            'exaltedQuantity' => $this->countByRarity($groups, 'E') <= 3,
         ];
     }
 
@@ -53,12 +53,12 @@ class NucFormatValidator extends AbstractDeckFormatValidator
             $errors[] = sprintf('NUC format does not allow Unique cards (found %d).', $uniqueCount);
         }
 
-        $rareCount = $this->countByRarity($groups, 'R1');
+        $rareCount = $this->countByRarity($groups, 'R1') + $this->countByRarity($groups, 'R2');
         if ($rareCount > 15) {
             $errors[] = sprintf('NUC format allows maximum 15 rare cards (found %d).', $rareCount);
         }
 
-        $exaltedCount = $this->countByRarity($groups, 'R2');
+        $exaltedCount = $this->countByRarity($groups, 'E');
         if ($exaltedCount > 3) {
             $errors[] = sprintf('NUC format allows maximum 3 exalted cards (found %d).', $exaltedCount);
         }
