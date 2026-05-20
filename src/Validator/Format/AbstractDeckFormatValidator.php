@@ -64,8 +64,8 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
             'deckSize' => [] === $this->validateDeckSize($deckCards),
             'faction' => [] === $this->validateFaction($deckCards, $cardsData),
             'sets' => [] === $this->validateAllowedSets($deck, $cardsData),
-            'bannedCards' => [] === $this->validateNoBanned($deck, $cardsData),
-            'suspendedCards' => [] === $this->validateNoSuspended($deck, $cardsData),
+            'bannedCards' => $this->allowBannedCards() || [] === $this->validateNoBanned($deck, $cardsData),
+            'suspendedCards' => $this->allowSuspendedCards() || [] === $this->validateNoSuspended($deck, $cardsData),
         ];
 
         $detail = array_merge($detail, $this->computeFormatRulesDetail($deckCards, $cardsData, $hero));
@@ -227,11 +227,21 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
         return $errors;
     }
 
+    protected function allowBannedCards(): bool
+    {
+        return false;
+    }
+
+    protected function allowSuspendedCards(): bool
+    {
+        return false;
+    }
+
     protected function validateNoSuspendedOrBanned(Deck $deck, array $cardsData): array
     {
         return array_merge(
-            $this->validateNoBanned($deck, $cardsData),
-            $this->validateNoSuspended($deck, $cardsData),
+            $this->allowBannedCards() ? [] : $this->validateNoBanned($deck, $cardsData),
+            $this->allowSuspendedCards() ? [] : $this->validateNoSuspended($deck, $cardsData),
         );
     }
 

@@ -17,6 +17,8 @@ class FormatController extends AbstractController
                 'label' => 'Sandbox',
                 'minCards' => 4,
                 'maxCards' => 100,
+                'allowBanned' => true,
+                'allowSuspended' => true,
                 'limits' => [
                     'unique' => null,
                     'rare' => null,
@@ -30,6 +32,8 @@ class FormatController extends AbstractController
                 'label' => 'NUC',
                 'minCards' => 39,
                 'maxCards' => 59,
+                'allowBanned' => false,
+                'allowSuspended' => false,
                 'limits' => [
                     'unique' => 0,
                     'rare' => 15,
@@ -43,6 +47,8 @@ class FormatController extends AbstractController
                 'label' => 'Standard',
                 'minCards' => 39,
                 'maxCards' => 59,
+                'allowBanned' => false,
+                'allowSuspended' => false,
                 'limits' => [
                     'unique' => 3,
                     'rare' => 15,
@@ -56,6 +62,8 @@ class FormatController extends AbstractController
                 'label' => 'Singleton',
                 'minCards' => 59,
                 'maxCards' => 79,
+                'allowBanned' => false,
+                'allowSuspended' => false,
                 'limits' => [
                     'unique' => null,
                     'rare' => null,
@@ -74,6 +82,8 @@ class FormatController extends AbstractController
                 'label' => 'Singleton NUC',
                 'minCards' => 59,
                 'maxCards' => 79,
+                'allowBanned' => false,
+                'allowSuspended' => false,
                 'limits' => [
                     'unique' => 0,
                     'rare' => null,

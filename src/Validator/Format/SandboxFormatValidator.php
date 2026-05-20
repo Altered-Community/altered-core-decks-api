@@ -10,7 +10,7 @@ use App\Entity\DeckCard;
  * - Max 3 copies of cards with the same name (all rarities combined)
  * - All cards from the same faction
  * - Max 15 rares (R1), max 3 exalted (R2), 0 Unique
- * - No suspended or banned cards
+ * - Suspended and banned cards allowed
  * - Only cards from the supported set whitelist
  */
 class SandboxFormatValidator extends AbstractDeckFormatValidator
@@ -28,6 +28,16 @@ class SandboxFormatValidator extends AbstractDeckFormatValidator
     protected function getMaxCards(): int
     {
         return 100;
+    }
+
+    protected function allowBannedCards(): bool
+    {
+        return true;
+    }
+
+    protected function allowSuspendedCards(): bool
+    {
+        return true;
     }
 
     protected function computeFormatRulesDetail(array $deckCards, array $cardsData, ?DeckCard $hero): array
