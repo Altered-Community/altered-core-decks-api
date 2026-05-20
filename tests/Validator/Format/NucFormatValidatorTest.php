@@ -102,10 +102,10 @@ class NucFormatValidatorTest extends TestCase
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidNucDeck();
 
-        for ($i = 1; $i <= 2; ++$i) {
-            $ref = sprintf('ALT_CORE_B_AX_%d_R2', $i);
-            $deckCards[] = $this->card($ref, 2);
-            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'RARE', "Exalted $i");
+        for ($i = 1; $i <= 4; ++$i) {
+            $ref = sprintf('ALT_CORE_B_AX_%d_E', $i);
+            $deckCards[] = $this->card($ref, 1);
+            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'EXALTED', "Exalted $i");
         }
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);

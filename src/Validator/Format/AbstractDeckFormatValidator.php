@@ -140,18 +140,19 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
     {
         $rarityRef = $cardData['rarity']['reference'] ?? '';
 
-        if ('UNIQUE' === $rarityRef) {
-            return 'U';
-        }
+        return match ($rarityRef) {
+            'UNIQUE' => 'U',
+            'EXALTED' => 'E',
+            'RARE' => $this->parseRareCode($cardData['reference'] ?? ''),
+            default => 'C',
+        };
+    }
 
-        if ('RARE' === $rarityRef) {
-            // API returns RARE for both R1 and R2 — use parts[5] of the card reference to distinguish
-            $parts = explode('_', $cardData['reference'] ?? '');
+    private function parseRareCode(string $reference): string
+    {
+        $parts = explode('_', $reference);
 
-            return 'R2' === strtoupper($parts[5] ?? '') ? 'R2' : 'R1';
-        }
-
-        return 'C';
+        return 'R2' === strtoupper($parts[5] ?? '') ? 'R2' : 'R1';
     }
 
     protected function getCardName(array $cardData): string

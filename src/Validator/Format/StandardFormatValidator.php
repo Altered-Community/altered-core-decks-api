@@ -38,12 +38,12 @@ class StandardFormatValidator extends AbstractDeckFormatValidator
             $errors[] = sprintf('Standard format allows maximum 3 Unique cards (found %d).', $uniqueCount);
         }
 
-        $rareCount = $this->countByRarity($groups, 'R1');
+        $rareCount = $this->countByRarity($groups, 'R1') + $this->countByRarity($groups, 'R2');
         if ($rareCount > 15) {
             $errors[] = sprintf('Standard format allows maximum 15 rare cards (found %d).', $rareCount);
         }
 
-        $exaltedCount = $this->countByRarity($groups, 'R2');
+        $exaltedCount = $this->countByRarity($groups, 'E');
         if ($exaltedCount > 3) {
             $errors[] = sprintf('Standard format allows maximum 3 exalted cards (found %d).', $exaltedCount);
         }
@@ -58,8 +58,8 @@ class StandardFormatValidator extends AbstractDeckFormatValidator
         return [
             'copies' => [] === $this->validateMaxCopiesPerName($groups, 3) && [] === $this->validateUniqueQuantity($deckCards, $cardsData),
             'uniqueQuantity' => $this->countUniqueCards($groups) <= 3,
-            'rareQuantity' => $this->countByRarity($groups, 'R1') <= 15,
-            'exaltedQuantity' => $this->countByRarity($groups, 'R2') <= 3,
+            'rareQuantity' => ($this->countByRarity($groups, 'R1') + $this->countByRarity($groups, 'R2')) <= 15,
+            'exaltedQuantity' => $this->countByRarity($groups, 'E') <= 3,
         ];
     }
 }
