@@ -4,7 +4,6 @@ namespace App\Controller;
 
 use App\Repository\DeckRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -16,12 +15,8 @@ final class AdminDashboardController extends AbstractController
     }
 
     #[Route('/admin/dashboard', name: 'admin_dashboard', methods: ['GET'])]
-    public function dashboard(Request $request): Response
+    public function dashboard(): Response
     {
-        if (!$request->getSession()->has('admin_user_id')) {
-            return $this->redirectToRoute('admin_login');
-        }
-
         $rows = $this->deckRepository->findRecentAnonymized(30);
         $decks = array_map(function (array $row): array {
             $stats = $row['stats'] ? json_decode((string) $row['stats'], true) : null;

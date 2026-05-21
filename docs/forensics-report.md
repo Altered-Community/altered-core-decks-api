@@ -176,15 +176,15 @@ Vecteur principal : session CLI compromise ou fixtures en production (cause de l
 
 ---
 
-### 3.3 [NUANCÉ] Routes admin hors du firewall Symfony
+### 3.3 ✅ Routes admin — garde de session centralisée
 
 **Fichiers :** `src/Controller/AdminDashboardController.php`, `AdminBgaController.php`, `AdminAuthController.php`
 
-Les routes `/admin/*` utilisent une vérification de session manuelle (`getSession()->has('admin_user_id')`), pas le firewall Symfony.
+Les vérifications de session `getSession()->has('admin_user_id')` étaient dupliquées dans chaque controller.
 
-**Context équipe :** `/admin/login` hors firewall est **intentionnel** (doit être accessible sans authentification préalable). Pour les autres routes admin, l'équipe juge acceptable l'état actuel car l'accès à l'espace admin nécessite de toute façon un Keycloak JWT valide pour se connecter. La protection par session reste une fragilité de défense en profondeur (pas de `#[IsGranted]`, invisible aux outils d'audit).
+**Fix :** `src/EventSubscriber/AdminSessionGuard.php` créé — écoute `KernelEvents::REQUEST` (priorité 8), intercepte toutes les requêtes vers `/admin/*` sauf `/admin/login`, `/admin/callback`, `/admin/logout`, et redirige vers `admin_login` si la session ne contient pas `admin_user_id`. Les vérifications inline ont été retirées de `AdminDashboardController` et `AdminBgaController`.
 
-**Recommandation :** ajouter un firewall Symfony dédié `admin` avec `stateless: false` sur `^/admin` (sauf `/admin/login`), et `#[IsGranted('ROLE_ADMIN')]` au niveau classe sur tous les controllers admin sauf `AdminAuthController`.
+**Context équipe :** `/admin/login` hors firewall Symfony est **intentionnel** (accessible sans auth préalable). La protection par EventSubscriber centralise la logique et la rend auditabled sans modifier le firewall.
 
 ---
 
@@ -249,7 +249,7 @@ La méthode `debugToken()` et sa route `#[Route('/admin/debug-token')]` ont ét�
 4. ~~**Implémenter `FixtureProductionGuard`**~~ ✅ `src/EventSubscriber/FixtureProductionGuard.php` créé — bloque `doctrine:fixtures:*` sur `APP_ENV=prod`
 5. ~~**Ajouter la validation CI**~~ ✅ Step "Sanity check" ajouté dans `.github/workflows/ci.yml` avant `doctrine:schema:drop`
 6. **Séparer les privilèges PostgreSQL** (section 2.3) — user applicatif sans droits DDL/TRUNCATE
-7. **Ajouter `#[IsGranted('ROLE_ADMIN')]`** sur les controllers admin et un firewall dédié `^/admin` (sauf `/admin/login`)
+7. ~~**Ajouter `#[IsGranted('ROLE_ADMIN')]`** sur les controllers admin et un firewall dédié `^/admin`~~ ✅ `AdminSessionGuard` EventSubscriber créé — centralise la vérification de session pour toutes les routes `/admin/*` protégées
 8. **Ajouter une validation minimum** dans `mergeDeckCards()` (section 3.5)
 9. **Activer la vérification TLS** dans `AlteredCoreClient`
 

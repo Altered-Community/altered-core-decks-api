@@ -23,10 +23,6 @@ final class AdminBgaController extends AbstractController
     #[Route('/admin/bga', name: 'admin_bga_index', methods: ['GET'])]
     public function index(Request $request): Response
     {
-        if (!$request->getSession()->has('admin_user_id')) {
-            return $this->redirectToRoute('admin_login');
-        }
-
         $name = (string) $request->query->get('name', '');
         $format = (string) $request->query->get('format', '');
         $page = max(1, (int) $request->query->get('page', 1));
@@ -51,12 +47,8 @@ final class AdminBgaController extends AbstractController
 
     #[Route('/admin/bga/{id}', name: 'admin_bga_show', methods: ['GET'],
         requirements: ['id' => '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'])]
-    public function show(string $id, Request $request): Response
+    public function show(string $id): Response
     {
-        if (!$request->getSession()->has('admin_user_id')) {
-            return $this->redirectToRoute('admin_login');
-        }
-
         $deck = $this->deckRepository->find($id);
         if (!$deck) {
             throw $this->createNotFoundException();

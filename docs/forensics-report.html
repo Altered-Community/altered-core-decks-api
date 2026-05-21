@@ -430,25 +430,23 @@ flowchart LR
       </div>
     </div>
 
-    <div class="finding info">
+    <div class="finding low">
       <div class="finding-header" onclick="toggle(this)">
-        <span class="severity-pill">NUANCÉ</span>
-        <span class="finding-title">Routes admin hors du firewall Symfony</span>
-        <span class="finding-file">AdminDashboardController · AdminBgaController</span>
-        <span class="finding-status status-nuanced">Discuté équipe</span>
+        <span class="severity-pill">CORRIGE</span>
+        <span class="finding-title">Routes admin — garde de session centralisée</span>
+        <span class="finding-file">AdminSessionGuard.php</span>
+        <span class="finding-status status-fixed">Corrigé</span>
         <span class="chevron">▶</span>
       </div>
       <div class="finding-body">
-        <div class="callout callout-blue">
-          <span class="callout-icon">💬</span>
+        <div class="callout callout-green">
+          <span class="callout-icon">✅</span>
           <div class="callout-body">
-            <h4>Retour équipe</h4>
-            <p>« /admin/login pas dans le firewall c'est intentionnel. Pour les autres, si t'as pas le JWT tu auras pas accès. »</p>
+            <h4>Fix appliqué</h4>
+            <p><code class="inline-code">src/EventSubscriber/AdminSessionGuard.php</code> créé — intercepte <code class="inline-code">KernelEvents::REQUEST</code> (priorité 8) et redirige vers <code class="inline-code">admin_login</code> pour toute route <code class="inline-code">/admin/*</code> non authentifiée, sauf <code class="inline-code">/admin/login</code>, <code class="inline-code">/admin/callback</code>, <code class="inline-code">/admin/logout</code>.</p>
           </div>
         </div>
-        <p>Les routes <code class="inline-code">/admin/*</code> n'utilisent pas le firewall Symfony (uniquement une vérification de session manuelle). <code class="inline-code">/admin/login</code> hors firewall est <strong>intentionnel</strong>.</p>
-        <p>Pour les autres routes admin, la protection par session est suffisante dans le contexte actuel (accès Keycloak requis pour se connecter). Fragilité de défense en profondeur résiduelle : pas de <code class="inline-code">#[IsGranted]</code>, invisible aux outils d'audit.</p>
-        <p><strong>Recommandation :</strong> ajouter un firewall <code class="inline-code">admin</code> Symfony sur <code class="inline-code">^/admin</code> (sauf <code class="inline-code">/admin/login</code>) et <code class="inline-code">#[IsGranted('ROLE_ADMIN')]</code> au niveau classe sur les controllers admin.</p>
+        <p>Les vérifications de session <code class="inline-code">getSession()-&gt;has('admin_user_id')</code> étaient dupliquées dans chaque controller. Elles ont été retirées de <code class="inline-code">AdminDashboardController</code> et <code class="inline-code">AdminBgaController</code> — la protection est désormais centralisée et s'applique à tout ajout futur de route <code class="inline-code">/admin/*</code>.</p>
       </div>
     </div>
 
@@ -542,7 +540,7 @@ flowchart LR
         <li><span class="reco-num">4</span><div class="reco-text"><strong>Implémenter FixtureProductionGuard</strong><span>Bloque doctrine:fixtures:load sur APP_ENV=prod au niveau kernel Symfony (section 2.1).</span></div></li>
         <li><span class="reco-num">5</span><div class="reco-text"><strong>Ajouter la validation CI sur TEST_DATABASE_URL</strong><span>Section 2.2 — stop si le secret ressemble à une URL de production.</span></div></li>
         <li><span class="reco-num">6</span><div class="reco-text"><strong>Séparer les privilèges PostgreSQL</strong><span>User applicatif app_rw sans TRUNCATE/DROP — section 2.3.</span></div></li>
-        <li><span class="reco-num">7</span><div class="reco-text"><strong>Ajouter un firewall Symfony pour /admin/*</strong><span>Sauf /admin/login. Ajouter #[IsGranted('ROLE_ADMIN')] au niveau classe.</span></div></li>
+        <li class="done"><span class="reco-num done">7</span><div class="reco-text"><strong><del>Ajouter un firewall Symfony pour /admin/*</del></strong><span>✅ AdminSessionGuard EventSubscriber créé — centralise la vérification de session pour toutes les routes /admin/* protégées.</span></div></li>
         <li><span class="reco-num">8</span><div class="reco-text"><strong>Valider minimum de cartes dans mergeDeckCards()</strong><span>Rejeter un PATCH avec deckCards: [] (section 3.5).</span></div></li>
         <li><span class="reco-num">9</span><div class="reco-text"><strong>Activer la vérification TLS dans AlteredCoreClient</strong><span>Supprimer verify_peer: false + verify_host: false.</span></div></li>
       </ul>
