@@ -107,7 +107,7 @@ class BgaDeckController extends AbstractController
     {
         $deck = $this->deckRepository->find($id);
 
-        if (!$deck || !$deck->getIsPublic()) {
+        if (!$deck) {
             throw new NotFoundHttpException();
         }
 
