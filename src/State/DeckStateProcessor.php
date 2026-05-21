@@ -187,18 +187,18 @@ class DeckStateProcessor implements ProcessorInterface
 
     private function mergeDeckCards(Deck $deck): void
     {
-        if ($deck->getDeckCards()->isEmpty()) {
-            throw new UnprocessableEntityHttpException('deckCards cannot be empty. Send at least one card or omit the field.');
-        }
-
         $incomingByRef = [];
         foreach ($deck->getDeckCards() as $card) {
             $incomingByRef[$card->getCardReference()] = $card;
         }
 
-        $deck->getDeckCards()->clear();
-
         $dbCards = $this->em->getRepository(DeckCard::class)->findBy(['deck' => $deck]);
+
+        if (empty($incomingByRef) && !empty($dbCards)) {
+            throw new UnprocessableEntityHttpException('deckCards cannot be empty. Send at least one card or omit the field.');
+        }
+
+        $deck->getDeckCards()->clear();
         foreach ($dbCards as $dbCard) {
             $ref = $dbCard->getCardReference();
 
