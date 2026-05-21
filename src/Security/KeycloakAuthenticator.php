@@ -6,6 +6,7 @@ use App\Entity\User;
 use App\Repository\UserRepository;
 use App\Service\KeycloakJwtDecoder;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -22,6 +23,7 @@ class KeycloakAuthenticator extends AbstractAuthenticator
         private readonly UserRepository $userRepository,
         private readonly EntityManagerInterface $em,
         private readonly KeycloakJwtDecoder $jwtDecoder,
+        private readonly LoggerInterface $auditLogger,
     ) {
     }
 
@@ -60,6 +62,12 @@ class KeycloakAuthenticator extends AbstractAuthenticator
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
     {
+        $this->auditLogger->warning('auth.failure', [
+            'ip'     => $request->getClientIp(),
+            'path'   => $request->getPathInfo(),
+            'reason' => $exception->getMessageKey(),
+        ]);
+
         return new JsonResponse(['error' => $exception->getMessageKey()], Response::HTTP_UNAUTHORIZED);
     }
 
@@ -71,6 +79,12 @@ class KeycloakAuthenticator extends AbstractAuthenticator
             $user = new User();
             $user->setKeycloakId($keycloakId);
             $this->em->persist($user);
+
+            $this->auditLogger->info('auth.new_user', [
+                'keycloak_id' => $keycloakId,
+                'username'    => $decoded->preferred_username ?? $decoded->name ?? null,
+                'email'       => $decoded->email ?? null,
+            ]);
         }
 
         $user->setEmail($decoded->email ?? $decoded->preferred_username ?? null);
