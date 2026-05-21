@@ -188,13 +188,9 @@ Les routes `/admin/*` utilisent une vérification de session manuelle (`getSessi
 
 ---
 
-### 3.4 [CRITIQUE — à corriger] /admin/debug-token expose le token Keycloak en clair
+### 3.4 ✅ /admin/debug-token supprimé
 
-**Fichier :** `src/Controller/AdminAuthController.php`, lignes 120–143
-
-Rend le token Keycloak brut en HTML. Protégé uniquement par la vérification de session. Aucune garde contre `APP_ENV=prod`. XSS dans un template admin + cet endpoint = vol de token admin.
-
-**Fix requis :** supprimer l'endpoint ou le conditionner à `APP_ENV=dev`.
+La méthode `debugToken()` et sa route `#[Route('/admin/debug-token')]` ont été retirées de `AdminAuthController.php`. L'endpoint n'existe plus.
 
 ---
 
@@ -246,7 +242,7 @@ Rend le token Keycloak brut en HTML. Protégé uniquement par la vérification d
 
 1. **Vérifier `DEV_AUTH_ENABLED`** dans tous les `.env.local` staging/production — doit être `false`
 2. ~~**Changer l'`APP_SECRET`**~~ ✅ `.env.dev` contient désormais un placeholder — régénérer par env via `php -r "echo bin2hex(random_bytes(32));"`
-3. **Supprimer ou protéger `/admin/debug-token`** (pas en `APP_ENV=prod`)
+3. ~~**Supprimer ou protéger `/admin/debug-token`**~~ ✅ Route et méthode supprimées de `AdminAuthController.php`
 
 ### Court terme
 

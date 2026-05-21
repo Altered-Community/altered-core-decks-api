@@ -117,31 +117,6 @@ final class AdminAuthController extends AbstractController
         return $this->redirect($logoutUrl);
     }
 
-    #[Route('/admin/debug-token', name: 'admin_debug_token', methods: ['GET'])]
-    public function debugToken(Request $request): Response
-    {
-        $token = $request->getSession()->get('admin_access_token');
-
-        if (!$token) {
-            return new Response('No token in session — please login first via /admin/login', 400);
-        }
-
-        try {
-            $decoded = $this->jwtDecoder->decode($token);
-        } catch (\Throwable $e) {
-            return new Response('Token decode error: '.$e->getMessage(), 500);
-        }
-
-        $html = '<pre>';
-        $html .= '<strong>Bearer token (copy for Authorization header):</strong>'."\n";
-        $html .= htmlspecialchars($token)."\n\n";
-        $html .= '<strong>Decoded claims:</strong>'."\n";
-        $html .= htmlspecialchars(json_encode((array) $decoded, JSON_PRETTY_PRINT));
-        $html .= '</pre>';
-
-        return new Response($html);
-    }
-
     private function callbackUri(Request $request): string
     {
         return $request->getSchemeAndHttpHost().'/admin/callback';
