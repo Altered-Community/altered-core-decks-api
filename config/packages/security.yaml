@@ -21,9 +21,9 @@ security:
         - { path: ^/api/docs,        roles: PUBLIC_ACCESS }
         - { path: ^/api/formats,     roles: PUBLIC_ACCESS }
         - { path: ^/api/decks/public, roles: PUBLIC_ACCESS }
-        - { path: '^/api/decks/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', roles: PUBLIC_ACCESS }
-        - { path: '^/api/bga/decks/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', roles: PUBLIC_ACCESS }
-        - { path: '^/api/bga/cards/[^/]+$', roles: PUBLIC_ACCESS }
+        - { path: '^/api/decks/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: '^/api/bga/decks/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: '^/api/bga/cards/[A-Z0-9_]+$', roles: PUBLIC_ACCESS, methods: [GET] }
         - { path: ^/api/admin,    roles: ROLE_ADMIN }
         - { path: ^/api,          roles: ROLE_USER }
 
