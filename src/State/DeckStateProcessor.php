@@ -33,7 +33,9 @@ class DeckStateProcessor implements ProcessorInterface
 
         if ($isNew) {
             $currentUser = $this->security->getUser();
-            assert($currentUser instanceof User);
+            if (!$currentUser instanceof User) {
+                throw new \LogicException('POST /api/decks requires an authenticated user.');
+            }
             $user = $this->em->getReference(User::class, $currentUser->getId());
             $data->setUser($user);
         } else {

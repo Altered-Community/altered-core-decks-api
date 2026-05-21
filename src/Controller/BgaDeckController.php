@@ -117,6 +117,7 @@ class BgaDeckController extends AbstractController
     #[Route(
         '/api/bga/cards/{reference}',
         name: 'api_bga_cards_item',
+        requirements: ['reference' => '[A-Z0-9_]+'],
         methods: ['GET'],
     )]
     public function card(string $reference): JsonResponse
