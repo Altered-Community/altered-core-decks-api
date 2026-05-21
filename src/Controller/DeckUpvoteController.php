@@ -2,11 +2,9 @@
 
 namespace App\Controller;
 
-use App\Entity\DeckUpvote;
 use App\Entity\User;
 use App\Repository\DeckRepository;
 use App\Repository\DeckUpvoteRepository;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -19,7 +17,6 @@ class DeckUpvoteController extends AbstractController
     public function __construct(
         private readonly DeckRepository $deckRepository,
         private readonly DeckUpvoteRepository $deckUpvoteRepository,
-        private readonly EntityManagerInterface $em,
     ) {
     }
 
@@ -38,24 +35,8 @@ class DeckUpvoteController extends AbstractController
             throw new NotFoundHttpException();
         }
 
-        $existing = $this->deckUpvoteRepository->findOneByDeckAndUser($deck, $user);
+        $result = $this->deckUpvoteRepository->toggle($deck, $user);
 
-        if ($existing) {
-            $this->em->remove($existing);
-            $deck->decrementUpvoteCount();
-            $upvoted = false;
-        } else {
-            $upvote = new DeckUpvote($deck, $user);
-            $this->em->persist($upvote);
-            $deck->incrementUpvoteCount();
-            $upvoted = true;
-        }
-
-        $this->em->flush();
-
-        return $this->json([
-            'upvoteCount' => $deck->getUpvoteCount(),
-            'hasUpvoted' => $upvoted,
-        ]);
+        return $this->json($result);
     }
 }
