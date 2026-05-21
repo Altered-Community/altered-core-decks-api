@@ -201,7 +201,7 @@ La méthode `debugToken()` et sa route `#[Route('/admin/debug-token')]` ont ét�
 | Sévérité | Fichier | Problème | Statut |
 |----------|---------|---------|--------|
 | CRITIQUE | `.env.dev` | `APP_SECRET` hardcodé et commité | ✅ Corrigé — placeholder, générer via `php -r "echo bin2hex(random_bytes(32));"` |
-| HAUTE | `compose.yaml:45` | Credentials PostgreSQL `!ChangeMe!` commités ; user `app` a les droits DDL | À corriger |
+| HAUTE | `compose.yaml:45` | Credentials PostgreSQL `!ChangeMe!` commités ; user `app` a les droits DDL | Partiel — droits DDL couverts par `docs/db-privilege-separation.md` ; changer les credentials via `.env.local` en staging/prod |
 | HAUTE | `AlteredCoreClient.php` | `verify_peer: false` + `verify_host: false` — vulnérable MITM | ✅ Corrigé — options retirées, vérification TLS active |
 | MOYENNE | `BgaDeckController.php:118` | Path traversal sur `{reference}` → endpoints internes altered-core | ✅ Corrigé `1d684e2` |
 | MOYENNE | `DeckStateProcessor.php:36` | `assert()` désactivé par `zend.assertions=-1` en prod | ✅ Corrigé `1d684e2` |
