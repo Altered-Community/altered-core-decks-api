@@ -115,6 +115,19 @@ jobs:
       - name: Restore vendor bin permissions
         run: chmod +x vendor/bin/*
 
+      - name: Sanity check — TEST_DATABASE_URL must not be production
+        env:
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+        run: |
+          if echo "$DATABASE_URL" | grep -qiE '\bprod\b|\blive\b|\bmain\b'; then
+            echo "::error::TEST_DATABASE_URL contains a production keyword (prod/live/main). Aborting to prevent data loss."
+            exit 1
+          fi
+          if ! echo "$DATABASE_URL" | grep -qiE 'test|ci|staging'; then
+            echo "::error::TEST_DATABASE_URL does not contain 'test', 'ci', or 'staging'. Verify the GitHub secret before running schema:drop."
+            exit 1
+          fi
+
       - name: Prepare test database
         env:
           DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}

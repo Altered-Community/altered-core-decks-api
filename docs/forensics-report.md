@@ -86,7 +86,7 @@ final class FixtureProductionGuard implements EventSubscriberInterface
 
 ---
 
-### 2.2 [CI] Validation du nom de la base avant schema:drop
+### 2.2 ✅ [CI] Validation du nom de la base avant schema:drop — implémenté
 
 Ajouter ce step **avant** le `doctrine:schema:drop` dans `.github/workflows/ci.yml` :
 
@@ -247,7 +247,7 @@ La méthode `debugToken()` et sa route `#[Route('/admin/debug-token')]` ont ét�
 ### Court terme
 
 4. ~~**Implémenter `FixtureProductionGuard`**~~ ✅ `src/EventSubscriber/FixtureProductionGuard.php` créé — bloque `doctrine:fixtures:*` sur `APP_ENV=prod`
-5. **Ajouter la validation CI** sur `TEST_DATABASE_URL` (section 2.2)
+5. ~~**Ajouter la validation CI**~~ ✅ Step "Sanity check" ajouté dans `.github/workflows/ci.yml` avant `doctrine:schema:drop`
 6. **Séparer les privilèges PostgreSQL** (section 2.3) — user applicatif sans droits DDL/TRUNCATE
 7. **Ajouter `#[IsGranted('ROLE_ADMIN')]`** sur les controllers admin et un firewall dédié `^/admin` (sauf `/admin/login`)
 8. **Ajouter une validation minimum** dans `mergeDeckCards()` (section 3.5)
