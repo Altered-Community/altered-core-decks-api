@@ -23,11 +23,22 @@ services:
             $appSecret: '%env(APP_SECRET)%'
             $devAuthEnabled: '%env(bool:DEV_AUTH_ENABLED)%'
 
-    App\Security\KeycloakAuthenticator: ~
+    App\Security\KeycloakAuthenticator:
+        arguments:
+            $auditLogger: '@monolog.logger.audit'
+
+    App\EventSubscriber\ApiAuditSubscriber:
+        arguments:
+            $auditLogger: '@monolog.logger.audit'
 
     App\Controller\DevAuthController:
         arguments:
             $appSecret: '%env(APP_SECRET)%'
+            $devAuthEnabled: '%env(bool:DEV_AUTH_ENABLED)%'
+
+    App\Controller\DevDebugController:
+        arguments:
+            $kernelDebug: '%kernel.debug%'
             $devAuthEnabled: '%env(bool:DEV_AUTH_ENABLED)%'
 
     App\Client\AlteredCoreClient:
