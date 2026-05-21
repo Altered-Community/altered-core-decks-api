@@ -54,6 +54,7 @@ use Symfony\Component\Validator\Constraints as Assert;
         ),
         new Delete(
             requirements: ['id' => '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'],
+            security: "is_granted('ROLE_USER') and object.getUser().getUserIdentifier() == user.getUserIdentifier()",
             provider: DeckItemProvider::class,
         ),
     ],

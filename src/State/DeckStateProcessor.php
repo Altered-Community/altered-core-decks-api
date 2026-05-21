@@ -13,6 +13,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class DeckStateProcessor implements ProcessorInterface
 {
@@ -191,9 +192,13 @@ class DeckStateProcessor implements ProcessorInterface
             $incomingByRef[$card->getCardReference()] = $card;
         }
 
-        $deck->getDeckCards()->clear();
-
         $dbCards = $this->em->getRepository(DeckCard::class)->findBy(['deck' => $deck]);
+
+        if (empty($incomingByRef) && !empty($dbCards)) {
+            throw new UnprocessableEntityHttpException('deckCards cannot be empty. Send at least one card or omit the field.');
+        }
+
+        $deck->getDeckCards()->clear();
         foreach ($dbCards as $dbCard) {
             $ref = $dbCard->getCardReference();
 
