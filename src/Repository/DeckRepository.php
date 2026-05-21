@@ -166,13 +166,12 @@ class DeckRepository extends ServiceEntityRepository
 
     private function buildBgaConditions(?User $user, string $name, array $factions, string $hero, string $format, array $validFormats = []): array
     {
-        $conditions = ['d.legal = true'];
-        $params = [];
-
-        if ($user) {
-            $conditions[] = 'd.user_id = :userId';
-            $params['userId'] = (string) $user->getId();
+        if (null === $user) {
+            return [['1 = 0'], []];
         }
+
+        $conditions = ['d.legal = true', 'd.user_id = :userId'];
+        $params = ['userId' => (string) $user->getId()];
 
         if ('' !== $name) {
             $conditions[] = 'd.name ILIKE :name';

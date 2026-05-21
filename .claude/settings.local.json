@@ -6,7 +6,13 @@
       "Bash(psql:*)",
       "Read(//home/john/PhpstormProjects/altered-core/public/**)",
       "Bash(composer show *)",
-      "Bash(composer require *)"
+      "Bash(composer require *)",
+      "Bash(curl -s \"https://cards.alteredcore.org/api/cards?itemsPerPage=5\")",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s \"https://cards.alteredcore.org/api/cards?itemsPerPage=10&cardType=HERO_MAIN\")",
+      "Bash(curl -s --compressed \"https://cards.alteredcore.org/api/cards?itemsPerPage=3&set.reference=CORE\" -H \"Accept: application/json\")",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s --compressed \"https://cards.alteredcore.org/api/cards?itemsPerPage=200&set.reference=CORE&rarity=COMMON&variation=standard\" -H \"Accept: application/json\")"
     ]
   }
 }

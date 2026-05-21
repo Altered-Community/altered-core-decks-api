@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dev Debug — Altered Deck</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        pre { white-space: pre-wrap; word-break: break-all; }
+        .method-GET    { background: #dbeafe; color: #1d4ed8; }
+        .method-POST   { background: #dcfce7; color: #15803d; }
+        .method-PATCH  { background: #fef9c3; color: #854d0e; }
+        .method-DELETE { background: #fee2e2; color: #b91c1c; }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen font-mono text-sm">
+
+<div class="max-w-5xl mx-auto px-4 py-8 space-y-6">
+
+    {# ── Header ── #}
+    <div class="flex items-center justify-between">
+        <h1 class="text-lg font-bold text-white">🛠 Altered Deck — Dev Debug</h1>
+        <span class="text-xs text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded">APP_DEBUG=true</span>
+    </div>
+
+    {# ── Token ── #}
+    <div class="bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-4">
+        <h2 class="text-xs font-bold uppercase tracking-widest text-gray-400">Authentification</h2>
+
+        <div class="flex gap-3 flex-wrap">
+            <div class="flex-1 min-w-48">
+                <label class="text-xs text-gray-500 mb-1 block">sub (keycloakId)</label>
+                <input id="input-sub" type="text" value="dev-admin"
+                       class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500">
+            </div>
+            <div class="flex-1 min-w-48">
+                <label class="text-xs text-gray-500 mb-1 block">username</label>
+                <input id="input-username" type="text" value="admin"
+                       class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500">
+            </div>
+            <div class="flex items-end">
+                <button onclick="generateToken()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded text-sm transition">
+                    Générer token
+                </button>
+            </div>
+        </div>
+
+        <div id="token-block" class="hidden space-y-2">
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-green-400">✓ Token actif</span>
+                <button onclick="copyToken()" class="text-xs text-gray-500 hover:text-white transition">Copier</button>
+                <button onclick="clearToken()" class="text-xs text-gray-500 hover:text-red-400 transition">Effacer</button>
+            </div>
+            <pre id="token-value" class="bg-gray-800 rounded p-3 text-xs text-indigo-300 break-all"></pre>
+            <div id="token-payload" class="bg-gray-800 rounded p-3 text-xs text-gray-400"></div>
+        </div>
+
+        <div id="token-empty" class="text-xs text-gray-600 italic">Aucun token — cliquez sur "Générer token" pour commencer.</div>
+    </div>
+
+    {# ── Endpoints ── #}
+    <div class="space-y-4" id="endpoints"></div>
+
+</div>
+
+<script>
+const ENDPOINTS = [
+    {
+        section: '🔑 Auth',
+        method: 'POST',
+        url: '/api/dev/auth',
+        description: 'Génère un JWT signé localement (DEV_AUTH_ENABLED=true requis)',
+        auth: false,
+        body: () => JSON.stringify({ sub: sub(), username: username() }, null, 2),
+    },
+    {
+        section: '📊 Admin',
+        method: 'GET',
+        url: '/api/admin/stats',
+        description: 'Statistiques globales des decks (ROLE_ADMIN)',
+        auth: true,
+    },
+    {
+        section: '📊 Admin',
+        method: 'GET',
+        url: '/api/admin/decks',
+        description: '30 derniers decks anonymisés (ROLE_ADMIN)',
+        auth: true,
+    },
+    {
+        section: '🃏 Decks (authentifié)',
+        method: 'GET',
+        url: '/api/decks',
+        description: 'Mes decks (paginé)',
+        auth: true,
+    },
+    {
+        section: '🃏 Decks (authentifié)',
+        method: 'POST',
+        url: '/api/decks',
+        description: 'Créer un deck',
+        auth: true,
+        body: () => JSON.stringify({
+            name: 'Nouveau deck test',
+            format: 'standard',
+            isPublic: false,
+            isDraft: true,
+            deckCards: [
+                { cardReference: 'ALT_CORE_B_AX_01_C', quantity: 1 },
+                { cardReference: 'ALT_CORE_B_AX_04_C', quantity: 3 },
+            ],
+        }, null, 2),
+    },
+    {
+        section: '🃏 Decks (authentifié)',
+        method: 'GET',
+        url: '/api/decks/{id}',
+        description: 'Détail d\'un deck (remplacer {id})',
+        auth: true,
+        urlEditable: true,
+    },
+    {
+        section: '🃏 Decks (authentifié)',
+        method: 'PATCH',
+        url: '/api/decks/{id}',
+        description: 'Modifier un deck (remplacer {id})',
+        auth: true,
+        urlEditable: true,
+        body: () => JSON.stringify({ name: 'Nouveau nom', isPublic: true }, null, 2),
+    },
+    {
+        section: '🃏 Decks (authentifié)',
+        method: 'DELETE',
+        url: '/api/decks/{id}',
+        description: 'Supprimer un deck (remplacer {id})',
+        auth: true,
+        urlEditable: true,
+    },
+    {
+        section: '🌐 Public (sans auth)',
+        method: 'GET',
+        url: '/api/decks/public',
+        description: 'Decks publics (pas de token requis)',
+        auth: false,
+    },
+    {
+        section: '🌐 Public (sans auth)',
+        method: 'GET',
+        url: '/api/decks/public?hero=&cardName=&orderBy=created_at&page=1&itemsPerPage=10',
+        description: 'Decks publics avec filtres',
+        auth: false,
+        urlEditable: true,
+    },
+];
+
+// ── State ──────────────────────────────────────────────────────────────────
+
+let token = localStorage.getItem('dev_debug_token') || null;
+
+function sub()      { return document.getElementById('input-sub').value.trim() || 'dev-user'; }
+function username() { return document.getElementById('input-username').value.trim() || 'dev-user'; }
+
+function getToken()  { return token; }
+function clearToken() {
+    token = null;
+    localStorage.removeItem('dev_debug_token');
+    renderTokenBlock();
+}
+function copyToken() {
+    if (token) navigator.clipboard.writeText(token);
+}
+
+function setToken(t) {
+    token = t;
+    localStorage.setItem('dev_debug_token', t);
+    renderTokenBlock();
+}
+
+function decodeJwtPayload(jwt) {
+    try {
+        const b64 = jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        return JSON.parse(atob(b64));
+    } catch { return null; }
+}
+
+function renderTokenBlock() {
+    const block = document.getElementById('token-block');
+    const empty = document.getElementById('token-empty');
+    if (!token) {
+        block.classList.add('hidden');
+        empty.classList.remove('hidden');
+        return;
+    }
+    block.classList.remove('hidden');
+    empty.classList.add('hidden');
+    document.getElementById('token-value').textContent = token;
+    const payload = decodeJwtPayload(token);
+    if (payload) {
+        const exp = payload.exp ? new Date(payload.exp * 1000).toLocaleTimeString() : '?';
+        document.getElementById('token-payload').innerHTML =
+            `sub: <span class="text-white">${payload.sub}</span>  &nbsp;|&nbsp;  ` +
+            `username: <span class="text-white">${payload.preferred_username ?? '—'}</span>  &nbsp;|&nbsp;  ` +
+            `expire: <span class="text-white">${exp}</span>`;
+    }
+}
+
+async function generateToken() {
+    const body = { sub: sub(), username: username() };
+    const res = await fetch('/api/dev/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    if (res.ok) {
+        const data = await res.json();
+        setToken(data.token);
+    } else {
+        alert('Erreur lors de la génération du token (DEV_AUTH_ENABLED=true ?)');
+    }
+}
+
+// ── Endpoints rendering ────────────────────────────────────────────────────
+
+function buildEndpoints() {
+    const container = document.getElementById('endpoints');
+    let currentSection = null;
+
+    ENDPOINTS.forEach((ep, idx) => {
+        if (ep.section !== currentSection) {
+            currentSection = ep.section;
+            const hdr = document.createElement('h2');
+            hdr.className = 'text-xs font-bold uppercase tracking-widest text-gray-500 pt-2';
+            hdr.textContent = ep.section;
+            container.appendChild(hdr);
+        }
+
+        const card = document.createElement('div');
+        card.className = 'bg-gray-900 rounded-xl border border-gray-800 overflow-hidden';
+        card.dataset.idx = idx;
+
+        const methodClass = `method-${ep.method}`;
+        const hasBody = !!ep.body;
+        const urlId = `url-${idx}`;
+        const bodyId = `body-${idx}`;
+        const reqId  = `req-${idx}`;
+        const resId  = `res-${idx}`;
+
+        card.innerHTML = `
+            <div class="flex items-center gap-3 px-4 py-3 cursor-pointer" onclick="toggleCard(${idx})">
+                <span class="text-xs font-bold px-2 py-0.5 rounded ${methodClass}">${ep.method}</span>
+                <span class="text-gray-300 flex-1">${ep.url}</span>
+                ${ep.auth ? '<span class="text-xs text-yellow-500">🔒</span>' : '<span class="text-xs text-gray-600">public</span>'}
+                <span class="text-xs text-gray-600">${ep.description}</span>
+                <button onclick="runEndpoint(event, ${idx})"
+                        class="ml-auto bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-1 rounded transition shrink-0">
+                    ▶ Run
+                </button>
+            </div>
+            <div id="detail-${idx}" class="hidden border-t border-gray-800 divide-y divide-gray-800">
+                ${ep.urlEditable ? `
+                <div class="px-4 py-3 space-y-1">
+                    <label class="text-xs text-gray-500">URL</label>
+                    <input id="${urlId}" type="text" value="${ep.url}"
+                           class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500">
+                </div>` : ''}
+                ${hasBody ? `
+                <div class="px-4 py-3 space-y-1">
+                    <label class="text-xs text-gray-500">Request body</label>
+                    <textarea id="${bodyId}" rows="8"
+                              class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-xs focus:outline-none focus:border-indigo-500 font-mono">${ep.body()}</textarea>
+                </div>` : ''}
+                <div id="${reqId}" class="hidden px-4 py-3 space-y-1">
+                    <p class="text-xs text-gray-500 uppercase tracking-widest">Request</p>
+                    <pre class="text-xs text-gray-300 bg-gray-800 rounded p-3"></pre>
+                </div>
+                <div id="${resId}" class="hidden px-4 py-3 space-y-1">
+                    <p class="text-xs text-gray-500 uppercase tracking-widest">Response</p>
+                    <pre class="text-xs bg-gray-800 rounded p-3"></pre>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function toggleCard(idx) {
+    const detail = document.getElementById(`detail-${idx}`);
+    detail.classList.toggle('hidden');
+}
+
+async function runEndpoint(event, idx) {
+    event.stopPropagation();
+
+    const ep = ENDPOINTS[idx];
+    const detail = document.getElementById(`detail-${idx}`);
+    detail.classList.remove('hidden');
+
+    const urlInput = document.getElementById(`url-${idx}`);
+    const bodyInput = document.getElementById(`body-${idx}`);
+
+    const url = urlInput ? urlInput.value : ep.url;
+    const bodyText = bodyInput ? bodyInput.value : (ep.body ? ep.body() : null);
+
+    const headers = { 'Accept': 'application/json' };
+    if (ep.method !== 'GET' && ep.method !== 'DELETE' && bodyText) {
+        headers['Content-Type'] = 'application/json';
+    }
+    if (ep.auth && getToken()) {
+        headers['Authorization'] = `Bearer ${getToken()}`;
+    }
+
+    // Show request
+    const reqEl = document.getElementById(`req-${idx}`);
+    reqEl.classList.remove('hidden');
+    let reqText = `${ep.method} ${url}\n`;
+    for (const [k, v] of Object.entries(headers)) {
+        reqText += `${k}: ${k === 'Authorization' ? v.substring(0, 30) + '…' : v}\n`;
+    }
+    if (bodyText) reqText += `\n${bodyText}`;
+    reqEl.querySelector('pre').textContent = reqText;
+
+    // Run
+    const resEl = document.getElementById(`res-${idx}`);
+    resEl.classList.remove('hidden');
+    const pre = resEl.querySelector('pre');
+    pre.textContent = '…';
+    pre.className = 'text-xs bg-gray-800 rounded p-3 text-gray-400';
+
+    try {
+        const opts = { method: ep.method, headers };
+        if (bodyText && ep.method !== 'GET') opts.body = bodyText;
+
+        const t0 = performance.now();
+        const res = await fetch(url, opts);
+        const ms = Math.round(performance.now() - t0);
+
+        const statusColor = res.ok ? 'text-green-400' : 'text-red-400';
+        let body;
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('json')) {
+            const json = await res.json();
+            body = JSON.stringify(json, null, 2);
+        } else {
+            body = await res.text() || '(empty)';
+        }
+
+        pre.innerHTML = `<span class="${statusColor}">${res.status} ${res.statusText}  (${ms}ms)</span>\n\n${escHtml(body)}`;
+        pre.className = 'text-xs bg-gray-800 rounded p-3';
+    } catch (e) {
+        pre.textContent = `Erreur réseau: ${e.message}`;
+        pre.className = 'text-xs bg-gray-800 rounded p-3 text-red-400';
+    }
+}
+
+function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+
+buildEndpoints();
+renderTokenBlock();
+</script>
+</body>
+</html>
