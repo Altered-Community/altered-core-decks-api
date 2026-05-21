@@ -182,9 +182,9 @@ Les vérifications de session `getSession()->has('admin_user_id')` étaient dupl
 
 ---
 
-### 3.4 ✅ /admin/debug-token supprimé
+### 3.4 [À surveiller] /admin/debug-token — endpoint de débogage token
 
-La méthode `debugToken()` et sa route `#[Route('/admin/debug-token')]` ont été retirées de `AdminAuthController.php`. L'endpoint n'existe plus.
+La route `#[Route('/admin/debug-token')]` expose le bearer token Keycloak brut dans une page HTML (accessible via session admin). L'endpoint est protégé par la session admin (`AdminSessionGuard`), mais afficher un token dans le navigateur reste une fragilité (XSS dans un template admin, shoulder surfing). À désactiver ou conditionner à `APP_ENV=dev` si non utilisé en production.
 
 ---
 
@@ -201,7 +201,7 @@ La méthode `debugToken()` et sa route `#[Route('/admin/debug-token')]` ont ét�
 | Sévérité | Fichier | Problème | Statut |
 |----------|---------|---------|--------|
 | CRITIQUE | `.env.dev` | `APP_SECRET` hardcodé et commité | ✅ Corrigé — placeholder, générer via `php -r "echo bin2hex(random_bytes(32));"` |
-| HAUTE | `compose.yaml:45` | Credentials PostgreSQL `!ChangeMe!` commités ; user `app` a les droits DDL | Partiel — droits DDL couverts par `docs/db-privilege-separation.md` ; changer les credentials via `.env.local` en staging/prod |
+| HAUTE | `compose.yaml:45` | Credentials PostgreSQL `!ChangeMe!` commités ; user `app` a les droits DDL | À corriger |
 | HAUTE | `AlteredCoreClient.php` | `verify_peer: false` + `verify_host: false` — vulnérable MITM | ✅ Corrigé — options retirées, vérification TLS active |
 | MOYENNE | `BgaDeckController.php:118` | Path traversal sur `{reference}` → endpoints internes altered-core | ✅ Corrigé `1d684e2` |
 | MOYENNE | `DeckStateProcessor.php:36` | `assert()` désactivé par `zend.assertions=-1` en prod | ✅ Corrigé `1d684e2` |
@@ -236,13 +236,13 @@ La méthode `debugToken()` et sa route `#[Route('/admin/debug-token')]` ont ét�
 
 1. **Vérifier `DEV_AUTH_ENABLED`** dans tous les `.env.local` staging/production — doit être `false`
 2. ~~**Changer l'`APP_SECRET`**~~ ✅ `.env.dev` contient désormais un placeholder — régénérer par env via `php -r "echo bin2hex(random_bytes(32));"`
-3. ~~**Supprimer ou protéger `/admin/debug-token`**~~ ✅ Route et méthode supprimées de `AdminAuthController.php`
+3. **Protéger `/admin/debug-token`** — endpoint conservé intentionnellement ; protégé par `AdminSessionGuard`, à désactiver en prod si non nécessaire
 
 ### Court terme
 
 4. ~~**Implémenter `FixtureProductionGuard`**~~ ✅ `src/EventSubscriber/FixtureProductionGuard.php` créé — bloque `doctrine:fixtures:*` sur `APP_ENV=prod`
 5. ~~**Ajouter la validation CI**~~ ✅ Step "Sanity check" ajouté dans `.github/workflows/ci.yml` avant `doctrine:schema:drop`
-6. ~~**Séparer les privilèges PostgreSQL** (section 2.3)~~ ✅ Guide créé dans `docs/db-privilege-separation.md` — SQL pour rôles `app_rw`/`app_migrate` et wiring applicatif documentés
+6. **Séparer les privilèges PostgreSQL** (section 2.3) — user applicatif sans droits DDL/TRUNCATE
 7. ~~**Ajouter `#[IsGranted('ROLE_ADMIN')]`** sur les controllers admin et un firewall dédié `^/admin`~~ ✅ `AdminSessionGuard` EventSubscriber créé — centralise la vérification de session pour toutes les routes `/admin/*` protégées
 8. ~~**Ajouter une validation minimum** dans `mergeDeckCards()` (section 3.5)~~ ✅ Guard ajouté — `UnprocessableEntityHttpException` (422) si `deckCards: []`
 9. ~~**Activer la vérification TLS** dans `AlteredCoreClient`~~ ✅ `verify_peer: false` et `verify_host: false` retirés — vérification TLS active

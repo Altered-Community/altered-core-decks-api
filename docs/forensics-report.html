@@ -458,14 +458,14 @@ flowchart LR
     <div class="finding high">
       <div class="finding-header" onclick="toggle(this)">
         <span class="severity-pill">HAUTE</span>
-        <span class="finding-title">/admin/debug-token — route supprimée</span>
+        <span class="finding-title">/admin/debug-token — endpoint de débogage token</span>
         <span class="finding-file">AdminAuthController.php</span>
-        <span class="finding-status status-fixed">✓ Corrigé</span>
+        <span class="finding-status status-nuanced">Conservé intentionnellement</span>
         <span class="chevron">▶</span>
       </div>
       <div class="finding-body">
-        <p>Rend le token Keycloak brut dans une page HTML. Protégé uniquement par la vérification de session. Aucune garde contre <code class="inline-code">APP_ENV=prod</code>. XSS dans un template admin + cet endpoint = vol de token admin.</p>
-        <p><strong>Fix :</strong> supprimer l'endpoint ou conditionner à <code class="inline-code">APP_ENV=dev</code> avec une exception au boot.</p>
+        <p>Rend le token Keycloak brut dans une page HTML. Protégé par <code class="inline-code">AdminSessionGuard</code>. XSS dans un template admin + cet endpoint = vol de token admin.</p>
+        <p><strong>Recommandation :</strong> conditionner à <code class="inline-code">APP_ENV != prod</code> ou désactiver en production si non utilisé.</p>
       </div>
     </div>
 
@@ -498,7 +498,7 @@ flowchart LR
         <thead><tr><th>Sévérité</th><th>Fichier</th><th>Problème</th><th>Statut</th></tr></thead>
         <tbody>
           <tr><td><span class="tag-crit">CRITIQUE</span></td><td><code class="inline-code">.env.dev</code></td><td>APP_SECRET hardcodé et commité — forge de JWT possible</td><td><span class="icon-ok">✓ Placeholder — régénérer par env</span></td></tr>
-          <tr><td><span class="tag-high">HAUTE</span></td><td><code class="inline-code">compose.yaml:45</code></td><td>Credentials <code class="inline-code">!ChangeMe!</code> commités ; user <code class="inline-code">app</code> a les droits DDL</td><td><span style="color:var(--warning)">⚡ Partiel — DDL : voir db-privilege-separation.md ; credentials : .env.local en staging/prod</span></td></tr>
+          <tr><td><span class="tag-high">HAUTE</span></td><td><code class="inline-code">compose.yaml:45</code></td><td>Credentials <code class="inline-code">!ChangeMe!</code> commités ; user <code class="inline-code">app</code> a les droits DDL</td><td><span class="icon-todo">⚠ À corriger</span></td></tr>
           <tr><td><span class="tag-high">HAUTE</span></td><td><code class="inline-code">AlteredCoreClient.php</code></td><td>verify_peer + verify_host désactivés — MITM possible</td><td><span class="icon-fixed">✅ Corrigé</span></td></tr>
           <tr><td><span class="tag-med">MOYENNE</span></td><td><code class="inline-code">BgaDeckController.php:118</code></td><td>Path traversal sur <code class="inline-code">{reference}</code> → endpoints internes altered-core</td><td><span class="icon-ok">✓</span> <span class="commit-badge">1d684e2</span></td></tr>
           <tr><td><span class="tag-med">MOYENNE</span></td><td><code class="inline-code">DeckStateProcessor.php:36</code></td><td>assert() comme garde — no-op si zend.assertions=-1</td><td><span class="icon-ok">✓</span> <span class="commit-badge">1d684e2</span></td></tr>
@@ -542,7 +542,7 @@ flowchart LR
       <ul class="reco-list">
         <li><span class="reco-num">1</span><div class="reco-text"><strong>Vérifier DEV_AUTH_ENABLED dans tous les environnements déployés</strong><span>Doit être absent ou false en staging et production.</span></div></li>
         <li><span class="reco-num">2</span><div class="reco-text"><strong style="text-decoration:line-through;color:var(--muted)">Changer l'APP_SECRET</strong> <span class="icon-ok">✓</span><span>.env.dev contient un placeholder — régénérer par env via <code class="inline-code">php -r "echo bin2hex(random_bytes(32));"</code></span></div></li>
-        <li><span class="reco-num">3</span><div class="reco-text"><strong>Supprimer /admin/debug-token</strong><span>Ou le conditionner à APP_ENV=dev avec une exception au boot.</span></div></li>
+        <li><span class="reco-num">3</span><div class="reco-text"><strong>Protéger /admin/debug-token</strong><span>Endpoint conservé intentionnellement. Protégé par AdminSessionGuard. À désactiver en prod si non nécessaire.</span></div></li>
       </ul>
     </div>
 
@@ -551,7 +551,7 @@ flowchart LR
       <ul class="reco-list">
         <li><span class="reco-num">4</span><div class="reco-text"><strong>Implémenter FixtureProductionGuard</strong><span>Bloque doctrine:fixtures:load sur APP_ENV=prod au niveau kernel Symfony (section 2.1).</span></div></li>
         <li><span class="reco-num">5</span><div class="reco-text"><strong>Ajouter la validation CI sur TEST_DATABASE_URL</strong><span>Section 2.2 — stop si le secret ressemble à une URL de production.</span></div></li>
-        <li class="done"><span class="reco-num done">6</span><div class="reco-text"><strong><del>Séparer les privilèges PostgreSQL</del></strong><span>✅ Guide SQL documenté dans docs/db-privilege-separation.md — rôles app_rw/app_migrate et wiring applicatif.</span></div></li>
+        <li><span class="reco-num">6</span><div class="reco-text"><strong>Séparer les privilèges PostgreSQL</strong><span>User applicatif app_rw sans TRUNCATE/DROP — section 2.3.</span></div></li>
         <li class="done"><span class="reco-num done">7</span><div class="reco-text"><strong><del>Ajouter un firewall Symfony pour /admin/*</del></strong><span>✅ AdminSessionGuard EventSubscriber créé — centralise la vérification de session pour toutes les routes /admin/* protégées.</span></div></li>
         <li class="done"><span class="reco-num done">8</span><div class="reco-text"><strong><del>Valider minimum de cartes dans mergeDeckCards()</del></strong><span>✅ Guard ajouté — UnprocessableEntityHttpException (422) si deckCards: [].</span></div></li>
         <li class="done"><span class="reco-num done">9</span><div class="reco-text"><strong><del>Activer la vérification TLS dans AlteredCoreClient</del></strong><span>✅ verify_peer: false + verify_host: false retirés — vérification TLS active.</span></div></li>
