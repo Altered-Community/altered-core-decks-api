@@ -209,7 +209,7 @@ La méthode `debugToken()` et sa route `#[Route('/admin/debug-token')]` ont ét�
 | MOYENNE | `MeController.php` | Pas de garde `instanceof User` avant accès aux propriétés | ✅ Corrigé `16e077c` |
 | FAIBLE | `DeckCard.quantity` | Pas de maximum sur la quantité — injection de grandes valeurs | ✅ Corrigé `16e077c` (max: 3) |
 | FAIBLE | `Deck.description` | Pas de limite de longueur | ✅ Corrigé `16e077c` (max: 5000) |
-| MOYENNE | `Deck.php — Delete op` | Pas d'attribut `security` sur l'opération Delete | À corriger |
+| MOYENNE | `Deck.php — Delete op` | Pas d'attribut `security` sur l'opération Delete | ✅ Corrigé — `security: "is_granted('ROLE_USER') and object.getUser().getUserIdentifier() == user.getUserIdentifier()"` |
 
 ---
 
@@ -251,7 +251,7 @@ La méthode `debugToken()` et sa route `#[Route('/admin/debug-token')]` ont ét�
 
 10. ~~**Conditionner `DEV_AUTH_ENABLED`** au `kernel.environment`~~ ✅ Bloc `when@prod:` dans `config/services.yaml` force `$devAuthEnabled: false` pour `KeycloakJwtDecoder`, `DevAuthController`, `DevDebugController`
 11. **Activer les backups automatiques** avec PITR (point-in-time recovery)
-12. **Ajouter `security`** sur l'opération `Delete` de `Deck` comme défense en profondeur
+12. ~~**Ajouter `security`** sur l'opération `Delete` de `Deck`~~ ✅ `security: "is_granted('ROLE_USER') and object.getUser().getUserIdentifier() == user.getUserIdentifier()"` ajouté sur l'opération `Delete`
 13. **Documenter la procédure** d'accès aux containers de production (interdit hors incident)
 
 ---

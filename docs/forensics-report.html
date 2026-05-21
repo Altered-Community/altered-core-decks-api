@@ -506,7 +506,7 @@ flowchart LR
           <tr><td><span class="tag-med">MOYENNE</span></td><td><code class="inline-code">MeController.php</code></td><td>Pas de garde instanceof User avant accès aux propriétés</td><td><span class="icon-ok">✓</span> <span class="commit-badge">16e077c</span></td></tr>
           <tr><td><span class="tag-low">FAIBLE</span></td><td><code class="inline-code">DeckCard.quantity</code></td><td>Pas de maximum — injection de grandes valeurs</td><td><span class="icon-ok">✓ max: 3</span> <span class="commit-badge">16e077c</span></td></tr>
           <tr><td><span class="tag-low">FAIBLE</span></td><td><code class="inline-code">Deck.description</code></td><td>Pas de limite de longueur</td><td><span class="icon-ok">✓ max: 5000</span> <span class="commit-badge">16e077c</span></td></tr>
-          <tr><td><span class="tag-med">MOYENNE</span></td><td><code class="inline-code">Deck.php — Delete op</code></td><td>Pas d'attribut security sur l'opération Delete</td><td><span class="icon-todo">⚠ À corriger</span></td></tr>
+          <tr><td><span class="tag-med">MOYENNE</span></td><td><code class="inline-code">Deck.php — Delete op</code></td><td>Pas d'attribut security sur l'opération Delete</td><td><span class="icon-fixed">✅ Corrigé</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -563,7 +563,7 @@ flowchart LR
       <ul class="reco-list">
         <li class="done"><span class="reco-num done">10</span><div class="reco-text"><strong><del>Conditionner DEV_AUTH_ENABLED au kernel.environment</del></strong><span>✅ when@prod: dans services.yaml force $devAuthEnabled: false pour KeycloakJwtDecoder, DevAuthController, DevDebugController.</span></div></li>
         <li><span class="reco-num">11</span><div class="reco-text"><strong>Activer les backups automatiques avec PITR</strong><span>Point-in-time recovery — restauration à la seconde près.</span></div></li>
-        <li><span class="reco-num">12</span><div class="reco-text"><strong>Ajouter security sur l'opération Delete de Deck</strong><span>security: "is_granted('ROLE_USER') and object.getUser() == user"</span></div></li>
+        <li class="done"><span class="reco-num done">12</span><div class="reco-text"><strong><del>Ajouter security sur l'opération Delete de Deck</del></strong><span>✅ security: "is_granted('ROLE_USER') and object.getUser().getUserIdentifier() == user.getUserIdentifier()" ajouté.</span></div></li>
       </ul>
     </div>
   </section>
