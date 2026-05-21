@@ -248,7 +248,7 @@ La méthode `debugToken()` et sa route `#[Route('/admin/debug-token')]` ont ét�
 
 4. ~~**Implémenter `FixtureProductionGuard`**~~ ✅ `src/EventSubscriber/FixtureProductionGuard.php` créé — bloque `doctrine:fixtures:*` sur `APP_ENV=prod`
 5. ~~**Ajouter la validation CI**~~ ✅ Step "Sanity check" ajouté dans `.github/workflows/ci.yml` avant `doctrine:schema:drop`
-6. **Séparer les privilèges PostgreSQL** (section 2.3) — user applicatif sans droits DDL/TRUNCATE
+6. ~~**Séparer les privilèges PostgreSQL** (section 2.3)~~ ✅ Guide créé dans `docs/db-privilege-separation.md` — SQL pour rôles `app_rw`/`app_migrate` et wiring applicatif documentés
 7. ~~**Ajouter `#[IsGranted('ROLE_ADMIN')]`** sur les controllers admin et un firewall dédié `^/admin`~~ ✅ `AdminSessionGuard` EventSubscriber créé — centralise la vérification de session pour toutes les routes `/admin/*` protégées
 8. ~~**Ajouter une validation minimum** dans `mergeDeckCards()` (section 3.5)~~ ✅ Guard ajouté — `UnprocessableEntityHttpException` (422) si `deckCards: []`
 9. ~~**Activer la vérification TLS** dans `AlteredCoreClient`~~ ✅ `verify_peer: false` et `verify_host: false` retirés — vérification TLS active
