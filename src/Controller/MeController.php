@@ -18,8 +18,11 @@ class MeController extends AbstractController
     #[Route('/api/me', name: 'api_me', methods: ['GET'])]
     public function __invoke(): JsonResponse
     {
-        /** @var User $user */
         $user = $this->security->getUser();
+
+        if (!$user instanceof User) {
+            throw new \Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException('Bearer');
+        }
 
         return $this->json([
             'email' => $user->getEmail(),

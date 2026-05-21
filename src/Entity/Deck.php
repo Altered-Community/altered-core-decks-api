@@ -83,6 +83,7 @@ class Deck
     private string $name;
 
     #[ORM\Column(type: 'text', nullable: true)]
+    #[Assert\Length(max: 5000)]
     #[Groups(['deck:read', 'deck:write'])]
     private ?string $description = null;
 
