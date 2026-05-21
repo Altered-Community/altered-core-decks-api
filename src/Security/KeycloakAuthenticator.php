@@ -63,8 +63,8 @@ class KeycloakAuthenticator extends AbstractAuthenticator
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
     {
         $this->auditLogger->warning('auth.failure', [
-            'ip'     => $request->getClientIp(),
-            'path'   => $request->getPathInfo(),
+            'ip' => $request->getClientIp(),
+            'path' => $request->getPathInfo(),
             'reason' => $exception->getMessageKey(),
         ]);
 
@@ -82,8 +82,8 @@ class KeycloakAuthenticator extends AbstractAuthenticator
 
             $this->auditLogger->info('auth.new_user', [
                 'keycloak_id' => $keycloakId,
-                'username'    => $decoded->preferred_username ?? $decoded->name ?? null,
-                'email'       => $decoded->email ?? null,
+                'username' => $decoded->preferred_username ?? $decoded->name ?? null,
+                'email' => $decoded->email ?? null,
             ]);
         }
 

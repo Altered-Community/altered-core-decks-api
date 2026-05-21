@@ -9,7 +9,7 @@ use Doctrine\Persistence\ObjectManager;
 class UserFixtures extends Fixture
 {
     public const ADMIN = 'user-admin';
-    public const USER  = 'user-regular';
+    public const USER = 'user-regular';
 
     public function load(ObjectManager $manager): void
     {

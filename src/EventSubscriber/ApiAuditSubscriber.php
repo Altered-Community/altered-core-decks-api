@@ -4,10 +4,10 @@ namespace App\EventSubscriber;
 
 use App\Entity\User;
 use Psr\Log\LoggerInterface;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
-use Symfony\Bundle\SecurityBundle\Security;
 
 final readonly class ApiAuditSubscriber implements EventSubscriberInterface
 {
@@ -46,13 +46,13 @@ final readonly class ApiAuditSubscriber implements EventSubscriberInterface
         $status = $event->getResponse()->getStatusCode();
 
         $this->auditLogger->info('api.request', [
-            'method'   => $request->getMethod(),
-            'path'     => $request->getPathInfo(),
-            'status'   => $status,
-            'ip'       => $request->getClientIp(),
-            'user_id'  => $user instanceof User ? (string) $user->getId() : null,
+            'method' => $request->getMethod(),
+            'path' => $request->getPathInfo(),
+            'status' => $status,
+            'ip' => $request->getClientIp(),
+            'user_id' => $user instanceof User ? (string) $user->getId() : null,
             'username' => $user instanceof User ? $user->getUsername() : null,
-            'email'    => $user instanceof User ? $user->getEmail() : null,
+            'email' => $user instanceof User ? $user->getEmail() : null,
         ]);
     }
 }
