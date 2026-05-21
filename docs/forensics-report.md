@@ -208,7 +208,7 @@ La méthode `debugToken()` et sa route `#[Route('/admin/debug-token')]` ont ét�
 |----------|---------|---------|--------|
 | CRITIQUE | `.env.dev` | `APP_SECRET` hardcodé et commité | ✅ Corrigé — placeholder, générer via `php -r "echo bin2hex(random_bytes(32));"` |
 | HAUTE | `compose.yaml:45` | Credentials PostgreSQL `!ChangeMe!` commités ; user `app` a les droits DDL | À corriger |
-| HAUTE | `AlteredCoreClient.php` | `verify_peer: false` + `verify_host: false` — vulnérable MITM | À corriger |
+| HAUTE | `AlteredCoreClient.php` | `verify_peer: false` + `verify_host: false` — vulnérable MITM | ✅ Corrigé — options retirées, vérification TLS active |
 | MOYENNE | `BgaDeckController.php:118` | Path traversal sur `{reference}` → endpoints internes altered-core | ✅ Corrigé `1d684e2` |
 | MOYENNE | `DeckStateProcessor.php:36` | `assert()` désactivé par `zend.assertions=-1` en prod | ✅ Corrigé `1d684e2` |
 | FAIBLE | `security.yaml:24` | `PUBLIC_ACCESS` sans `methods: [GET]` | ✅ Corrigé `1d684e2` |
@@ -251,7 +251,7 @@ La méthode `debugToken()` et sa route `#[Route('/admin/debug-token')]` ont ét�
 6. **Séparer les privilèges PostgreSQL** (section 2.3) — user applicatif sans droits DDL/TRUNCATE
 7. ~~**Ajouter `#[IsGranted('ROLE_ADMIN')]`** sur les controllers admin et un firewall dédié `^/admin`~~ ✅ `AdminSessionGuard` EventSubscriber créé — centralise la vérification de session pour toutes les routes `/admin/*` protégées
 8. ~~**Ajouter une validation minimum** dans `mergeDeckCards()` (section 3.5)~~ ✅ Guard ajouté — `UnprocessableEntityHttpException` (422) si `deckCards: []`
-9. **Activer la vérification TLS** dans `AlteredCoreClient`
+9. ~~**Activer la vérification TLS** dans `AlteredCoreClient`~~ ✅ `verify_peer: false` et `verify_host: false` retirés — vérification TLS active
 
 ### Moyen terme
 

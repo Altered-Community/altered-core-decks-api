@@ -494,7 +494,7 @@ flowchart LR
         <tbody>
           <tr><td><span class="tag-crit">CRITIQUE</span></td><td><code class="inline-code">.env.dev</code></td><td>APP_SECRET hardcodé et commité — forge de JWT possible</td><td><span class="icon-ok">✓ Placeholder — régénérer par env</span></td></tr>
           <tr><td><span class="tag-high">HAUTE</span></td><td><code class="inline-code">compose.yaml:45</code></td><td>Credentials <code class="inline-code">!ChangeMe!</code> commités ; user <code class="inline-code">app</code> a les droits DDL</td><td><span class="icon-todo">⚠ À corriger</span></td></tr>
-          <tr><td><span class="tag-high">HAUTE</span></td><td><code class="inline-code">AlteredCoreClient.php</code></td><td>verify_peer + verify_host désactivés — MITM possible</td><td><span class="icon-todo">⚠ À corriger</span></td></tr>
+          <tr><td><span class="tag-high">HAUTE</span></td><td><code class="inline-code">AlteredCoreClient.php</code></td><td>verify_peer + verify_host désactivés — MITM possible</td><td><span class="icon-fixed">✅ Corrigé</span></td></tr>
           <tr><td><span class="tag-med">MOYENNE</span></td><td><code class="inline-code">BgaDeckController.php:118</code></td><td>Path traversal sur <code class="inline-code">{reference}</code> → endpoints internes altered-core</td><td><span class="icon-ok">✓</span> <span class="commit-badge">1d684e2</span></td></tr>
           <tr><td><span class="tag-med">MOYENNE</span></td><td><code class="inline-code">DeckStateProcessor.php:36</code></td><td>assert() comme garde — no-op si zend.assertions=-1</td><td><span class="icon-ok">✓</span> <span class="commit-badge">1d684e2</span></td></tr>
           <tr><td><span class="tag-low">FAIBLE</span></td><td><code class="inline-code">security.yaml:24</code></td><td>PUBLIC_ACCESS sans methods: [GET] sur routes deck UUID</td><td><span class="icon-ok">✓</span> <span class="commit-badge">1d684e2</span></td></tr>
@@ -549,7 +549,7 @@ flowchart LR
         <li><span class="reco-num">6</span><div class="reco-text"><strong>Séparer les privilèges PostgreSQL</strong><span>User applicatif app_rw sans TRUNCATE/DROP — section 2.3.</span></div></li>
         <li class="done"><span class="reco-num done">7</span><div class="reco-text"><strong><del>Ajouter un firewall Symfony pour /admin/*</del></strong><span>✅ AdminSessionGuard EventSubscriber créé — centralise la vérification de session pour toutes les routes /admin/* protégées.</span></div></li>
         <li class="done"><span class="reco-num done">8</span><div class="reco-text"><strong><del>Valider minimum de cartes dans mergeDeckCards()</del></strong><span>✅ Guard ajouté — UnprocessableEntityHttpException (422) si deckCards: [].</span></div></li>
-        <li><span class="reco-num">9</span><div class="reco-text"><strong>Activer la vérification TLS dans AlteredCoreClient</strong><span>Supprimer verify_peer: false + verify_host: false.</span></div></li>
+        <li class="done"><span class="reco-num done">9</span><div class="reco-text"><strong><del>Activer la vérification TLS dans AlteredCoreClient</del></strong><span>✅ verify_peer: false + verify_host: false retirés — vérification TLS active.</span></div></li>
       </ul>
     </div>
 
