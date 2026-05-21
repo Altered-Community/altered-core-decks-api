@@ -13,6 +13,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class DeckStateProcessor implements ProcessorInterface
 {
@@ -186,6 +187,10 @@ class DeckStateProcessor implements ProcessorInterface
 
     private function mergeDeckCards(Deck $deck): void
     {
+        if ($deck->getDeckCards()->isEmpty()) {
+            throw new UnprocessableEntityHttpException('deckCards cannot be empty. Send at least one card or omit the field.');
+        }
+
         $incomingByRef = [];
         foreach ($deck->getDeckCards() as $card) {
             $incomingByRef[$card->getCardReference()] = $card;

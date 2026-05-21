@@ -464,16 +464,23 @@ flowchart LR
       </div>
     </div>
 
-    <div class="finding medium">
+    <div class="finding low">
       <div class="finding-header" onclick="toggle(this)">
-        <span class="severity-pill">MOYENNE</span>
+        <span class="severity-pill">CORRIGE</span>
         <span class="finding-title">PATCH deckCards: [] vide silencieusement un deck entier</span>
-        <span class="finding-file">DeckStateProcessor.php:187</span>
-        <span class="finding-status status-todo">À corriger</span>
+        <span class="finding-file">DeckStateProcessor.php</span>
+        <span class="finding-status status-fixed">Corrigé</span>
         <span class="chevron">▶</span>
       </div>
       <div class="finding-body">
-        <p><code class="inline-code">mergeDeckCards()</code> supprime toutes les cartes absentes du payload. Un <code class="inline-code">PATCH {"deckCards": []}</code> efface toutes les cartes sans validation minimum ni confirmation. Risque de perte de données sur bug client.</p>
+        <div class="callout callout-green">
+          <span class="callout-icon">✅</span>
+          <div class="callout-body">
+            <h4>Fix appliqué</h4>
+            <p>Guard ajouté en tête de <code class="inline-code">mergeDeckCards()</code> — lève <code class="inline-code">UnprocessableEntityHttpException</code> (422) si <code class="inline-code">deckCards</code> est vide. <code class="inline-code">PATCH {"deckCards": []}</code> retourne désormais une erreur explicite.</p>
+          </div>
+        </div>
+        <p><code class="inline-code">mergeDeckCards()</code> supprime toutes les cartes absentes du payload. Un <code class="inline-code">PATCH {"deckCards": []}</code> effaçait toutes les cartes sans validation minimum ni confirmation. Risque de perte de données sur bug client.</p>
       </div>
     </div>
   </section>
@@ -541,7 +548,7 @@ flowchart LR
         <li><span class="reco-num">5</span><div class="reco-text"><strong>Ajouter la validation CI sur TEST_DATABASE_URL</strong><span>Section 2.2 — stop si le secret ressemble à une URL de production.</span></div></li>
         <li><span class="reco-num">6</span><div class="reco-text"><strong>Séparer les privilèges PostgreSQL</strong><span>User applicatif app_rw sans TRUNCATE/DROP — section 2.3.</span></div></li>
         <li class="done"><span class="reco-num done">7</span><div class="reco-text"><strong><del>Ajouter un firewall Symfony pour /admin/*</del></strong><span>✅ AdminSessionGuard EventSubscriber créé — centralise la vérification de session pour toutes les routes /admin/* protégées.</span></div></li>
-        <li><span class="reco-num">8</span><div class="reco-text"><strong>Valider minimum de cartes dans mergeDeckCards()</strong><span>Rejeter un PATCH avec deckCards: [] (section 3.5).</span></div></li>
+        <li class="done"><span class="reco-num done">8</span><div class="reco-text"><strong><del>Valider minimum de cartes dans mergeDeckCards()</del></strong><span>✅ Guard ajouté — UnprocessableEntityHttpException (422) si deckCards: [].</span></div></li>
         <li><span class="reco-num">9</span><div class="reco-text"><strong>Activer la vérification TLS dans AlteredCoreClient</strong><span>Supprimer verify_peer: false + verify_host: false.</span></div></li>
       </ul>
     </div>

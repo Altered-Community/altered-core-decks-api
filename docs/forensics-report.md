@@ -194,11 +194,11 @@ La méthode `debugToken()` et sa route `#[Route('/admin/debug-token')]` ont ét�
 
 ---
 
-### 3.5 [IMPORTANT — à corriger] PATCH deckCards: [] vide un deck silencieusement
+### 3.5 ✅ PATCH deckCards: [] — validation minimum ajoutée
 
-**Fichier :** `src/State/DeckStateProcessor.php`, lignes 187–213
+**Fichier :** `src/State/DeckStateProcessor.php`
 
-`mergeDeckCards()` supprime toutes les cartes absentes du payload. Un `PATCH {"deckCards": []}` efface toutes les cartes sans validation minimum.
+`mergeDeckCards()` supprime toutes les cartes absentes du payload. **Fix :** guard ajouté en tête de `mergeDeckCards()` — lève `UnprocessableEntityHttpException` (422) si `deckCards` est vide. Un `PATCH {"deckCards": []}` retourne désormais une erreur explicite au lieu de vider silencieusement le deck.
 
 ---
 
@@ -250,7 +250,7 @@ La méthode `debugToken()` et sa route `#[Route('/admin/debug-token')]` ont ét�
 5. ~~**Ajouter la validation CI**~~ ✅ Step "Sanity check" ajouté dans `.github/workflows/ci.yml` avant `doctrine:schema:drop`
 6. **Séparer les privilèges PostgreSQL** (section 2.3) — user applicatif sans droits DDL/TRUNCATE
 7. ~~**Ajouter `#[IsGranted('ROLE_ADMIN')]`** sur les controllers admin et un firewall dédié `^/admin`~~ ✅ `AdminSessionGuard` EventSubscriber créé — centralise la vérification de session pour toutes les routes `/admin/*` protégées
-8. **Ajouter une validation minimum** dans `mergeDeckCards()` (section 3.5)
+8. ~~**Ajouter une validation minimum** dans `mergeDeckCards()` (section 3.5)~~ ✅ Guard ajouté — `UnprocessableEntityHttpException` (422) si `deckCards: []`
 9. **Activer la vérification TLS** dans `AlteredCoreClient`
 
 ### Moyen terme
