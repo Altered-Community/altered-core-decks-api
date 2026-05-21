@@ -31,6 +31,10 @@ services:
         arguments:
             $auditLogger: '@monolog.logger.audit'
 
+    App\EventSubscriber\FixtureProductionGuard:
+        arguments:
+            $env: '%kernel.environment%'
+
     App\Controller\DevAuthController:
         arguments:
             $appSecret: '%env(APP_SECRET)%'

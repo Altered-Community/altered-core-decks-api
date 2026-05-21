@@ -50,7 +50,7 @@ Ce job s'exécute sur **chaque push vers `main`**. Si `secrets.TEST_DATABASE_URL
 
 ## 2. Safeguards recommandées contre les fixtures en production
 
-### 2.1 [CODE] Guard Symfony dans la console — bloquer au niveau commande
+### 2.1 ✅ [CODE] Guard Symfony dans la console — implémenté
 
 Créer un subscriber qui intercepte `doctrine:fixtures:load` sur `APP_ENV=prod` :
 
@@ -246,7 +246,7 @@ La méthode `debugToken()` et sa route `#[Route('/admin/debug-token')]` ont ét�
 
 ### Court terme
 
-4. **Implémenter `FixtureProductionGuard`** (section 2.1) — bloque `doctrine:fixtures:load` sur prod au niveau commande Symfony
+4. ~~**Implémenter `FixtureProductionGuard`**~~ ✅ `src/EventSubscriber/FixtureProductionGuard.php` créé — bloque `doctrine:fixtures:*` sur `APP_ENV=prod`
 5. **Ajouter la validation CI** sur `TEST_DATABASE_URL` (section 2.2)
 6. **Séparer les privilèges PostgreSQL** (section 2.3) — user applicatif sans droits DDL/TRUNCATE
 7. **Ajouter `#[IsGranted('ROLE_ADMIN')]`** sur les controllers admin et un firewall dédié `^/admin` (sauf `/admin/login`)
