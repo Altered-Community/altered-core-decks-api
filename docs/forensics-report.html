@@ -389,18 +389,23 @@ final class FixtureProductionGuard implements EventSubscriberInterface
   <section id="s3">
     <h2><span class="section-num">3</span> Scénarios de suppression non autorisée</h2>
 
-    <div class="finding critical">
+    <div class="finding low">
       <div class="finding-header" onclick="toggle(this)">
-        <span class="severity-pill">CRITIQUE</span>
-        <span class="finding-title">DEV_AUTH_ENABLED — usurpation d'identité et suppression de decks</span>
-        <span class="finding-file">DevAuthController.php · .env.dev:5</span>
-        <span class="finding-status status-todo">À corriger</span>
+        <span class="severity-pill">CORRIGE</span>
+        <span class="finding-title">DEV_AUTH_ENABLED — forcé à false en production</span>
+        <span class="finding-file">config/services.yaml</span>
+        <span class="finding-status status-fixed">Corrigé</span>
         <span class="chevron">▶</span>
       </div>
       <div class="finding-body">
-        <p>Quand <code class="inline-code">DEV_AUTH_ENABLED=true</code>, <code class="inline-code">POST /api/dev/auth</code> génère un JWT valide pour <strong>n'importe quel <code>keycloakId</code></strong> sans authentification. La clé <code class="inline-code">APP_SECRET</code> est commitée en clair dans <code class="inline-code">.env.dev</code>.</p>
-        <p>Si activé en production ou staging : tout utilisateur peut supprimer les decks de n'importe quelle cible.</p>
-        <p><strong>Fix :</strong> lever une exception au démarrage si <code class="inline-code">DEV_AUTH_ENABLED=true</code> et <code class="inline-code">APP_ENV != dev</code>.</p>
+        <div class="callout callout-green">
+          <span class="callout-icon">✅</span>
+          <div class="callout-body">
+            <h4>Fix appliqué</h4>
+            <p>Bloc <code class="inline-code">when@prod:</code> ajouté dans <code class="inline-code">config/services.yaml</code> — <code class="inline-code">$devAuthEnabled</code> est forcé à <code class="inline-code">false</code> pour <code class="inline-code">KeycloakJwtDecoder</code>, <code class="inline-code">DevAuthController</code> et <code class="inline-code">DevDebugController</code> en <code class="inline-code">APP_ENV=prod</code>.</p>
+          </div>
+        </div>
+        <p>Quand <code class="inline-code">DEV_AUTH_ENABLED=true</code>, <code class="inline-code">POST /api/dev/auth</code> génère un JWT valide pour <strong>n'importe quel <code>keycloakId</code></strong> sans authentification. Désormais, même si la variable d'environnement est mal configurée en prod, le container injecte toujours <code class="inline-code">false</code>.</p>
       </div>
     </div>
 
@@ -556,7 +561,7 @@ flowchart LR
     <div class="reco-group">
       <h3>Moyen terme</h3>
       <ul class="reco-list">
-        <li><span class="reco-num">10</span><div class="reco-text"><strong>Conditionner DEV_AUTH_ENABLED au kernel.environment</strong><span>Exception au démarrage si true en prod.</span></div></li>
+        <li class="done"><span class="reco-num done">10</span><div class="reco-text"><strong><del>Conditionner DEV_AUTH_ENABLED au kernel.environment</del></strong><span>✅ when@prod: dans services.yaml force $devAuthEnabled: false pour KeycloakJwtDecoder, DevAuthController, DevDebugController.</span></div></li>
         <li><span class="reco-num">11</span><div class="reco-text"><strong>Activer les backups automatiques avec PITR</strong><span>Point-in-time recovery — restauration à la seconde près.</span></div></li>
         <li><span class="reco-num">12</span><div class="reco-text"><strong>Ajouter security sur l'opération Delete de Deck</strong><span>security: "is_granted('ROLE_USER') and object.getUser() == user"</span></div></li>
       </ul>

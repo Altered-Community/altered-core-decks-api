@@ -143,22 +143,16 @@ if ($this->env === 'prod' && !getenv('ALLOW_FIXTURES_LOAD')) {
 
 ## 3. Scénarios de suppression non autorisée par un utilisateur
 
-### 3.1 [CRITIQUE — à corriger] DEV_AUTH_ENABLED — usurpation d'identité
+### 3.1 ✅ DEV_AUTH_ENABLED — forcé à false en prod
 
 **Fichiers :**
 - `src/Controller/DevAuthController.php`
 - `.env.dev` (ligne 5) : `DEV_AUTH_ENABLED=true`
-- `.env.local.dist` (ligne 10) : `DEV_AUTH_ENABLED=true`
+- `.env.local.dist` : `DEV_AUTH_ENABLED=false` (corrigé)
 
-Quand `DEV_AUTH_ENABLED=true`, `POST /api/dev/auth` crée un JWT valide pour **n'importe quel `keycloakId`** sans authentification. La clé `APP_SECRET` est commitée en clair dans `.env.dev` :
+Quand `DEV_AUTH_ENABLED=true`, `POST /api/dev/auth` crée un JWT valide pour **n'importe quel `keycloakId`** sans authentification.
 
-```
-c869928bd9fb7963519fc0d4bdb1501d80707aa1f4947d583e4e6d0cd06bbcb8
-```
-
-**Si `DEV_AUTH_ENABLED=true` en staging/production :** tout utilisateur peut supprimer les decks de n'importe quel autre utilisateur.
-
-**Fix requis :** lever une exception au démarrage si `DEV_AUTH_ENABLED=true` et `APP_ENV != dev`.
+**Fix :** bloc `when@prod:` ajouté dans `config/services.yaml` — `$devAuthEnabled` est forcé à `false` pour `KeycloakJwtDecoder`, `DevAuthController` et `DevDebugController` en `APP_ENV=prod`, quelle que soit la valeur de la variable d'environnement.
 
 ---
 
@@ -255,7 +249,7 @@ La méthode `debugToken()` et sa route `#[Route('/admin/debug-token')]` ont ét�
 
 ### Moyen terme
 
-10. **Conditionner `DEV_AUTH_ENABLED`** au `kernel.environment` — exception au boot si `true` en prod
+10. ~~**Conditionner `DEV_AUTH_ENABLED`** au `kernel.environment`~~ ✅ Bloc `when@prod:` dans `config/services.yaml` force `$devAuthEnabled: false` pour `KeycloakJwtDecoder`, `DevAuthController`, `DevDebugController`
 11. **Activer les backups automatiques** avec PITR (point-in-time recovery)
 12. **Ajouter `security`** sur l'opération `Delete` de `Deck` comme défense en profondeur
 13. **Documenter la procédure** d'accès aux containers de production (interdit hors incident)

@@ -56,3 +56,19 @@ services:
     _instanceof:
         App\Validator\Format\DeckFormatValidatorInterface:
             tags: ['app.deck_format_validator']
+
+when@prod:
+    services:
+        App\Service\KeycloakJwtDecoder:
+            arguments:
+                $devAuthEnabled: false
+
+        App\Controller\DevAuthController:
+            arguments:
+                $appSecret: '%env(APP_SECRET)%'
+                $devAuthEnabled: false
+
+        App\Controller\DevDebugController:
+            arguments:
+                $kernelDebug: '%kernel.debug%'
+                $devAuthEnabled: false
