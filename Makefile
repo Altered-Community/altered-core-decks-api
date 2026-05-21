@@ -11,11 +11,44 @@ SYMFONY  = $(PHP) bin/console
 
 # Misc
 .DEFAULT_GOAL = help
-.PHONY        : help build up start down logs sh composer vendor sf cc test install-hooks cs-fix phpstan
+.PHONY        : help install env-check wait-db migrate fixtures reset build up start down logs sh composer vendor sf cc test install-hooks cs-fix phpstan cs-check
 
 ## —— 🎵 🐳 The Symfony Docker Makefile 🐳 🎵 ——————————————————————————————————
 help: ## Outputs this help screen
 	@grep -E '(^[a-zA-Z0-9\./_-]+:.*?##.*$$)|(^##)' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}{printf "\033[32m%-30s\033[0m %s\n", $$1, $$2}' | sed -e 's/\[32m##/[33m/'
+
+## —— 🚀 Onboarding ————————————————————————————————————————————————————————————
+install: ## First-time setup: copy .env.local, build, start, install deps, migrate, activate hooks
+	@$(MAKE) env-check
+	@$(MAKE) build
+	@$(MAKE) up
+	@$(MAKE) wait-db
+	@$(DOCKER_COMP) exec php composer install
+	@$(MAKE) migrate
+	@$(MAKE) install-hooks
+	@echo ""
+	@echo "✅  Project ready — https://localhost"
+
+env-check: ## Copy .env.local from .env.local.dist if it does not exist yet
+	@if [ ! -f .env.local ]; then \
+		cp .env.local.dist .env.local; \
+		echo "📋 .env.local created from .env.local.dist — review it if needed."; \
+	fi
+
+wait-db: ## Wait for PostgreSQL to accept connections
+	@echo "Waiting for database…"
+	@until $(DOCKER_COMP) exec database pg_isready -q 2>/dev/null; do sleep 1; done
+	@echo "Database ready."
+
+migrate: ## Run pending Doctrine migrations
+	@$(SYMFONY) doctrine:migrations:migrate --no-interaction
+
+fixtures: ## Load dev fixtures (⚠️  purges the database first)
+	@$(SYMFONY) doctrine:fixtures:load --no-interaction
+
+reset: ## ⚠️  Destroy containers + volumes and reinstall from scratch
+	@$(DOCKER_COMP) down --volumes --remove-orphans
+	@$(MAKE) install
 
 ## —— Docker 🐳 ————————————————————————————————————————————————————————————————
 build: ## Builds the Docker images

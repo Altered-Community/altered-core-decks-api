@@ -22,13 +22,13 @@ class DeckCollectionProvider implements ProviderInterface
     {
         $currentUser = $this->security->getUser();
 
-        if ($currentUser instanceof User) {
-            return $this->getQueryBuilder($operation, $context, $currentUser)
-                ->getQuery()
-                ->getResult();
+        if (!$currentUser instanceof User) {
+            return [];
         }
 
-        return $this->getQueryBuilder($operation, $context, null)->getQuery()->getResult();
+        return $this->getQueryBuilder($operation, $context, $currentUser)
+            ->getQuery()
+            ->getResult();
     }
 
     private function getQueryBuilder(Operation $operation, array $context, ?User $currentUser): QueryBuilder
