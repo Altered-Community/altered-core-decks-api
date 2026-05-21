@@ -13,6 +13,9 @@ doctrine:
         identity_generation_preferences:
             Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
         auto_mapping: true
+        dql:
+            numeric_functions:
+                greatest: App\Doctrine\Function\GreatestFunction
         mappings:
             App:
                 type: attribute
