@@ -37,7 +37,7 @@ class DeckCard
     private ?string $name = null;
 
     #[ORM\Column(type: 'smallint')]
-    #[Assert\Range(min: 1, max: 3)]
+    #[Assert\Range(min: 1, max: 100)]
     #[Groups(['deck:read:detail', 'deck:write'])]
     private int $quantity = 1;
 
