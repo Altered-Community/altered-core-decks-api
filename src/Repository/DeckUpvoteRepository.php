@@ -36,7 +36,7 @@ class DeckUpvoteRepository extends ServiceEntityRepository
             $em->flush();
             $em->createQueryBuilder()
                 ->update(Deck::class, 'd')
-                ->set('d.upvoteCount', 'GREATEST(0, d.upvoteCount - 1)')
+                ->set('d.upvoteCount', 'CASE WHEN d.upvoteCount > 0 THEN d.upvoteCount - 1 ELSE 0 END')
                 ->where('d.id = :id')
                 ->setParameter('id', $deck->getId(), 'uuid')
                 ->getQuery()
