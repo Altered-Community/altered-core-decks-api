@@ -59,8 +59,15 @@ services:
 
 when@prod:
     services:
+        _defaults:
+            autowire: true
+            autoconfigure: true
+
         App\Service\KeycloakJwtDecoder:
             arguments:
+                $keycloakBaseUrl: '%keycloak_base_url%'
+                $keycloakRealm: '%keycloak_realm%'
+                $appSecret: '%env(APP_SECRET)%'
                 $devAuthEnabled: false
 
         App\Controller\DevAuthController:
