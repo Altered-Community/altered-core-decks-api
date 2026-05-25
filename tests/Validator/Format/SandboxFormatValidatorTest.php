@@ -161,6 +161,42 @@ class SandboxFormatValidatorTest extends TestCase
         self::assertSame([], $errors);
     }
 
+    // ── No unique limit ───────────────────────────────────────────────────────
+
+    public function testMoreThan3UniquesHasNoErrors(): void
+    {
+        [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
+
+        for ($i = 1; $i <= 5; ++$i) {
+            $ref = sprintf('ALT_CORE_B_AX_%d_U', $i);
+            $deckCards[] = $this->card($ref);
+            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'UNIQUE', "Unique $i");
+        }
+
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
+
+        self::assertSame([], $errors);
+    }
+
+    // ── No copies-per-name limit ──────────────────────────────────────────────
+
+    public function testMoreThan3CopiesOfSameNameHasNoErrors(): void
+    {
+        [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
+
+        // Same name "My Card" across C + R1 = 5 copies total
+        $refC = 'ALT_CORE_B_AX_5_C';
+        $refR1 = 'ALT_CORE_B_AX_5_R1';
+        $deckCards[] = $this->card($refC, 3);
+        $deckCards[] = $this->card($refR1, 2);
+        $cardsData[$refC] = $this->data($refC, 'PERMANENT', 'AX', 'COMMON', 'My Card');
+        $cardsData[$refR1] = $this->data($refR1, 'PERMANENT', 'AX', 'RARE', 'My Card');
+
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
+
+        self::assertSame([], $errors);
+    }
+
     public function testLegalityDetailFactionAlwaysTrue(): void
     {
         $heroRef = 'ALT_CORE_B_AX_0_C';
