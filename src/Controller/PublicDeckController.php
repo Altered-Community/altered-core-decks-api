@@ -20,6 +20,14 @@ class PublicDeckController extends AbstractController
     ) {
     }
 
+    #[Route('/api/decks/public/heroes', name: 'api_decks_public_heroes', methods: ['GET'])]
+    public function listHeroes(Request $request): JsonResponse
+    {
+        $locale = $request->query->get('locale', 'fr');
+
+        return $this->json($this->deckRepository->findPublicHeroes($locale));
+    }
+
     #[Route('/api/decks/public', name: 'api_decks_public', methods: ['GET'])]
     public function __invoke(Request $request): JsonResponse
     {
