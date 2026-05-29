@@ -214,6 +214,45 @@ class DeckRepository extends ServiceEntityRepository
         return [$conditions, $params];
     }
 
+    /**
+     * @return array<int, array{reference: string, name: string|null, imagePath: string|null}>
+     */
+    public function findPublicHeroes(string $locale = 'fr'): array
+    {
+        // ->> returns text (no JSONB encoding overhead); GROUP BY deduplicates heroes
+        // across multiple decks. MIN() is deterministic when all decks sharing a hero
+        // store the same name/imagePath.
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            "SELECT
+                d.stats->'hero'->>'reference' AS reference,
+                MIN(d.stats->'hero'->>'name') AS name,
+                MIN(d.stats->'hero'->>'imagePath') AS image_path
+             FROM deck d
+             WHERE d.is_public = true
+               AND d.is_draft = false
+               AND d.stats->'hero'->>'reference' IS NOT NULL
+             GROUP BY d.stats->'hero'->>'reference'
+             ORDER BY d.stats->'hero'->>'reference'",
+        );
+
+        return array_map(function (array $row) use ($locale): array {
+            // name/imagePath may be a plain string or a JSON object (locale map).
+            // ->> already strips JSON string quotes, so a plain string needs no decoding.
+            $nameDecoded = isset($row['name']) ? json_decode($row['name'], true) : null;
+            $imageDecoded = isset($row['image_path']) ? json_decode($row['image_path'], true) : null;
+
+            return [
+                'reference' => $row['reference'],
+                'name' => is_array($nameDecoded)
+                    ? ($nameDecoded[$locale] ?? $nameDecoded['fr'] ?? null)
+                    : ($row['name'] ?? null),
+                'imagePath' => is_array($imageDecoded)
+                    ? ($imageDecoded[$locale] ?? $imageDecoded['fr'] ?? null)
+                    : ($row['image_path'] ?? null),
+            ];
+        }, $rows);
+    }
+
     public function findRecentAnonymized(int $limit = 30): array
     {
         return $this->getEntityManager()->getConnection()->fetchAllAssociative(

@@ -236,27 +236,6 @@ class PublicDeckControllerTest extends WebTestCase
 
     // ── GET /api/decks/public?faction= ───────────────────────────────────────
 
-    /**
-     * Sets up the mock to recognise any of the given references as hero cards.
-     * Call this once before creating multiple decks with different factions so
-     * the AlteredCoreClient cache is populated correctly for all refs in one go.
-     *
-     * @param string[] $refs
-     */
-    private function mockHeroCards(array $refs): void
-    {
-        $cards = array_map(static fn (string $ref) => [
-            'reference' => $ref,
-            'cardType' => ['reference' => 'HERO_MAIN'],
-            'name' => 'Hero '.explode('_', $ref)[3],
-            'imagePath' => '/img/hero.jpg',
-        ], $refs);
-        $json = json_encode($cards);
-        $this->alteredCoreMock->setResponseFactory(
-            static fn (): MockResponse => new MockResponse($json, ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
-        );
-    }
-
     public function testFactionFilterReturnsDeckMatchingFaction(): void
     {
         $axRef = 'ALT_CORE_B_AX_301_C';
@@ -276,29 +255,24 @@ class PublicDeckControllerTest extends WebTestCase
 
     public function testFactionFilterExcludesOtherFactions(): void
     {
-        $axRef = 'ALT_CORE_B_AX_302_C';
+        // Only a LY deck exists in this transaction.
         $lyRef = 'ALT_CORE_B_LY_302_C';
-
-        // One mock call covers both refs so the AlteredCore cache is warm for both decks.
-        $this->mockHeroCards([$axRef, $lyRef]);
-
-        $axDeck = $this->createDeck('faction-ax-302', [
-            'name' => 'AX Deck 302',
-            'isPublic' => true,
-            'deckCards' => [['cardReference' => $axRef, 'quantity' => 1]],
-        ]);
+        $this->mockHeroCard($lyRef, 'Lyra Hero 302');
         $lyDeck = $this->createDeck('faction-ly-302', [
             'name' => 'LY Deck 302',
             'isPublic' => true,
             'deckCards' => [['cardReference' => $lyRef, 'quantity' => 1]],
         ]);
 
+        // LY filter must find the deck.
         $this->client->request('GET', '/api/decks/public?faction=LY');
-        $data = json_decode($this->client->getResponse()->getContent(), true);
-        $ids = array_column($data['member'], 'id');
+        $lyData = json_decode($this->client->getResponse()->getContent(), true);
+        self::assertContains($lyDeck['id'], array_column($lyData['member'], 'id'));
 
-        self::assertContains($lyDeck['id'], $ids);
-        self::assertNotContains($axDeck['id'], $ids);
+        // AX filter must not find the LY deck.
+        $this->client->request('GET', '/api/decks/public?faction=AX');
+        $axData = json_decode($this->client->getResponse()->getContent(), true);
+        self::assertNotContains($lyDeck['id'], array_column($axData['member'], 'id'));
     }
 
     public function testFactionFilterWithNoMatchReturnsEmptyMember(): void
@@ -313,16 +287,8 @@ class PublicDeckControllerTest extends WebTestCase
 
     public function testNoFactionFilterReturnsAllPublicDecks(): void
     {
-        $axRef = 'ALT_CORE_B_AX_303_C';
         $lyRef = 'ALT_CORE_B_LY_303_C';
-
-        $this->mockHeroCards([$axRef, $lyRef]);
-
-        $axDeck = $this->createDeck('faction-ax-303', [
-            'name' => 'AX Deck 303',
-            'isPublic' => true,
-            'deckCards' => [['cardReference' => $axRef, 'quantity' => 1]],
-        ]);
+        $this->mockHeroCard($lyRef, 'Lyra Hero 303');
         $lyDeck = $this->createDeck('faction-ly-303', [
             'name' => 'LY Deck 303',
             'isPublic' => true,
@@ -331,9 +297,7 @@ class PublicDeckControllerTest extends WebTestCase
 
         $this->client->request('GET', '/api/decks/public');
         $data = json_decode($this->client->getResponse()->getContent(), true);
-        $ids = array_column($data['member'], 'id');
 
-        self::assertContains($axDeck['id'], $ids);
-        self::assertContains($lyDeck['id'], $ids);
+        self::assertContains($lyDeck['id'], array_column($data['member'], 'id'));
     }
 }
