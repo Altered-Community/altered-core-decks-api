@@ -233,4 +233,71 @@ class PublicDeckControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertIsArray(json_decode($this->client->getResponse()->getContent(), true));
     }
+
+    // ── GET /api/decks/public?faction= ───────────────────────────────────────
+
+    public function testFactionFilterReturnsDeckMatchingFaction(): void
+    {
+        $axRef = 'ALT_CORE_B_AX_301_C';
+        $this->mockHeroCard($axRef, 'Axiom Hero 301');
+        $deck = $this->createDeck('faction-ax-301', [
+            'name' => 'AX Deck 301',
+            'isPublic' => true,
+            'deckCards' => [['cardReference' => $axRef, 'quantity' => 1]],
+        ]);
+
+        $this->client->request('GET', '/api/decks/public?faction=AX');
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        self::assertResponseIsSuccessful();
+        self::assertContains($deck['id'], array_column($data['member'], 'id'));
+    }
+
+    public function testFactionFilterExcludesOtherFactions(): void
+    {
+        // Only a LY deck exists in this transaction.
+        $lyRef = 'ALT_CORE_B_LY_302_C';
+        $this->mockHeroCard($lyRef, 'Lyra Hero 302');
+        $lyDeck = $this->createDeck('faction-ly-302', [
+            'name' => 'LY Deck 302',
+            'isPublic' => true,
+            'deckCards' => [['cardReference' => $lyRef, 'quantity' => 1]],
+        ]);
+
+        // LY filter must find the deck.
+        $this->client->request('GET', '/api/decks/public?faction=LY');
+        $lyData = json_decode($this->client->getResponse()->getContent(), true);
+        self::assertContains($lyDeck['id'], array_column($lyData['member'], 'id'));
+
+        // AX filter must not find the LY deck.
+        $this->client->request('GET', '/api/decks/public?faction=AX');
+        $axData = json_decode($this->client->getResponse()->getContent(), true);
+        self::assertNotContains($lyDeck['id'], array_column($axData['member'], 'id'));
+    }
+
+    public function testFactionFilterWithNoMatchReturnsEmptyMember(): void
+    {
+        $this->client->request('GET', '/api/decks/public?faction=ZZZUNKNOWN');
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        self::assertResponseIsSuccessful();
+        self::assertEmpty($data['member']);
+        self::assertSame(0, $data['totalItems']);
+    }
+
+    public function testNoFactionFilterReturnsAllPublicDecks(): void
+    {
+        $lyRef = 'ALT_CORE_B_LY_303_C';
+        $this->mockHeroCard($lyRef, 'Lyra Hero 303');
+        $lyDeck = $this->createDeck('faction-ly-303', [
+            'name' => 'LY Deck 303',
+            'isPublic' => true,
+            'deckCards' => [['cardReference' => $lyRef, 'quantity' => 1]],
+        ]);
+
+        $this->client->request('GET', '/api/decks/public');
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        self::assertContains($lyDeck['id'], array_column($data['member'], 'id'));
+    }
 }
