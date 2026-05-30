@@ -313,9 +313,9 @@ class BgaDeckControllerTest extends WebTestCase
         $effectElements = $effect['cardEffectElements'];
         self::assertSame('trigger-id', $effectElements[0]['idGd']);
         self::assertSame('TRIGGER', $effectElements[0]['type']);
-        self::assertSame('condition-id', $effectElements[1]['idGd']);
+        self::assertSame('effect-id', $effectElements[1]['idGd']);
         self::assertSame('OUTPUT', $effectElements[1]['type']);
-        self::assertSame('effect-id', $effectElements[2]['idGd']);
+        self::assertSame('condition-id', $effectElements[2]['idGd']);
         self::assertSame('CONDITION', $effectElements[2]['type']);
     }
 
