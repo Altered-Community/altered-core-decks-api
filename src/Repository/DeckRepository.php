@@ -120,8 +120,13 @@ class DeckRepository extends ServiceEntityRepository
         $params = [];
 
         if (null !== $hero) {
-            $where .= " AND d.stats->'hero'->>'reference' = :hero";
-            $params['hero'] = $hero;
+            // Normalise to faction_number (parts 4+5) so decks with the same hero across
+            // different sets (CORE/COREKS/BISE) or rarities are all returned.
+            $parts = explode('_', $hero);
+            $heroKey = ($parts[3] ?? '').'_'.($parts[4] ?? '');
+            $where .= " AND split_part(d.stats->'hero'->>'reference', '_', 4)"
+                    ." || '_' || split_part(d.stats->'hero'->>'reference', '_', 5) = :heroKey";
+            $params['heroKey'] = $heroKey;
         }
 
         if (null !== $faction) {
@@ -219,20 +224,24 @@ class DeckRepository extends ServiceEntityRepository
      */
     public function findPublicHeroes(string $locale = 'fr'): array
     {
-        // ->> returns text (no JSONB encoding overhead); GROUP BY deduplicates heroes
-        // across multiple decks. MIN() is deterministic when all decks sharing a hero
-        // store the same name/imagePath.
+        // Group by faction+number (parts 4 and 5) to deduplicate heroes that share the
+        // same identity across different sets (e.g. ALT_CORE_B_OR_03_C and ALT_BISE_B_OR_03_C)
+        // or rarities. MIN() picks a stable canonical reference for the consumer.
         $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
             "SELECT
-                d.stats->'hero'->>'reference' AS reference,
+                MIN(d.stats->'hero'->>'reference') AS reference,
                 MIN(d.stats->'hero'->>'name') AS name,
                 MIN(d.stats->'hero'->>'imagePath') AS image_path
              FROM deck d
              WHERE d.is_public = true
                AND d.is_draft = false
                AND d.stats->'hero'->>'reference' IS NOT NULL
-             GROUP BY d.stats->'hero'->>'reference'
-             ORDER BY d.stats->'hero'->>'reference'",
+             GROUP BY
+                split_part(d.stats->'hero'->>'reference', '_', 4),
+                split_part(d.stats->'hero'->>'reference', '_', 5)
+             ORDER BY
+                split_part(d.stats->'hero'->>'reference', '_', 4),
+                split_part(d.stats->'hero'->>'reference', '_', 5)",
         );
 
         return array_map(function (array $row) use ($locale): array {
