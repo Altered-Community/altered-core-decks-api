@@ -99,14 +99,14 @@ final readonly class BgaDeckSerializer
                         'text' => $effect['abilityTrigger']['text'],
                     ],
                     [
-                        'idGd' => $effect['abilityCondition']['alteredId'],
+                        'idGd' => $effect['abilityEffect']['alteredId'],
                         'type' => 'OUTPUT',
-                        'text' => $effect['abilityCondition']['text'],
+                        'text' => $effect['abilityEffect']['text'],
                     ],
                     [
-                        'idGd' => $effect['abilityEffect']['alteredId'],
+                        'idGd' => $effect['abilityCondition']['alteredId'],
                         'type' => 'CONDITION',
-                        'text' => $effect['abilityEffect']['text'],
+                        'text' => $effect['abilityCondition']['text'],
                     ],
                 ],
                 'reference' => $effect['abilityKey'],
