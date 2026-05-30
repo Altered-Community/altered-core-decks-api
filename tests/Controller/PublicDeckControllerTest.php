@@ -70,6 +70,28 @@ class PublicDeckControllerTest extends WebTestCase
         );
     }
 
+    /**
+     * Patches a deck's hero stats directly via DBAL.
+     *
+     * KernelBrowser calls kernel.resetServices() before every request after the first,
+     * which resets MockHttpClient and clears the Doctrine cache. Any deck created after
+     * the first API request therefore gets null hero stats. Use this helper to set the
+     * hero reference directly in the DB so the filter SQL can be tested independently
+     * of the mock lifecycle.
+     */
+    private function setDeckHeroStats(string $deckId, string $heroRef, string $name = 'Test Hero'): void
+    {
+        static::getContainer()->get('doctrine')->getManager()
+            ->getConnection()
+            ->executeStatement(
+                "UPDATE deck SET stats = jsonb_set(stats::jsonb, '{hero}', :hero::jsonb)::json WHERE id = :id",
+                [
+                    'hero' => json_encode(['reference' => $heroRef, 'name' => $name, 'imagePath' => '/img/hero.jpg']),
+                    'id' => $deckId,
+                ]
+            );
+    }
+
     private function findHero(array $data, string $ref): array
     {
         foreach ($data as $hero) {
@@ -181,7 +203,71 @@ class PublicDeckControllerTest extends WebTestCase
         $this->client->request('GET', '/api/decks/public/heroes');
         $data = json_decode($this->client->getResponse()->getContent(), true);
 
-        self::assertSame(1, count(array_keys(array_column($data, 'reference'), $heroRef)));
+        // Only one entry for AX_204 regardless of how many decks share the same hero.
+        $ax204Entries = array_filter($data, static fn (array $h) => str_contains($h['reference'], '_AX_204_'));
+        self::assertCount(1, $ax204Entries);
+    }
+
+    public function testHeroIsDeduplicatedAcrossDifferentSets(): void
+    {
+        // Same hero (OR_205), two different sets (CORE / BISE).
+        $coreRef = 'ALT_CORE_B_OR_205_C';
+        $biseRef = 'ALT_BISE_B_OR_205_C';
+
+        $this->mockHeroCard($coreRef, 'Ordis Hero 205');
+        $this->createDeck('pub-heroes-set-core', [
+            'name' => 'CORE OR Deck',
+            'isPublic' => true,
+            'deckCards' => [['cardReference' => $coreRef, 'quantity' => 1]],
+        ]);
+
+        // KernelBrowser resets MockHttpClient before every request after the first, so
+        // AlteredCoreClient gets no card data for the BISE deck. Patch stats directly.
+        $biseDeck = $this->createDeck('pub-heroes-set-bise', [
+            'name' => 'BISE OR Deck',
+            'isPublic' => true,
+            'deckCards' => [['cardReference' => $biseRef, 'quantity' => 1]],
+        ]);
+        $this->setDeckHeroStats($biseDeck['id'], $biseRef, 'Ordis Hero 205');
+
+        $this->client->request('GET', '/api/decks/public/heroes');
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        // OR_205 must appear exactly once regardless of set.
+        $or205Entries = array_filter($data, static fn (array $h) => str_contains($h['reference'], '_OR_205_'));
+        self::assertCount(1, $or205Entries);
+    }
+
+    public function testHeroFilterMatchesAcrossDifferentSets(): void
+    {
+        // Two decks with the same hero (OR_206) but from different sets.
+        $coreRef = 'ALT_CORE_B_OR_206_C';
+        $biseRef = 'ALT_BISE_B_OR_206_C';
+
+        $this->mockHeroCard($coreRef, 'Ordis Hero 206');
+        $coreDeck = $this->createDeck('pub-heroes-filter-core', [
+            'name' => 'CORE OR Deck 206',
+            'isPublic' => true,
+            'deckCards' => [['cardReference' => $coreRef, 'quantity' => 1]],
+        ]);
+
+        // KernelBrowser resets MockHttpClient before every request after the first, so
+        // AlteredCoreClient gets no card data for the BISE deck. Patch stats directly.
+        $biseDeck = $this->createDeck('pub-heroes-filter-bise', [
+            'name' => 'BISE OR Deck 206',
+            'isPublic' => true,
+            'deckCards' => [['cardReference' => $biseRef, 'quantity' => 1]],
+        ]);
+        $this->setDeckHeroStats($biseDeck['id'], $biseRef, 'Ordis Hero 206');
+
+        // Filtering by the CORE reference must also return the BISE deck because
+        // they share the same faction+number identity (OR_206).
+        $this->client->request('GET', '/api/decks/public?hero='.$coreRef);
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        $ids = array_column($data['member'], 'id');
+        self::assertContains($coreDeck['id'], $ids);
+        self::assertContains($biseDeck['id'], $ids);
     }
 
     public function testHeroEntryHasRequiredKeys(): void
