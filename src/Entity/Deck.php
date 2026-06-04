@@ -66,6 +66,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     'isDraft' => 'exact',
     'user' => 'exact',
     'alteredId' => 'exact',
+    'name' => 'exact',
 ])]
 #[ApiFilter(OrderFilter::class, properties: ['createdAt', 'updatedAt', 'name', 'viewCount', 'upvoteCount'])]
 class Deck
