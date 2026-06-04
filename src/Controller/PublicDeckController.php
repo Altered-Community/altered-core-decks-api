@@ -37,6 +37,7 @@ class PublicDeckController extends AbstractController
         $cardName = $request->query->get('cardName') ?: null;
         $name = $request->query->get('name') ?: null;
         $faction = $request->query->get('faction') ?: null;
+        $format = $request->query->get('format') ?: null;
 
         $orderBy = match ($request->query->get('sortBy', 'recent')) {
             'upvotes' => 'upvote_count',
@@ -44,8 +45,8 @@ class PublicDeckController extends AbstractController
             default => 'created_at',
         };
 
-        $decks = $this->deckRepository->findPublic($page, $itemsPerPage, $hero, $cardName, $orderBy, $faction, $name);
-        $total = $this->deckRepository->countPublic($hero, $cardName, $faction, $name);
+        $decks = $this->deckRepository->findPublic($page, $itemsPerPage, $hero, $cardName, $orderBy, $faction, $name, $format);
+        $total = $this->deckRepository->countPublic($hero, $cardName, $faction, $name, $format);
 
         /** @var array<int, array<string, mixed>> $data */
         $data = $this->serializer->normalize($decks, 'json', ['groups' => ['deck:read']]) ?? [];

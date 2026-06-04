@@ -73,12 +73,12 @@ class DeckRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function findPublic(int $page, int $itemsPerPage, ?string $hero = null, ?string $cardName = null, string $orderBy = 'created_at', ?string $faction = null, ?string $name = null): array
+    public function findPublic(int $page, int $itemsPerPage, ?string $hero = null, ?string $cardName = null, string $orderBy = 'created_at', ?string $faction = null, ?string $name = null, ?string $format = null): array
     {
         $rsm = new ResultSetMappingBuilder($this->getEntityManager());
         $rsm->addRootEntityFromClassMetadata(Deck::class, 'd');
 
-        [$join, $where, $params] = $this->buildPublicFilters($hero, $cardName, $faction, $name);
+        [$join, $where, $params] = $this->buildPublicFilters($hero, $cardName, $faction, $name, $format);
 
         $allowedOrderBy = ['created_at', 'upvote_count', 'view_count'];
         $col = in_array($orderBy, $allowedOrderBy, true) ? $orderBy : 'created_at';
@@ -100,9 +100,9 @@ class DeckRepository extends ServiceEntityRepository
         return $query->getResult();
     }
 
-    public function countPublic(?string $hero = null, ?string $cardName = null, ?string $faction = null, ?string $name = null): int
+    public function countPublic(?string $hero = null, ?string $cardName = null, ?string $faction = null, ?string $name = null, ?string $format = null): int
     {
-        [$join, $where, $params] = $this->buildPublicFilters($hero, $cardName, $faction, $name);
+        [$join, $where, $params] = $this->buildPublicFilters($hero, $cardName, $faction, $name, $format);
 
         return (int) $this->getEntityManager()->getConnection()->fetchOne(
             "SELECT COUNT(DISTINCT d.id) FROM deck d {$join} WHERE {$where}",
@@ -113,7 +113,7 @@ class DeckRepository extends ServiceEntityRepository
     /**
      * @return array{0: string, 1: string, 2: array<string, mixed>}
      */
-    private function buildPublicFilters(?string $hero, ?string $cardName, ?string $faction = null, ?string $name = null): array
+    private function buildPublicFilters(?string $hero, ?string $cardName, ?string $faction = null, ?string $name = null, ?string $format = null): array
     {
         $where = 'd.is_public = true AND d.is_draft = false';
         $join = '';
@@ -143,6 +143,11 @@ class DeckRepository extends ServiceEntityRepository
         if (null !== $name) {
             $where .= ' AND d.name LIKE :name';
             $params['name'] = '%'.$name.'%';
+        }
+
+        if (null !== $format) {
+            $where .= ' AND d.format = :format';
+            $params['format'] = $format;
         }
 
         return [$join, $where, $params];
