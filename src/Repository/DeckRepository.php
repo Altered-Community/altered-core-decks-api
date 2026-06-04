@@ -142,7 +142,7 @@ class DeckRepository extends ServiceEntityRepository
 
         if (null !== $cardRef) {
             $join = 'JOIN deck_card dc ON dc.deck_id = d.id';
-            $where .= ' AND dc.cardReference = :cardRef';
+            $where .= ' AND dc.card_reference = :cardRef';
             $params['cardRef'] = $cardRef;
         }
 
