@@ -35,6 +35,7 @@ class PublicDeckController extends AbstractController
         $itemsPerPage = min(1000, max(1, (int) $request->query->get('itemsPerPage', 30)));
         $hero = $request->query->get('hero') ?: null;
         $cardName = $request->query->get('cardName') ?: null;
+        $cardRef = $request->query->get('cardRef') ?: null;
         $name = $request->query->get('name') ?: null;
         $faction = $request->query->get('faction') ?: null;
         $format = $request->query->get('format') ?: null;
@@ -45,8 +46,8 @@ class PublicDeckController extends AbstractController
             default => 'created_at',
         };
 
-        $decks = $this->deckRepository->findPublic($page, $itemsPerPage, $hero, $cardName, $orderBy, $faction, $name, $format);
-        $total = $this->deckRepository->countPublic($hero, $cardName, $faction, $name, $format);
+        $decks = $this->deckRepository->findPublic($page, $itemsPerPage, $hero, $cardName, $orderBy, $faction, $name, $format, $cardRef);
+        $total = $this->deckRepository->countPublic($hero, $cardName, $faction, $name, $format, $cardRef);
 
         /** @var array<int, array<string, mixed>> $data */
         $data = $this->serializer->normalize($decks, 'json', ['groups' => ['deck:read']]) ?? [];
