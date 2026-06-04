@@ -35,7 +35,7 @@ class PublicDeckController extends AbstractController
         $itemsPerPage = min(1000, max(1, (int) $request->query->get('itemsPerPage', 30)));
         $hero = $request->query->get('hero') ?: null;
         $cardName = $request->query->get('cardName') ?: null;
-        $cardRef = $request->query->get('cardRef') ?: null;
+        $cardRef = $request->query->get('cardReference') ?: null;
         $name = $request->query->get('name') ?: null;
         $faction = $request->query->get('faction') ?: null;
         $format = $request->query->get('format') ?: null;
