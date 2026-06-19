@@ -16,7 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class BgaDeckController extends AbstractController
 {
-    private const BGA_VALID_FORMATS = ['standard', 'nuc', 'singleton_nuc', 'sandbox'];
+    private const BGA_VALID_FORMATS = ['standard', 'nuc', 'singleton_nuc', 'sandbox', 'test'];
 
     public function __construct(
         private readonly DeckRepository $deckRepository,
@@ -43,6 +43,7 @@ class BgaDeckController extends AbstractController
             'SANDBOX' => 'sandbox',
             'SINGLETON' => 'singleton',
             'SINGLETON_NUC' => 'singleton_nuc',
+            'TEST' => 'test',
             default => '',
         };
 
