@@ -4,17 +4,36 @@ namespace App\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 class FormatController extends AbstractController
 {
     #[Route('/api/formats', name: 'api_formats', methods: ['GET'])]
-    public function __invoke(): JsonResponse
+    public function __invoke(Request $request): JsonResponse
     {
-        return $this->json([
+        $includeHidden = $request->query->getBoolean('hiddenFormats');
+
+        $formats = [
             [
                 'code' => 'sandbox',
                 'label' => 'Sandbox',
+                'minCards' => 4,
+                'maxCards' => 100,
+                'allowBanned' => true,
+                'allowSuspended' => true,
+                'limits' => [
+                    'unique' => null,
+                    'rare' => null,
+                    'exalted' => null,
+                    'maxCopiesPerName' => null,
+                    'maxCopiesPerRarity' => null,
+                ],
+            ],
+            [
+                'code' => 'test',
+                'label' => 'Test',
+                'hidden' => true,
                 'minCards' => 4,
                 'maxCards' => 100,
                 'allowBanned' => true,
@@ -92,6 +111,12 @@ class FormatController extends AbstractController
                     'maxCopiesPerRarity' => 1,
                 ],
             ],
-        ]);
+        ];
+
+        if (!$includeHidden) {
+            $formats = array_values(array_filter($formats, fn (array $format) => empty($format['hidden'])));
+        }
+
+        return $this->json($formats);
     }
 }

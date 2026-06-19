@@ -1,0 +1,163 @@
+<?php
+
+namespace App\Tests\Validator\Format;
+
+use App\Entity\Deck;
+use App\Entity\DeckCard;
+use App\Validator\Format\TestFormatValidator;
+use Doctrine\Common\Collections\ArrayCollection;
+use PHPUnit\Framework\TestCase;
+
+class TestFormatValidatorTest extends TestCase
+{
+    private TestFormatValidator $validator;
+
+    protected function setUp(): void
+    {
+        $this->validator = new TestFormatValidator();
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private function card(string $ref, int $qty = 1): DeckCard
+    {
+        $card = new DeckCard();
+        $card->setCardReference($ref);
+        $card->setQuantity($qty);
+
+        return $card;
+    }
+
+    private function deck(DeckCard ...$cards): Deck
+    {
+        $deck = $this->createStub(Deck::class);
+        $deck->method('getDeckCards')->willReturn(new ArrayCollection($cards));
+
+        return $deck;
+    }
+
+    private function data(
+        string $ref,
+        string $typeRef = 'PERMANENT',
+        string $faction = 'AX',
+        string $rarityRef = 'COMMON',
+        string $name = '',
+    ): array {
+        return [
+            'reference' => $ref,
+            'cardType' => ['reference' => $typeRef],
+            'faction' => ['code' => $faction],
+            'rarity' => ['reference' => $rarityRef],
+            'name' => $name ?: $ref,
+        ];
+    }
+
+    /**
+     * @return array{0: array<string, array>, 1: DeckCard[]}
+     */
+    private function buildMinimalValidDeck(string $faction = 'AX'): array
+    {
+        $cardsData = [];
+        $deckCards = [];
+
+        $heroRef = 'ALT_CORE_B_AX_0_C';
+        $deckCards[] = $this->card($heroRef);
+        $cardsData[$heroRef] = $this->data($heroRef, 'HERO_MAIN', $faction);
+
+        for ($i = 1; $i <= 4; ++$i) {
+            $ref = sprintf('ALT_CORE_B_%s_%d_C', $faction, $i);
+            $deckCards[] = $this->card($ref);
+            $cardsData[$ref] = $this->data($ref, 'PERMANENT', $faction);
+        }
+
+        return [$cardsData, $deckCards];
+    }
+
+    public function testGetFormatIsTest(): void
+    {
+        self::assertSame('test', $this->validator->getFormat());
+    }
+
+    public function testValidDeckHasNoErrors(): void
+    {
+        [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
+
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
+
+        self::assertSame([], $errors);
+    }
+
+    // ── Sets 6 and 7 (FUGUE, EOLE) are allowed ────────────────────────────────
+
+    public function testFugueSetIsAllowed(): void
+    {
+        [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
+
+        $ref = 'ALT_FUGUE_B_AX_1_C';
+        $deckCards[] = $this->card($ref);
+        $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'COMMON', 'Fugue Card');
+
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
+
+        self::assertEmpty(array_filter($errors, fn ($e) => str_contains($e, 'FUGUE')));
+    }
+
+    public function testEoleSetIsAllowed(): void
+    {
+        [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
+
+        $ref = 'ALT_EOLE_B_AX_1_C';
+        $deckCards[] = $this->card($ref);
+        $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'COMMON', 'Eole Card');
+
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
+
+        self::assertEmpty(array_filter($errors, fn ($e) => str_contains($e, 'EOLE')));
+    }
+
+    public function testLegalityDetailReportsSetsAsLegalForForbiddenSets(): void
+    {
+        [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
+
+        $ref = 'ALT_FUGUE_B_AX_1_C';
+        $deckCards[] = $this->card($ref);
+        $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'COMMON', 'Fugue Card');
+
+        $detail = $this->validator->computeLegalityDetail($this->deck(...$deckCards), $cardsData);
+
+        self::assertTrue($detail['sets']);
+    }
+
+    // ── Same permissive rules as Sandbox ──────────────────────────────────────
+
+    public function testBannedAndSuspendedCardsAreAllowed(): void
+    {
+        [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
+
+        $ref = 'ALT_CORE_B_AX_1_C';
+        $cardsData[$ref] = array_merge($cardsData[$ref], ['isBanned' => true, 'isSuspended' => true]);
+
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
+
+        self::assertEmpty(array_filter($errors, fn ($e) => str_contains($e, 'banned') || str_contains($e, 'suspended')));
+    }
+
+    public function testMultipleFactionsDeckHasNoErrors(): void
+    {
+        $heroRef = 'ALT_CORE_B_AX_0_C';
+        $cardsData = [
+            $heroRef => $this->data($heroRef, 'HERO_MAIN', 'AX'),
+        ];
+        $deckCards = [$this->card($heroRef)];
+
+        foreach (['AX', 'LY', 'MU', 'OR', 'YZ'] as $i => $faction) {
+            $ref = sprintf('ALT_CORE_B_%s_%d_C', $faction, $i + 1);
+            $deckCards[] = $this->card($ref);
+            $cardsData[$ref] = $this->data($ref, 'PERMANENT', $faction);
+        }
+
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
+
+        self::assertSame([], $errors);
+    }
+}
