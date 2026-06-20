@@ -24,6 +24,33 @@ class FormatControllerTest extends WebTestCase
         self::assertContains('singleton_nuc', $codes);
     }
 
+    public function testHiddenFormatsAreNotReturnedByDefault(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/api/formats');
+
+        self::assertResponseIsSuccessful();
+
+        $data = json_decode($client->getResponse()->getContent(), true);
+        $codes = array_column($data, 'code');
+
+        self::assertNotContains('test', $codes);
+    }
+
+    public function testHiddenFormatsAreReturnedWhenRequested(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/api/formats?hiddenFormats=true');
+
+        self::assertResponseIsSuccessful();
+
+        $data = json_decode($client->getResponse()->getContent(), true);
+        $codes = array_column($data, 'code');
+
+        self::assertContains('test', $codes);
+        self::assertContains('sandbox', $codes);
+    }
+
     public function testSandboxAllowsBannedAndSuspendedCards(): void
     {
         $client = static::createClient();
