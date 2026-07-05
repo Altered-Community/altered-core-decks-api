@@ -22,6 +22,7 @@ class FormatControllerTest extends WebTestCase
         self::assertContains('standard', $codes);
         self::assertContains('singleton', $codes);
         self::assertContains('singleton_nuc', $codes);
+        self::assertContains('frontier', $codes);
     }
 
     public function testHiddenFormatsAreNotReturnedByDefault(): void
@@ -83,6 +84,7 @@ class FormatControllerTest extends WebTestCase
             ['standard'],
             ['singleton'],
             ['singleton_nuc'],
+            ['frontier'],
         ];
     }
 

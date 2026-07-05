@@ -49,6 +49,10 @@ services:
         arguments:
             $alteredCoreUrl: '%env(ALTERED_CORE_URL)%'
 
+    App\Client\UniquesSearchApiClient:
+        arguments:
+            $uniquesSearchApiUrl: '%env(UNIQUES_SEARCH_API_URL)%'
+
     App\Validator\Format\DeckFormatValidatorFactory:
         arguments:
             - !tagged_iterator app.deck_format_validator

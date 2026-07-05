@@ -256,6 +256,27 @@ Card
 ```
 
 Filters on Card endpoint that target CardGroup fields go through `CardGroupAliasFilter` / `CardGroupOrderFilter`, which create (or reuse) a single `cardGroup` join.
+
+---
+
+## Deck formats
+
+Formats are not a DB table — they're a `DeckFormat` enum (`src/Enum/DeckFormat.php`) plus one `DeckFormatValidator` per format (`src/Validator/Format/`), all extending `AbstractDeckFormatValidator`. Adding a format needs no migration: just an enum case + a validator class (auto-tagged via `DeckFormatValidatorInterface`) + a metadata entry in `FormatController`.
+
+### Frontier format — external allowlist via uniques-search-api
+
+`FrontierFormatValidator` extends `StandardFormatValidator` (same rules: 39-59 cards, max 3 copies/name, max 3 Unique, max 15 rare, max 3 exalted) and adds one more check: every Unique card in the deck must be part of the Frontier allowlist (~30 000 references), which is **not** stored in this repo. It's verified by calling `uniques-search-api` (sibling repo, Rust/Axum):
+
+```
+GET {UNIQUES_SEARCH_API_URL}/api/v2/cards?ref=REF1,REF2,REF3&format=frontier
+```
+
+The allowlist itself lives in `uniques-search-api` as `formats/frontier.json` (`included_refs`), loaded from disk — this repo never sees the 30k list directly, only pass/fail per reference.
+
+- **Fail-closed**: if `uniques-search-api` is unreachable, the deck is invalid (`UniquesSearchApiClient` exceptions are caught in `FrontierFormatValidator` and turned into a validation error, never propagated).
+- `UNIQUES_SEARCH_API_URL` env var must be set (same pattern as `ALTERED_CORE_URL` for `AlteredCoreClient`).
+- In local dev via `altered-dev-environment`, the URL is wired in `apphost.cs` from the `uniques` service.
+
 ---
 
 ## Response shape reference

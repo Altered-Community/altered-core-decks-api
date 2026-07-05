@@ -11,3 +11,13 @@ services:
         arguments:
             $httpClient: '@altered_core.mock_http_client'
             $alteredCoreUrl: '%env(ALTERED_CORE_URL)%'
+
+    uniques_search_api.mock_http_client:
+        class: Symfony\Component\HttpClient\MockHttpClient
+        public: true
+
+    App\Client\UniquesSearchApiClient:
+        autowire: true
+        arguments:
+            $httpClient: '@uniques_search_api.mock_http_client'
+            $uniquesSearchApiUrl: '%env(UNIQUES_SEARCH_API_URL)%'

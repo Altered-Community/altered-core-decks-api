@@ -10,6 +10,7 @@ enum DeckFormat: string
     case SingletonNuc = 'singleton_nuc';
     case Sandbox = 'sandbox';
     case Test = 'test';
+    case Frontier = 'frontier';
 
     public static function fromInput(string $value): self
     {
@@ -20,6 +21,7 @@ enum DeckFormat: string
             'singleton_nuc', 'singleton_no_unique' => self::SingletonNuc,
             'sandbox' => self::Sandbox,
             'test' => self::Test,
+            'frontier' => self::Frontier,
             default => throw new \ValueError(sprintf('"%s" is not a valid DeckFormat.', $value)),
         };
     }
