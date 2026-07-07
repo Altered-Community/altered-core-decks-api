@@ -49,6 +49,15 @@ services:
         arguments:
             $alteredCoreUrl: '%env(ALTERED_CORE_URL)%'
 
+    App\Client\RustCardsApiProvider:
+        arguments:
+            $rustCardsApiUrl: '%env(RUST_CARDS_API_URL)%'
+
+    App\Client\CardDataProviderFactory:
+        arguments:
+            $providers: !tagged_iterator app.card_data_provider
+            $activeProvider: '%env(CARD_DATA_PROVIDER)%'
+
     App\Validator\Format\DeckFormatValidatorFactory:
         arguments:
             - !tagged_iterator app.deck_format_validator
@@ -56,6 +65,8 @@ services:
     _instanceof:
         App\Validator\Format\DeckFormatValidatorInterface:
             tags: ['app.deck_format_validator']
+        App\Client\CardDataProviderInterface:
+            tags: ['app.card_data_provider']
 
 when@prod:
     services:

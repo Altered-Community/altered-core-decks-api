@@ -4,7 +4,7 @@ namespace App\State;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
-use App\Client\AlteredCoreClient;
+use App\Client\CardDataProviderFactory;
 use App\Entity\Deck;
 use App\Entity\DeckCard;
 use App\Entity\User;
@@ -20,7 +20,7 @@ class DeckStateProcessor implements ProcessorInterface
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly Security $security,
-        private readonly AlteredCoreClient $alteredCoreClient,
+        private readonly CardDataProviderFactory $cardDataProviderFactory,
         private readonly DeckFormatValidatorFactory $validatorFactory,
         private readonly RequestStack $requestStack,
         private readonly LoggerInterface $logger,
@@ -105,9 +105,9 @@ class DeckStateProcessor implements ProcessorInterface
         $locale = $this->requestStack->getCurrentRequest()?->query->get('locale', 'fr') ?? 'fr';
 
         try {
-            return $this->alteredCoreClient->getCardsByReferences($references, $locale);
+            return $this->cardDataProviderFactory->getProvider()->getCardsByReferences($references, $locale);
         } catch (\Throwable $e) {
-            $this->logger->error('AlteredCoreClient::getCardsByReferences failed', [
+            $this->logger->error('CardDataProvider::getCardsByReferences failed', [
                 'error' => $e->getMessage(),
                 'references' => $references,
             ]);

@@ -2,7 +2,8 @@
 
 namespace App\Tests\Serializer;
 
-use App\Client\AlteredCoreClient;
+use App\Client\CardDataProviderFactory;
+use App\Client\CardDataProviderInterface;
 use App\Entity\Deck;
 use App\Serializer\DeckNormalizer;
 use PHPUnit\Framework\TestCase;
@@ -18,17 +19,20 @@ class DeckNormalizerBgaTest extends TestCase
 
     private DeckNormalizer $normalizer;
     private NormalizerInterface $inner;
-    private AlteredCoreClient $coreClient;
+    private CardDataProviderInterface $coreClient;
 
     protected function setUp(): void
     {
         $this->inner = $this->createStub(NormalizerInterface::class);
-        $this->coreClient = $this->createStub(AlteredCoreClient::class);
+        $this->coreClient = $this->createStub(CardDataProviderInterface::class);
+        $this->coreClient->method('getName')->willReturn('stub');
 
         $requestStack = $this->createStub(RequestStack::class);
         $requestStack->method('getCurrentRequest')->willReturn(Request::create('/'));
 
-        $this->normalizer = new DeckNormalizer($this->coreClient, $requestStack);
+        $cardDataProviderFactory = new CardDataProviderFactory([$this->coreClient], 'stub');
+
+        $this->normalizer = new DeckNormalizer($cardDataProviderFactory, $requestStack);
         $this->normalizer->setNormalizer($this->inner);
     }
 

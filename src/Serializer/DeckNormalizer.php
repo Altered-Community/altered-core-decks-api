@@ -2,7 +2,7 @@
 
 namespace App\Serializer;
 
-use App\Client\AlteredCoreClient;
+use App\Client\CardDataProviderFactory;
 use App\Entity\Deck;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
@@ -16,7 +16,7 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
     private const ALREADY_CALLED = 'DECK_NORMALIZER_ALREADY_CALLED';
 
     public function __construct(
-        private readonly AlteredCoreClient $alteredCoreClient,
+        private readonly CardDataProviderFactory $cardDataProviderFactory,
         private readonly RequestStack $requestStack,
     ) {
     }
@@ -59,7 +59,7 @@ class DeckNormalizer implements NormalizerInterface, NormalizerAwareInterface
         }
 
         $references = array_column($data['deckCards'], 'cardReference');
-        $cardsData = $this->alteredCoreClient->getCardsByReferences($references, $locale);
+        $cardsData = $this->cardDataProviderFactory->getProvider()->getCardsByReferences($references, $locale);
 
         if ('bga' === $view) {
             return $this->normalizeBga($data, $cardsData, $locale);

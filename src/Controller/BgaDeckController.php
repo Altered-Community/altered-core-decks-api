@@ -2,7 +2,7 @@
 
 namespace App\Controller;
 
-use App\Client\AlteredCoreClient;
+use App\Client\CardDataProviderFactory;
 use App\Entity\Deck;
 use App\Entity\User;
 use App\Repository\DeckRepository;
@@ -22,7 +22,7 @@ class BgaDeckController extends AbstractController
         private readonly DeckRepository $deckRepository,
         private readonly Security $security,
         private readonly BgaDeckSerializer $bgaDeckSerializer,
-        private readonly AlteredCoreClient $alteredCoreClient,
+        private readonly CardDataProviderFactory $cardDataProviderFactory,
     ) {
     }
 
@@ -122,7 +122,7 @@ class BgaDeckController extends AbstractController
     )]
     public function card(string $reference): JsonResponse
     {
-        $card = $this->alteredCoreClient->getCardByReferences($reference);
+        $card = $this->cardDataProviderFactory->getProvider()->getCardByReferences($reference);
 
         if (empty($card)) {
             throw new NotFoundHttpException();
