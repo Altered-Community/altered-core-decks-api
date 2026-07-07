@@ -11,3 +11,16 @@ services:
         arguments:
             $httpClient: '@altered_core.mock_http_client'
             $alteredCoreUrl: '%env(ALTERED_CORE_URL)%'
+        tags: ['app.card_data_provider']
+
+    App\Client\RustCardsApiProvider:
+        autowire: true
+        arguments:
+            $httpClient: '@altered_core.mock_http_client'
+            $rustCardsApiUrl: '%env(RUST_CARDS_API_URL)%'
+        tags: ['app.card_data_provider']
+
+    App\Client\CardDataProviderFactory:
+        arguments:
+            $providers: !tagged_iterator app.card_data_provider
+            $activeProvider: '%env(CARD_DATA_PROVIDER)%'

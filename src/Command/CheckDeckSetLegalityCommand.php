@@ -2,7 +2,7 @@
 
 namespace App\Command;
 
-use App\Client\AlteredCoreClient;
+use App\Client\CardDataProviderFactory;
 use App\Entity\Deck;
 use App\Entity\DeckCard;
 use App\Repository\DeckRepository;
@@ -30,7 +30,7 @@ final class CheckDeckSetLegalityCommand extends Command
     public function __construct(
         private readonly DeckRepository $deckRepository,
         private readonly DeckFormatValidatorFactory $validatorFactory,
-        private readonly AlteredCoreClient $alteredCoreClient,
+        private readonly CardDataProviderFactory $cardDataProviderFactory,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
     ) {
@@ -198,7 +198,7 @@ final class CheckDeckSetLegalityCommand extends Command
         }
 
         try {
-            return $this->alteredCoreClient->getCardsByReferences($references);
+            return $this->cardDataProviderFactory->getProvider()->getCardsByReferences($references);
         } catch (\Throwable $e) {
             $this->logger->warning('CheckDeckSetLegality: could not fetch cards for deck {id}', [
                 'id' => $deck->getId(),

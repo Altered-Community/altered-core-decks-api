@@ -6,13 +6,18 @@ use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-class AlteredCoreClient
+class AlteredCoreClient implements CardDataProviderInterface
 {
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly CacheInterface $cache,
         private readonly string $alteredCoreUrl,
     ) {
+    }
+
+    public function getName(): string
+    {
+        return 'altered_core';
     }
 
     public function getBaseUrl(): string
