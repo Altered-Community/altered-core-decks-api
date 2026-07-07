@@ -113,6 +113,10 @@ RUN <<-EOF
 	chmod +x bin/console; sync
 EOF
 
+RUN chown -R 1000:1000 vendor
+
+RUN chmod -R 775 vendor
+
 # Collect shared libraries needed by FrankenPHP and PHP extensions
 # hadolint ignore=DL3008,SC3054,DL4006
 RUN <<-'EOF'

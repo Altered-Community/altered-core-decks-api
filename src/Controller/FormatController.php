@@ -77,6 +77,21 @@ class FormatController extends AbstractController
                 ],
             ],
             [
+                'code' => 'frontier',
+                'label' => 'Frontier',
+                'minCards' => 39,
+                'maxCards' => 59,
+                'allowBanned' => false,
+                'allowSuspended' => false,
+                'limits' => [
+                    'unique' => 3,
+                    'rare' => 15,
+                    'exalted' => 3,
+                    'maxCopiesPerName' => 3,
+                    'maxCopiesPerRarity' => null,
+                ],
+            ],
+            [
                 'code' => 'singleton',
                 'label' => 'Singleton',
                 'minCards' => 59,
