@@ -2,7 +2,6 @@
 
 namespace App\Tests\Validator\Format;
 
-use App\Client\UniquesSearchApiClient;
 use App\Entity\Deck;
 use App\Entity\DeckCard;
 use App\Validator\Format\FrontierFormatValidator;
@@ -11,13 +10,11 @@ use PHPUnit\Framework\TestCase;
 
 class FrontierFormatValidatorTest extends TestCase
 {
-    private UniquesSearchApiClient $uniquesSearchApiClient;
     private FrontierFormatValidator $validator;
 
     protected function setUp(): void
     {
-        $this->uniquesSearchApiClient = $this->createStub(UniquesSearchApiClient::class);
-        $this->validator = new FrontierFormatValidator($this->uniquesSearchApiClient);
+        $this->validator = new FrontierFormatValidator();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -45,6 +42,7 @@ class FrontierFormatValidatorTest extends TestCase
         string $faction = 'AX',
         string $rarityRef = 'COMMON',
         string $name = '',
+        array $gameplayFormat = [],
     ): array {
         return [
             'reference' => $ref,
@@ -52,6 +50,7 @@ class FrontierFormatValidatorTest extends TestCase
             'faction' => ['code' => $faction],
             'rarity' => ['reference' => $rarityRef],
             'name' => $name ?: $ref,
+            'gameplayFormat' => $gameplayFormat,
         ];
     }
 
@@ -80,46 +79,33 @@ class FrontierFormatValidatorTest extends TestCase
 
     // ── Happy path ────────────────────────────────────────────────────────────
 
-    public function testDeckWithNoUniqueDoesNotCallSearchApi(): void
+    public function testDeckWithNoUniqueIsValid(): void
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
-        $client = $this->createMock(UniquesSearchApiClient::class);
-        $client->expects(self::never())->method('findLegalReferences');
-        $validator = new FrontierFormatValidator($client);
-
-        $errors = $validator->validate($this->deck(...$deckCards), $cardsData);
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
 
         self::assertSame([], $errors);
     }
 
-    public function testAllUniquesAllowedByFrontierIsValid(): void
+    public function testAllUniquesFlaggedFrontierIsValid(): void
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
-        $uniqueRefs = [];
         for ($i = 1; $i <= 3; ++$i) {
             $ref = sprintf('ALT_CORE_B_AX_%d_U', $i);
-            $uniqueRefs[] = $ref;
             $deckCards[] = $this->card($ref, 1);
-            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'UNIQUE', "Unique $i");
+            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'UNIQUE', "Unique $i", ['frontier']);
         }
 
-        $client = $this->createMock(UniquesSearchApiClient::class);
-        $client->expects(self::once())
-            ->method('findLegalReferences')
-            ->with($uniqueRefs, 'frontier')
-            ->willReturn($uniqueRefs);
-        $validator = new FrontierFormatValidator($client);
-
-        $errors = $validator->validate($this->deck(...$deckCards), $cardsData);
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
 
         self::assertSame([], $errors);
     }
 
     // ── Frontier allowlist ────────────────────────────────────────────────────
 
-    public function testUniqueNotInFrontierAllowlistReturnsError(): void
+    public function testUniqueNotFlaggedFrontierReturnsError(): void
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
@@ -127,54 +113,24 @@ class FrontierFormatValidatorTest extends TestCase
         $rejectedRef = 'ALT_CORE_B_AX_2_U';
         $deckCards[] = $this->card($allowedRef, 1);
         $deckCards[] = $this->card($rejectedRef, 1);
-        $cardsData[$allowedRef] = $this->data($allowedRef, 'PERMANENT', 'AX', 'UNIQUE', 'Allowed Unique');
-        $cardsData[$rejectedRef] = $this->data($rejectedRef, 'PERMANENT', 'AX', 'UNIQUE', 'Rejected Unique');
-
-        $this->uniquesSearchApiClient
-            ->method('findLegalReferences')
-            ->willReturn([$allowedRef]);
+        $cardsData[$allowedRef] = $this->data($allowedRef, 'PERMANENT', 'AX', 'UNIQUE', 'Allowed Unique', ['frontier']);
+        $cardsData[$rejectedRef] = $this->data($rejectedRef, 'PERMANENT', 'AX', 'UNIQUE', 'Rejected Unique', []);
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
 
         self::assertNotEmpty(array_filter($errors, fn ($e) => str_contains($e, 'Rejected Unique') && str_contains($e, 'Frontier')));
     }
 
-    public function testUniqueNotInFrontierAllowlistMarksLegalityDetailFalse(): void
+    public function testUniqueNotFlaggedFrontierMarksLegalityDetailFalse(): void
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
         $rejectedRef = 'ALT_CORE_B_AX_1_U';
         $deckCards[] = $this->card($rejectedRef, 1);
-        $cardsData[$rejectedRef] = $this->data($rejectedRef, 'PERMANENT', 'AX', 'UNIQUE', 'Rejected Unique');
-
-        $this->uniquesSearchApiClient
-            ->method('findLegalReferences')
-            ->willReturn([]);
+        $cardsData[$rejectedRef] = $this->data($rejectedRef, 'PERMANENT', 'AX', 'UNIQUE', 'Rejected Unique', []);
 
         $detail = $this->validator->computeLegalityDetail($this->deck(...$deckCards), $cardsData);
 
-        self::assertFalse($detail['frontierUniques']);
-        self::assertFalse($detail['global']);
-    }
-
-    // ── Fail-closed on service failure ───────────────────────────────────────
-
-    public function testSearchApiFailureMakesDeckInvalid(): void
-    {
-        [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
-
-        $ref = 'ALT_CORE_B_AX_1_U';
-        $deckCards[] = $this->card($ref, 1);
-        $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'UNIQUE', 'My Unique');
-
-        $this->uniquesSearchApiClient
-            ->method('findLegalReferences')
-            ->willThrowException(new \RuntimeException('service unavailable'));
-
-        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
-        $detail = $this->validator->computeLegalityDetail($this->deck(...$deckCards), $cardsData);
-
-        self::assertNotEmpty(array_filter($errors, fn ($e) => str_contains($e, 'unavailable')));
         self::assertFalse($detail['frontierUniques']);
         self::assertFalse($detail['global']);
     }
@@ -185,17 +141,11 @@ class FrontierFormatValidatorTest extends TestCase
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
-        $uniqueRefs = [];
         for ($i = 1; $i <= 4; ++$i) {
             $ref = sprintf('ALT_CORE_B_AX_%d_U', $i);
-            $uniqueRefs[] = $ref;
             $deckCards[] = $this->card($ref, 1);
-            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'UNIQUE', "Unique $i");
+            $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'UNIQUE', "Unique $i", ['frontier']);
         }
-
-        $this->uniquesSearchApiClient
-            ->method('findLegalReferences')
-            ->willReturn($uniqueRefs);
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
 

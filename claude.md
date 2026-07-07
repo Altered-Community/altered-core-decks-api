@@ -263,19 +263,18 @@ Filters on Card endpoint that target CardGroup fields go through `CardGroupAlias
 
 Formats are not a DB table — they're a `DeckFormat` enum (`src/Enum/DeckFormat.php`) plus one `DeckFormatValidator` per format (`src/Validator/Format/`), all extending `AbstractDeckFormatValidator`. Adding a format needs no migration: just an enum case + a validator class (auto-tagged via `DeckFormatValidatorInterface`) + a metadata entry in `FormatController`.
 
-### Frontier format — external allowlist via uniques-search-api
+### Frontier format — allowlist via `gameplayFormat` on card data
 
-`FrontierFormatValidator` extends `StandardFormatValidator` (same rules: 39-59 cards, max 3 copies/name, max 3 Unique, max 15 rare, max 3 exalted) and adds one more check: every Unique card in the deck must be part of the Frontier allowlist (~30 000 references), which is **not** stored in this repo. It's verified by calling `uniques-search-api` (sibling repo, Rust/Axum):
+`FrontierFormatValidator` extends `StandardFormatValidator` (same rules: 39-59 cards, max 3 copies/name, max 3 Unique, max 15 rare, max 3 exalted) and adds one more check: every Unique card in the deck must carry the `"frontier"` key in its `gameplayFormat` array.
 
+`gameplayFormat` (`string[]`) is a field on `CardGroup` in `altered-core-cards-api`, synced from the Altered Reunion formats manifest and flattened onto each `Card`'s JSON by `CardNormalizer` — it arrives for free in the payload `AlteredCoreClient::getCardsByReferences()` already fetches, no extra call needed:
+
+```php
+$gameplayFormats = $cardsData[$ref]['gameplayFormat'] ?? [];
+$isFrontierLegal = in_array('frontier', $gameplayFormats, true);
 ```
-GET {UNIQUES_SEARCH_API_URL}/api/v2/cards?ref=REF1,REF2,REF3&format=frontier
-```
 
-The allowlist itself lives in `uniques-search-api` as `formats/frontier.json` (`included_refs`), loaded from disk — this repo never sees the 30k list directly, only pass/fail per reference.
-
-- **Fail-closed**: if `uniques-search-api` is unreachable, the deck is invalid (`UniquesSearchApiClient` exceptions are caught in `FrontierFormatValidator` and turned into a validation error, never propagated).
-- `UNIQUES_SEARCH_API_URL` env var must be set (same pattern as `ALTERED_CORE_URL` for `AlteredCoreClient`).
-- In local dev via `altered-dev-environment`, the URL is wired in `apphost.cs` from the `uniques` service.
+This replaces the previous design that called a sibling `uniques-search-api` service for a live allowlist lookup (`UniquesSearchApiClient` / `UNIQUES_SEARCH_API_URL` — both removed). No fail-closed handling is needed anymore: if `AlteredCoreClient` can't fetch card data at all, validation already fails upstream for unrelated reasons.
 
 ---
 
