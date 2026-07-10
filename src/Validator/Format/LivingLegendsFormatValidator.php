@@ -46,7 +46,9 @@ class LivingLegendsFormatValidator extends StandardFormatValidator
                 continue;
             }
 
-            $gameplayFormats = $data['gameplayFormat'] ?? [];
+            // altered-core-cards-api's admin UI uppercases gameplayFormat keys on save,
+            // so compare case-insensitively rather than assuming the stored casing.
+            $gameplayFormats = array_map('strtolower', $data['gameplayFormat'] ?? []);
             if (!in_array(self::GAMEPLAY_FORMAT_KEY, $gameplayFormats, true)) {
                 $errors[] = sprintf('Unique card "%s" is not part of the Living Legends format allowlist.', $this->getCardName($data));
             }

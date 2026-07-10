@@ -103,6 +103,20 @@ class FrontierFormatValidatorTest extends TestCase
         self::assertSame([], $errors);
     }
 
+    public function testUppercaseGameplayFormatKeyIsValid(): void
+    {
+        // altered-core-cards-api's admin UI stores gameplayFormat keys uppercased.
+        [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
+
+        $ref = 'ALT_CORE_B_AX_1_U';
+        $deckCards[] = $this->card($ref, 1);
+        $cardsData[$ref] = $this->data($ref, 'PERMANENT', 'AX', 'UNIQUE', 'Unique 1', ['FRONTIER']);
+
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
+
+        self::assertSame([], $errors);
+    }
+
     // ── Frontier allowlist ────────────────────────────────────────────────────
 
     public function testUniqueNotFlaggedFrontierReturnsError(): void
