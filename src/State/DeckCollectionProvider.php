@@ -4,17 +4,17 @@ namespace App\State;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
-use App\Entity\Deck;
 use App\Entity\User;
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\QueryBuilder;
+use App\Repository\DeckRepository;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 class DeckCollectionProvider implements ProviderInterface
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private readonly DeckRepository $deckRepository,
         private readonly Security $security,
+        private readonly RequestStack $requestStack,
     ) {
     }
 
@@ -26,20 +26,10 @@ class DeckCollectionProvider implements ProviderInterface
             return [];
         }
 
-        return $this->getQueryBuilder($operation, $context, $currentUser)
-            ->getQuery()
-            ->getResult();
-    }
+        $request = $this->requestStack->getCurrentRequest();
+        $faction = $request?->query->get('faction') ?: null;
+        $hero = $request?->query->get('hero') ?: null;
 
-    private function getQueryBuilder(Operation $operation, array $context, ?User $currentUser): QueryBuilder
-    {
-        $qb = $this->em->getRepository(Deck::class)->createQueryBuilder('deck');
-
-        if ($currentUser) {
-            $qb->andWhere('deck.user = :user')
-               ->setParameter('user', $currentUser);
-        }
-
-        return $qb;
+        return $this->deckRepository->findByUser($currentUser, $faction, $hero);
     }
 }
