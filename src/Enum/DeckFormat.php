@@ -11,6 +11,7 @@ enum DeckFormat: string
     case Sandbox = 'sandbox';
     case Test = 'test';
     case Frontier = 'frontier';
+    case LivingLegends = 'living_legends';
 
     public static function fromInput(string $value): self
     {
@@ -22,6 +23,7 @@ enum DeckFormat: string
             'sandbox' => self::Sandbox,
             'test' => self::Test,
             'frontier' => self::Frontier,
+            'living_legends' => self::LivingLegends,
             default => throw new \ValueError(sprintf('"%s" is not a valid DeckFormat.', $value)),
         };
     }

@@ -276,6 +276,10 @@ $isFrontierLegal = in_array('frontier', $gameplayFormats, true);
 
 This replaces the previous design that called a sibling `uniques-search-api` service for a live allowlist lookup (`UniquesSearchApiClient` / `UNIQUES_SEARCH_API_URL` — both removed). No fail-closed handling is needed anymore: if `AlteredCoreClient` can't fetch card data at all, validation already fails upstream for unrelated reasons.
 
+### Living Legends format — same principle, different allowlist key
+
+`LivingLegendsFormatValidator` follows the exact same pattern as `FrontierFormatValidator` (extends `StandardFormatValidator`, same base rules) but checks the `"living_legends"` key in `gameplayFormat` instead of `"frontier"`. The two formats are independent allowlists maintained upstream in the Altered Reunion formats manifest — a Unique legal in Frontier is not automatically legal in Living Legends, and vice versa.
+
 ---
 
 ## Response shape reference
