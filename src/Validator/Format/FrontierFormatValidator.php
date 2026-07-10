@@ -46,7 +46,7 @@ class FrontierFormatValidator extends StandardFormatValidator
                 continue;
             }
 
-            $gameplayFormats = $data['gameplayFormat'] ?? [];
+            $gameplayFormats = array_map('strtolower', $data['gameplayFormat'] ?? []);
             if (!in_array(self::GAMEPLAY_FORMAT_KEY, $gameplayFormats, true)) {
                 $errors[] = sprintf('Unique card "%s" is not part of the Frontier format allowlist.', $this->getCardName($data));
             }
