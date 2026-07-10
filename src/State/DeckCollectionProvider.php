@@ -7,14 +7,12 @@ use ApiPlatform\State\ProviderInterface;
 use App\Entity\User;
 use App\Repository\DeckRepository;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpFoundation\RequestStack;
 
-class DeckCollectionProvider implements ProviderInterface
+final readonly class DeckCollectionProvider implements ProviderInterface
 {
     public function __construct(
-        private readonly DeckRepository $deckRepository,
-        private readonly Security $security,
-        private readonly RequestStack $requestStack,
+        private DeckRepository $deckRepository,
+        private Security $security,
     ) {
     }
 
@@ -26,10 +24,26 @@ class DeckCollectionProvider implements ProviderInterface
             return [];
         }
 
-        $request = $this->requestStack->getCurrentRequest();
-        $faction = $request?->query->get('faction') ?: null;
-        $hero = $request?->query->get('hero') ?: null;
+        $filters = $context['filters'] ?? [];
 
-        return $this->deckRepository->findByUser($currentUser, $faction, $hero);
+        return $this->deckRepository->findByUser(
+            $currentUser,
+            faction: $this->stringFilter($filters, 'faction'),
+            hero: $this->stringFilter($filters, 'hero'),
+        );
+    }
+
+    /**
+     * Reads a non-empty scalar string from the API Platform filter context.
+     * Array-style params (e.g. ?faction[]=x) and empty strings resolve to null
+     * so they can't reach the string-typed repository method.
+     *
+     * @param array<string, mixed> $filters
+     */
+    private function stringFilter(array $filters, string $key): ?string
+    {
+        $value = $filters[$key] ?? null;
+
+        return is_string($value) && '' !== $value ? $value : null;
     }
 }

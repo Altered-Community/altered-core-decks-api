@@ -73,31 +73,44 @@ class DeckRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function findPublic(int $page, int $itemsPerPage, ?string $hero = null, ?string $cardName = null, string $orderBy = 'created_at', ?string $faction = null, ?string $name = null, ?string $format = null, ?string $cardRef = null): array
+    /**
+     * Runs a native SELECT over the deck table, hydrated into Deck entities.
+     * $sqlTail is everything after "SELECT <cols> FROM deck d " — joins, WHERE, ORDER, LIMIT.
+     *
+     * @param array<string, mixed> $params
+     *
+     * @return Deck[]
+     */
+    private function fetchDecks(string $sqlTail, array $params): array
     {
         $rsm = new ResultSetMappingBuilder($this->getEntityManager());
         $rsm->addRootEntityFromClassMetadata(Deck::class, 'd');
 
-        [$join, $where, $params] = $this->buildPublicFilters($hero, $cardName, $faction, $name, $format, $cardRef);
-
-        $allowedOrderBy = ['created_at', 'upvote_count', 'view_count'];
-        $col = in_array($orderBy, $allowedOrderBy, true) ? $orderBy : 'created_at';
-
-        $sql = "SELECT {$rsm->generateSelectClause(['d' => 'd'])}
-                FROM deck d {$join}
-                WHERE {$where}
-                ORDER BY d.{$col} DESC
-                LIMIT :limit OFFSET :offset";
-
-        $query = $this->getEntityManager()->createNativeQuery($sql, $rsm)
-            ->setParameter('limit', $itemsPerPage)
-            ->setParameter('offset', ($page - 1) * $itemsPerPage);
-
+        $query = $this->getEntityManager()->createNativeQuery(
+            "SELECT {$rsm->generateSelectClause(['d' => 'd'])} FROM deck d {$sqlTail}",
+            $rsm,
+        );
         foreach ($params as $key => $value) {
             $query->setParameter($key, $value);
         }
 
         return $query->getResult();
+    }
+
+    public function findPublic(int $page, int $itemsPerPage, ?string $hero = null, ?string $cardName = null, string $orderBy = 'created_at', ?string $faction = null, ?string $name = null, ?string $format = null, ?string $cardRef = null): array
+    {
+        [$join, $where, $params] = $this->buildPublicFilters($hero, $cardName, $faction, $name, $format, $cardRef);
+
+        $allowedOrderBy = ['created_at', 'upvote_count', 'view_count'];
+        $col = in_array($orderBy, $allowedOrderBy, true) ? $orderBy : 'created_at';
+
+        $params['limit'] = $itemsPerPage;
+        $params['offset'] = ($page - 1) * $itemsPerPage;
+
+        return $this->fetchDecks(
+            "{$join} WHERE {$where} ORDER BY d.{$col} DESC LIMIT :limit OFFSET :offset",
+            $params,
+        );
     }
 
     public function countPublic(?string $hero = null, ?string $cardName = null, ?string $faction = null, ?string $name = null, ?string $format = null, ?string $cardRef = null): int
@@ -188,43 +201,27 @@ class DeckRepository extends ServiceEntityRepository
      */
     public function findByUser(User $user, ?string $faction = null, ?string $hero = null): array
     {
-        $rsm = new ResultSetMappingBuilder($this->getEntityManager());
-        $rsm->addRootEntityFromClassMetadata(Deck::class, 'd');
-
         [$heroFactionWhere, $params] = $this->buildHeroFactionWhere($hero, $faction);
         $params['userId'] = (string) $user->getId();
 
-        $sql = "SELECT {$rsm->generateSelectClause(['d' => 'd'])}
-                FROM deck d
-                WHERE d.user_id = :userId{$heroFactionWhere}
-                ORDER BY d.updated_at DESC";
-
-        $query = $this->getEntityManager()->createNativeQuery($sql, $rsm);
-        foreach ($params as $key => $value) {
-            $query->setParameter($key, $value);
-        }
-
-        return $query->getResult();
+        return $this->fetchDecks(
+            "WHERE d.user_id = :userId{$heroFactionWhere} ORDER BY d.updated_at DESC",
+            $params,
+        );
     }
 
     public function findBgaDecks(?User $user, int $page, int $itemsPerPage, string $name, array $factions, string $hero, string $format, array $validFormats = []): array
     {
-        $rsm = new ResultSetMappingBuilder($this->getEntityManager());
-        $rsm->addRootEntityFromClassMetadata(Deck::class, 'd');
-
         [$conditions, $params] = $this->buildBgaConditions($user, $name, $factions, $hero, $format, $validFormats);
         $where = 'WHERE '.implode(' AND ', $conditions);
 
-        $sql = "SELECT {$rsm->generateSelectClause(['d' => 'd'])} FROM deck d {$where} ORDER BY d.created_at DESC LIMIT :limit OFFSET :offset";
+        $params['limit'] = $itemsPerPage;
+        $params['offset'] = ($page - 1) * $itemsPerPage;
 
-        $query = $this->getEntityManager()->createNativeQuery($sql, $rsm);
-        foreach ($params as $key => $value) {
-            $query->setParameter($key, $value);
-        }
-        $query->setParameter('limit', $itemsPerPage);
-        $query->setParameter('offset', ($page - 1) * $itemsPerPage);
-
-        return $query->getResult();
+        return $this->fetchDecks(
+            "{$where} ORDER BY d.created_at DESC LIMIT :limit OFFSET :offset",
+            $params,
+        );
     }
 
     public function countBgaDecks(?User $user, string $name, array $factions, string $hero, string $format, array $validFormats = []): int
