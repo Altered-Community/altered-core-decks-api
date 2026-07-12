@@ -4,17 +4,15 @@ namespace App\State;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
-use App\Entity\Deck;
 use App\Entity\User;
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\QueryBuilder;
+use App\Repository\DeckRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 
-class DeckCollectionProvider implements ProviderInterface
+final readonly class DeckCollectionProvider implements ProviderInterface
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly Security $security,
+        private DeckRepository $deckRepository,
+        private Security $security,
     ) {
     }
 
@@ -26,20 +24,26 @@ class DeckCollectionProvider implements ProviderInterface
             return [];
         }
 
-        return $this->getQueryBuilder($operation, $context, $currentUser)
-            ->getQuery()
-            ->getResult();
+        $filters = $context['filters'] ?? [];
+
+        return $this->deckRepository->findByUser(
+            $currentUser,
+            faction: $this->stringFilter($filters, 'faction'),
+            hero: $this->stringFilter($filters, 'hero'),
+        );
     }
 
-    private function getQueryBuilder(Operation $operation, array $context, ?User $currentUser): QueryBuilder
+    /**
+     * Reads a non-empty scalar string from the API Platform filter context.
+     * Array-style params (e.g. ?faction[]=x) and empty strings resolve to null
+     * so they can't reach the string-typed repository method.
+     *
+     * @param array<string, mixed> $filters
+     */
+    private function stringFilter(array $filters, string $key): ?string
     {
-        $qb = $this->em->getRepository(Deck::class)->createQueryBuilder('deck');
+        $value = $filters[$key] ?? null;
 
-        if ($currentUser) {
-            $qb->andWhere('deck.user = :user')
-               ->setParameter('user', $currentUser);
-        }
-
-        return $qb;
+        return is_string($value) && '' !== $value ? $value : null;
     }
 }

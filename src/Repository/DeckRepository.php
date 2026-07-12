@@ -73,31 +73,44 @@ class DeckRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function findPublic(int $page, int $itemsPerPage, ?string $hero = null, ?string $cardName = null, string $orderBy = 'created_at', ?string $faction = null, ?string $name = null, ?string $format = null, ?string $cardRef = null): array
+    /**
+     * Runs a native SELECT over the deck table, hydrated into Deck entities.
+     * $sqlTail is everything after "SELECT <cols> FROM deck d " — joins, WHERE, ORDER, LIMIT.
+     *
+     * @param array<string, mixed> $params
+     *
+     * @return Deck[]
+     */
+    private function fetchDecks(string $sqlTail, array $params): array
     {
         $rsm = new ResultSetMappingBuilder($this->getEntityManager());
         $rsm->addRootEntityFromClassMetadata(Deck::class, 'd');
 
-        [$join, $where, $params] = $this->buildPublicFilters($hero, $cardName, $faction, $name, $format, $cardRef);
-
-        $allowedOrderBy = ['created_at', 'upvote_count', 'view_count'];
-        $col = in_array($orderBy, $allowedOrderBy, true) ? $orderBy : 'created_at';
-
-        $sql = "SELECT {$rsm->generateSelectClause(['d' => 'd'])}
-                FROM deck d {$join}
-                WHERE {$where}
-                ORDER BY d.{$col} DESC
-                LIMIT :limit OFFSET :offset";
-
-        $query = $this->getEntityManager()->createNativeQuery($sql, $rsm)
-            ->setParameter('limit', $itemsPerPage)
-            ->setParameter('offset', ($page - 1) * $itemsPerPage);
-
+        $query = $this->getEntityManager()->createNativeQuery(
+            "SELECT {$rsm->generateSelectClause(['d' => 'd'])} FROM deck d {$sqlTail}",
+            $rsm,
+        );
         foreach ($params as $key => $value) {
             $query->setParameter($key, $value);
         }
 
         return $query->getResult();
+    }
+
+    public function findPublic(int $page, int $itemsPerPage, ?string $hero = null, ?string $cardName = null, string $orderBy = 'created_at', ?string $faction = null, ?string $name = null, ?string $format = null, ?string $cardRef = null): array
+    {
+        [$join, $where, $params] = $this->buildPublicFilters($hero, $cardName, $faction, $name, $format, $cardRef);
+
+        $allowedOrderBy = ['created_at', 'upvote_count', 'view_count'];
+        $col = in_array($orderBy, $allowedOrderBy, true) ? $orderBy : 'created_at';
+
+        $params['limit'] = $itemsPerPage;
+        $params['offset'] = ($page - 1) * $itemsPerPage;
+
+        return $this->fetchDecks(
+            "{$join} WHERE {$where} ORDER BY d.{$col} DESC LIMIT :limit OFFSET :offset",
+            $params,
+        );
     }
 
     public function countPublic(?string $hero = null, ?string $cardName = null, ?string $faction = null, ?string $name = null, ?string $format = null, ?string $cardRef = null): int
@@ -119,20 +132,9 @@ class DeckRepository extends ServiceEntityRepository
         $join = '';
         $params = [];
 
-        if (null !== $hero) {
-            // Normalise to faction_number (parts 4+5) so decks with the same hero across
-            // different sets (CORE/COREKS/BISE) or rarities are all returned.
-            $parts = explode('_', $hero);
-            $heroKey = ($parts[3] ?? '').'_'.($parts[4] ?? '');
-            $where .= " AND split_part(d.stats->'hero'->>'reference', '_', 4)"
-                    ." || '_' || split_part(d.stats->'hero'->>'reference', '_', 5) = :heroKey";
-            $params['heroKey'] = $heroKey;
-        }
-
-        if (null !== $faction) {
-            $where .= " AND split_part(d.stats->'hero'->>'reference', '_', 4) = :faction";
-            $params['faction'] = $faction;
-        }
+        [$heroFactionWhere, $heroFactionParams] = $this->buildHeroFactionWhere($hero, $faction);
+        $where .= $heroFactionWhere;
+        $params += $heroFactionParams;
 
         if (null !== $cardName) {
             $join = 'JOIN deck_card dc ON dc.deck_id = d.id';
@@ -159,24 +161,67 @@ class DeckRepository extends ServiceEntityRepository
         return [$join, $where, $params];
     }
 
+    /**
+     * SQL WHERE fragments (each prefixed with " AND ") matching a deck's stored hero
+     * reference (jsonb) by faction and/or hero. Hero is normalised to faction_number
+     * (reference parts 4+5) so the same hero across different sets or rarities all match
+     * — identical semantics to the public listing so a hero picked from the shared hero
+     * list filters "My Decks" and "Community" the same way.
+     *
+     * @return array{0: string, 1: array<string, mixed>} [whereFragment, params]
+     */
+    private function buildHeroFactionWhere(?string $hero, ?string $faction): array
+    {
+        $where = '';
+        $params = [];
+
+        if (null !== $hero) {
+            $parts = explode('_', $hero);
+            $heroKey = ($parts[3] ?? '').'_'.($parts[4] ?? '');
+            $where .= " AND split_part(d.stats->'hero'->>'reference', '_', 4)"
+                    ." || '_' || split_part(d.stats->'hero'->>'reference', '_', 5) = :heroKey";
+            $params['heroKey'] = $heroKey;
+        }
+
+        if (null !== $faction) {
+            $where .= " AND split_part(d.stats->'hero'->>'reference', '_', 4) = :faction";
+            $params['faction'] = $faction;
+        }
+
+        return [$where, $params];
+    }
+
+    /**
+     * All decks owned by $user, optionally narrowed by faction and/or hero.
+     * Faction/hero use the same jsonb matching as the public listing (see
+     * buildHeroFactionWhere). Ordering matches the client's default sort; the
+     * client re-sorts on demand.
+     *
+     * @return Deck[]
+     */
+    public function findByUser(User $user, ?string $faction = null, ?string $hero = null): array
+    {
+        [$heroFactionWhere, $params] = $this->buildHeroFactionWhere($hero, $faction);
+        $params['userId'] = (string) $user->getId();
+
+        return $this->fetchDecks(
+            "WHERE d.user_id = :userId{$heroFactionWhere} ORDER BY d.updated_at DESC",
+            $params,
+        );
+    }
+
     public function findBgaDecks(?User $user, int $page, int $itemsPerPage, string $name, array $factions, string $hero, string $format, array $validFormats = []): array
     {
-        $rsm = new ResultSetMappingBuilder($this->getEntityManager());
-        $rsm->addRootEntityFromClassMetadata(Deck::class, 'd');
-
         [$conditions, $params] = $this->buildBgaConditions($user, $name, $factions, $hero, $format, $validFormats);
         $where = 'WHERE '.implode(' AND ', $conditions);
 
-        $sql = "SELECT {$rsm->generateSelectClause(['d' => 'd'])} FROM deck d {$where} ORDER BY d.created_at DESC LIMIT :limit OFFSET :offset";
+        $params['limit'] = $itemsPerPage;
+        $params['offset'] = ($page - 1) * $itemsPerPage;
 
-        $query = $this->getEntityManager()->createNativeQuery($sql, $rsm);
-        foreach ($params as $key => $value) {
-            $query->setParameter($key, $value);
-        }
-        $query->setParameter('limit', $itemsPerPage);
-        $query->setParameter('offset', ($page - 1) * $itemsPerPage);
-
-        return $query->getResult();
+        return $this->fetchDecks(
+            "{$where} ORDER BY d.created_at DESC LIMIT :limit OFFSET :offset",
+            $params,
+        );
     }
 
     public function countBgaDecks(?User $user, string $name, array $factions, string $hero, string $format, array $validFormats = []): int

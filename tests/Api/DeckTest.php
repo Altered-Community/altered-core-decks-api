@@ -16,6 +16,9 @@ class DeckTest extends WebTestCase
     protected function setUp(): void
     {
         $this->client = static::createClient();
+        // Keep a single kernel/container across requests so mocks reconfigured between
+        // successive requests (e.g. several POSTs each needing different card data) stick.
+        $this->client->disableReboot();
         $this->alteredCoreMock = static::getContainer()->get('altered_core.mock_http_client');
         // Default: return empty card list (deck with no cards never triggers HTTP call,
         // but this prevents MockHttpClient from throwing if called unexpectedly)
@@ -90,6 +93,11 @@ class DeckTest extends WebTestCase
 
     private function mockAlteredCore(array $cards): void
     {
+        // AlteredCoreClient caches card data per reference in cache.app. With kernel reboot
+        // disabled (see setUp), the in-process array cache survives across requests within a
+        // test, so clear it here to guarantee a re-mock of the same reference takes effect.
+        static::getContainer()->get('cache.app')->clear();
+
         $json = json_encode($cards);
         $this->alteredCoreMock->setResponseFactory(
             static fn (): MockResponse => new MockResponse($json, ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
@@ -579,5 +587,125 @@ class DeckTest extends WebTestCase
         $data = $this->getPublic(['cardName' => 'morg', 'itemsPerPage' => 1000]);
         $this->assertResponseIsSuccessful();
         $this->assertContains($deck['id'], array_column($data['member'], 'id'));
+    }
+
+    // ── My decks: faction / hero filters ───────────────────────────────────────
+
+    /**
+     * Creates a non-draft deck whose only card is a hero, so stats.hero.reference
+     * is populated (the value the faction/hero filters match on).
+     *
+     * @return array<string, mixed>
+     */
+    private function postHeroDeck(string $sub, string $name, string $heroRef): array
+    {
+        $this->mockAlteredCore([[
+            'reference' => $heroRef,
+            'name' => 'Hero '.$heroRef,
+            'cardType' => ['reference' => 'HERO_MAIN'],
+            'faction' => ['code' => explode('_', $heroRef)[3] ?? 'AX'],
+            'cardRarity' => ['reference' => 'CORAX_C'],
+        ]]);
+
+        $deck = $this->post($sub, [
+            'name' => $name,
+            'isDraft' => false,
+            'deckCards' => [['cardReference' => $heroRef, 'quantity' => 1]],
+        ]);
+        $this->assertResponseStatusCodeSame(201);
+
+        return $deck;
+    }
+
+    private function getMyRaw(string $sub, array $params = []): string
+    {
+        $this->client->request('GET', '/api/decks', $params, [], $this->authHeaders($sub));
+
+        return (string) $this->client->getResponse()->getContent();
+    }
+
+    public function testMyDecksFilterByFaction(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $ax = $this->postHeroDeck($sub, 'AX Deck', 'ALT_CORE_B_AX_1_C');
+        $ly = $this->postHeroDeck($sub, 'LY Deck', 'ALT_CORE_B_LY_1_C');
+
+        $body = $this->getMyRaw($sub, ['faction' => 'LY']);
+        $this->assertResponseIsSuccessful();
+        $this->assertStringContainsString($ly['id'], $body, 'LY deck should be returned');
+        $this->assertStringNotContainsString($ax['id'], $body, 'AX deck should be filtered out');
+
+        // No filter → both decks returned.
+        $all = $this->getMyRaw($sub);
+        $this->assertStringContainsString($ax['id'], $all);
+        $this->assertStringContainsString($ly['id'], $all);
+    }
+
+    public function testMyDecksFilterByHeroNormalisesAcrossSets(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        // Same hero identity (LY_1) across two different sets, plus a different hero (LY_2).
+        $ly1core = $this->postHeroDeck($sub, 'LY1 CORE', 'ALT_CORE_B_LY_1_C');
+        $ly1bise = $this->postHeroDeck($sub, 'LY1 BISE', 'ALT_BISE_B_LY_1_C');
+        $ly2 = $this->postHeroDeck($sub, 'LY2', 'ALT_CORE_B_LY_2_C');
+
+        $body = $this->getMyRaw($sub, ['hero' => 'ALT_CORE_B_LY_1_C']);
+        $this->assertResponseIsSuccessful();
+        $this->assertStringContainsString($ly1core['id'], $body);
+        $this->assertStringContainsString($ly1bise['id'], $body, 'Same hero across sets should match');
+        $this->assertStringNotContainsString($ly2['id'], $body, 'A different hero should be filtered out');
+    }
+
+    public function testMyDecksFilterByFactionAndHeroCombined(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $lyMatch = $this->postHeroDeck($sub, 'LY match', 'ALT_CORE_B_LY_1_C');
+        $lyOtherHero = $this->postHeroDeck($sub, 'LY other hero', 'ALT_CORE_B_LY_2_C');
+        $axSameNumber = $this->postHeroDeck($sub, 'AX same number', 'ALT_CORE_B_AX_1_C');
+
+        // Both params combine with AND: only the LY deck whose hero is LY_1 matches.
+        $body = $this->getMyRaw($sub, ['faction' => 'LY', 'hero' => 'ALT_CORE_B_LY_1_C']);
+        $this->assertResponseIsSuccessful();
+        $this->assertStringContainsString($lyMatch['id'], $body);
+        $this->assertStringNotContainsString($lyOtherHero['id'], $body, 'Wrong hero within faction is excluded');
+        $this->assertStringNotContainsString($axSameNumber['id'], $body, 'Wrong faction with same hero number is excluded');
+    }
+
+    public function testMyDecksFilterByFactionNoMatchReturnsEmpty(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $this->postHeroDeck($sub, 'AX Deck', 'ALT_CORE_B_AX_1_C');
+
+        // No deck belongs to Muna → empty result, not an error.
+        $body = $this->getMyRaw($sub, ['faction' => 'MU']);
+        $this->assertResponseIsSuccessful();
+        $this->assertSame('[]', trim($body));
+    }
+
+    public function testMyDecksFactionFilterIsCaseSensitive(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $ly = $this->postHeroDeck($sub, 'LY Deck', 'ALT_CORE_B_LY_1_C');
+
+        // Faction codes are compared with '=' (uppercase, as the client always sends them).
+        $upper = $this->getMyRaw($sub, ['faction' => 'LY']);
+        $this->assertStringContainsString($ly['id'], $upper);
+
+        $lower = $this->getMyRaw($sub, ['faction' => 'ly']);
+        $this->assertStringNotContainsString($ly['id'], $lower, 'Lowercase faction code must not match');
+    }
+
+    public function testMyDecksFilterExcludesOtherUsersDecks(): void
+    {
+        $owner = 'owner-'.__FUNCTION__;
+        $other = 'other-'.__FUNCTION__;
+        $mine = $this->postHeroDeck($owner, 'My LY', 'ALT_CORE_B_LY_1_C');
+        $theirs = $this->postHeroDeck($other, 'Their LY', 'ALT_CORE_B_LY_1_C');
+
+        // Same faction/hero, different owner: the filter must never leak another user's deck.
+        $body = $this->getMyRaw($owner, ['faction' => 'LY']);
+        $this->assertResponseIsSuccessful();
+        $this->assertStringContainsString($mine['id'], $body);
+        $this->assertStringNotContainsString($theirs['id'], $body, "Another user's deck must not appear");
     }
 }
