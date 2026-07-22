@@ -126,6 +126,21 @@ class FormatController extends AbstractController
                     'maxCopiesPerRarity' => 1,
                 ],
             ],
+            [
+                'code' => 'sealed',
+                'label' => 'Sealed',
+                'minCards' => 29,
+                'maxCards' => null,
+                'allowBanned' => false,
+                'allowSuspended' => false,
+                'limits' => [
+                    'unique' => null,
+                    'rare' => null,
+                    'exalted' => null,
+                    'maxCopiesPerName' => null,
+                    'maxCopiesPerRarity' => null,
+                ],
+            ],
         ];
 
         if (!$includeHidden) {
