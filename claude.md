@@ -295,7 +295,7 @@ set is present in the returned pool (its `heroesInPool: false` event config), so
 ref, checked the exact same way as everything else.
 
 Pool membership genuinely can't be baked into the card payload the way Frontier's `gameplayFormat` is — it's
-per-player and time-bound (each player's pool lives in altered-draft's own `sealed_pools` table) — so this
+per-player (each player's pool lives in altered-draft's own `sealed_pools` table) — so this
 format calls a live external API from inside a validator, `AlteredDraftSealedPoolClient`: `GET
 {ALTERED_DRAFT_URL}/api/tournament-pool-by-deck?deckId=...`, keyed by **decks-api's own deck id**, forwarding
 the caller's own bearer token to the same Keycloak realm (`auth.altered.re/realms/players`) this app
