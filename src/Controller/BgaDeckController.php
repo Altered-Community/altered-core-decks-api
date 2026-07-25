@@ -20,11 +20,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class BgaDeckController extends AbstractController
 {
-    // NOTE: 'sealed' is deliberately absent here — its BGA deck-LIST call never reaches
-    // this controller at all (altered-bga-api answers it directly from altered-draft,
-    // see SealedDecklistHandler in that repo). Only the deck-CONTENT call below
-    // (item()) ever sees a sealed deck, forwarded normally like any other format.
-    private const BGA_VALID_FORMATS = ['standard', 'nuc', 'singleton_nuc', 'sandbox', 'test', 'frontier'];
+    private const BGA_VALID_FORMATS = ['standard', 'nuc', 'singleton_nuc', 'sandbox', 'test', 'frontier', 'sealed'];
 
     public function __construct(
         private readonly DeckRepository $deckRepository,
@@ -54,6 +50,7 @@ class BgaDeckController extends AbstractController
             'SINGLETON_NUC' => 'singleton_nuc',
             'TEST' => 'test',
             'FRONTIER' => 'frontier',
+            'SEALED' => 'sealed',
             default => '',
         };
 
@@ -125,10 +122,7 @@ class BgaDeckController extends AbstractController
         // The actual enforcement moment for tournament sealed decks (see altered-draft's
         // ROADMAP.md "Set 6 preview"): BGA fetches deck CONTENT here right before using
         // it in a real game, so this is where an out-of-pool deck must be rejected
-        // outright — not just flagged. `tournamentSeed` (if any) rides as a query param
-        // on this same request, forwarded by altered-bga-api's DeckContentHandler exactly
-        // like eventFormat/tableId; AlteredDraftSealedPoolClient reads it directly off
-        // the current request rather than needing it threaded through here.
+        // outright — not just flagged.
         if (DeckFormat::Sealed === $deck->getFormat()) {
             $references = array_map(
                 fn (DeckCard $dc) => $dc->getCardReference(),

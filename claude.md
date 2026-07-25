@@ -279,39 +279,49 @@ This replaces the previous design that called a sibling `uniques-search-api` ser
 ### Sealed format — live pool-membership check against altered-draft, no hardcoded set
 
 `SealedFormatValidator` (`src/Validator/Format/SealedFormatValidator.php`, format code `sealed`) validates
-decks against whatever sealed tournament is CURRENTLY active on `altered-draft.vercel.app`/
-`limited.altered.re` (today: the Set 6 / EOLE prerelease). Rules: exactly 1 hero (base default, no override
-needed), up to 3 factions, ≥29 non-hero cards (same hero-excluded convention as every other format's
-`getMinCards()`), and **every card in the deck — hero included — must be in the player's own sealed pool**.
-Deliberately named generically (was `Set6SealedFormatValidator` / `set6_sealed` at first) — it carries NO
-hardcoded set restriction (`validateAllowedSets()` is overridden to a no-op, unlike every other format's
-VALID_SETS/FORBIDDEN_SETS): pool membership is the sole and sufficient legality gate, since a card from any
-other set literally can't be in the pool altered-draft returns. That makes this one format reusable as-is
-for whichever set altered-draft is currently running a sealed tournament for, instead of needing a new
-`SetXSealedFormatValidator` every time a new set's prerelease rolls around.
+decks against whatever sealed tournament is CURRENTLY active on `altered-draft.altered.re` (today: the Set 6
+/ EOLE prerelease). Rules: exactly 1 hero (base default, no override needed), up to 3 factions, ≥29 non-hero
+cards (same hero-excluded convention as every other format's `getMinCards()`), banned/suspended cards are
+allowed (`allowBannedCards()`/`allowSuspendedCards()` overridden to `true`), and **every card in the deck —
+hero included — must be in the player's own sealed pool**. It carries NO hardcoded set restriction
+(`validateAllowedSets()` is overridden to a no-op, unlike every other format's VALID_SETS/FORBIDDEN_SETS):
+pool membership is the sole and sufficient legality gate — a card from any other set literally can't be in
+the pool altered-draft returns, and a since-banned/suspended card still sitting in a player's pool shouldn't
+block an otherwise-legal deck either. That makes this one format reusable as-is for whichever set
+altered-draft is currently running a sealed tournament for, with no new validator subclass per set.
 
-First cut had the hero exempt from pool-membership (any hero from the tournament's set was legal, whether
-or not the player actually opened it) — **rejected as bad design** and reverted: a hero is just another pool
-ref, not a special case this validator should know about. altered-draft's pool endpoint handles it instead,
-via its `heroesInPool: false` event config — every hero of the tournament's set gets added to the returned
-pool, not as a possible drafted card, just guaranteed present — so the generic pool-membership check below
-covers the hero for free, no format-specific `validateHero()` override needed.
+The hero needs no special carve-out: altered-draft's pool endpoint guarantees every hero of the tournament's
+set is present in the returned pool (its `heroesInPool: false` event config), so a hero is just another pool
+ref, checked the exact same way as everything else.
 
-Unlike Frontier's `gameplayFormat` check, pool membership genuinely can't be baked into the card payload —
-it's per-player and time-bound (each player's pool is deterministically seeded from their Keycloak identity
-+ the tournament's time window, see altered-draft's `ROADMAP.md` "Set 6 preview"), so this format DOES call
-a live external API from inside a validator (`AlteredDraftSealedPoolClient` → `GET
-{ALTERED_DRAFT_URL}/api/sealed-pool`, forwarding the caller's own bearer token — same Keycloak realm,
-`auth.altered.re/realms/players`, so a caller only ever fetches their own pool).
+Pool membership genuinely can't be baked into the card payload the way Frontier's `gameplayFormat` is — it's
+per-player and time-bound (each player's pool lives in altered-draft's own `sealed_pools` table) — so this
+format calls a live external API from inside a validator, `AlteredDraftSealedPoolClient`: `GET
+{ALTERED_DRAFT_URL}/api/tournament-pool-by-deck?deckId=...`, keyed by **decks-api's own deck id**, forwarding
+the caller's own bearer token to the same Keycloak realm (`auth.altered.re/realms/players`) this app
+authenticates against, so a caller can only ever fetch their own pool.
 
-Two designs were considered for this call: (a) send the whole candidate deck to altered-draft's
-`/api/validate-deck` on every save, or (b) fetch the pool once and cache it. **(b) was chosen** — the
-client caches the pool by the resolved Keycloak `sub` (not the raw bearer token, which rotates well before
-the tournament ends and would defeat the caching) until the tournament event's `ends_at`, so altered-draft
-sees one call per player per event instead of one per deck save. On no active event / an unreachable
-altered-draft, `getPoolCounts()` returns null and the validator **fails closed** (deck invalid) — unlike
-Frontier's now-removed live check, there's no way to make this format work without the external call, so a
-failure has to block validation rather than silently pass.
+Validation isn't only triggered from the BGA deck-content call (`BgaDeckController::item()`) — a third-party
+deckbuilder can edit the same deck through decks-api's own generic `POST`/`PATCH /api/decks`, which has no
+way to know a tournament context even exists. A deck id, on the other hand, is something decks-api always
+has, on every call site, with no extra context needed: altered-draft links a pool to its deck
+(`sealed_pools.deck_id`) essentially immediately as its own frontend syncs the deck, well before any real
+validation happens, and binding a tournament pool in the first place is entirely altered-draft's concern
+(triggered independently by altered-bga-api on the BGA deck-LIST call) — decks-api never needs to see or
+forward a `tournamentSeed` for its own validation purposes at all.
+
+Resetting a normal (casual) pool deletes its linked deck on altered-draft's side, so a deck-id-to-pool link
+is either permanent (a tournament pool never resets) or dies with its deck (a normal pool) — never silently
+stale. That makes it safe for `AlteredDraftSealedPoolClient` to cache every response uniformly, keyed by
+(Keycloak sub, deck id), capped at 1 hour — no need to special-case "don't cache the normal pool," and no
+need for an unbounded TTL either, since no deck id is ever reused.
+
+On no linked pool / an unreachable altered-draft, `getPoolCounts()` returns null and the validator **fails
+closed** (deck invalid) — there's no way to make this format work without the external call, so a failure
+has to block validation rather than silently pass.
+
+`sealed` is registered like every other format in `BgaDeckController::BGA_VALID_FORMATS` and its
+`eventFormat` allowlist.
 
 ---
 

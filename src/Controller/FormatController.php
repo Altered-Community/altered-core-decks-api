@@ -131,8 +131,8 @@ class FormatController extends AbstractController
                 'label' => 'Sealed',
                 'minCards' => 29,
                 'maxCards' => null,
-                'allowBanned' => false,
-                'allowSuspended' => false,
+                'allowBanned' => true,
+                'allowSuspended' => true,
                 'limits' => [
                     'unique' => null,
                     'rare' => null,

@@ -38,7 +38,7 @@ class SealedFormatValidatorTest extends TestCase
         return $deck;
     }
 
-    private function data(string $ref, string $typeRef = 'PERMANENT', string $faction = 'AX', string $rarityRef = 'COMMON', string $name = ''): array
+    private function data(string $ref, string $typeRef = 'PERMANENT', string $faction = 'AX', string $rarityRef = 'COMMON', string $name = '', bool $isBanned = false, bool $isSuspended = false): array
     {
         return [
             'reference' => $ref,
@@ -46,6 +46,8 @@ class SealedFormatValidatorTest extends TestCase
             'faction' => ['code' => $faction],
             'rarity' => ['reference' => $rarityRef],
             'name' => $name ?: $ref,
+            'isBanned' => $isBanned,
+            'isSuspended' => $isSuspended,
         ];
     }
 
@@ -169,6 +171,20 @@ class SealedFormatValidatorTest extends TestCase
         $errors = $this->validator($poolCounts)->validate($this->deck(...$deckCards), $cardsData);
 
         self::assertNotEmpty(array_filter($errors, fn ($e) => str_contains($e, 'only 1 in your pool')));
+    }
+
+    public function testBannedOrSuspendedCardInPoolIsAllowed(): void
+    {
+        // Pool membership is the sole legality gate for sealed — a card that's since
+        // been banned/suspended shouldn't block an otherwise-legal deck just because
+        // it's still sitting in the player's pool.
+        [$cardsData, $deckCards, $poolCounts] = $this->buildMinimalValidDeck();
+        $ref = 'ALT_EOLE_B_AX_1_C';
+        $cardsData[$ref] = $this->data($ref, isBanned: true, isSuspended: true);
+
+        $errors = $this->validator($poolCounts)->validate($this->deck(...$deckCards), $cardsData);
+
+        self::assertSame([], $errors);
     }
 
     public function testNoActiveEventFailsClosed(): void

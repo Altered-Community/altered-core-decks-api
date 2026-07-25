@@ -2,6 +2,7 @@
 
 namespace App\Validator\Format;
 
+use App\Entity\Deck;
 use App\Entity\DeckCard;
 
 /**
@@ -35,7 +36,7 @@ class SingletonFormatValidator extends AbstractDeckFormatValidator
         return 79;
     }
 
-    protected function computeFormatRulesDetail(array $deckCards, array $cardsData, ?DeckCard $hero): array
+    protected function computeFormatRulesDetail(Deck $deck, array $deckCards, array $cardsData, ?DeckCard $hero): array
     {
         $groups = $this->groupByName($deckCards, $cardsData);
         $copiesOk = true;
@@ -61,7 +62,7 @@ class SingletonFormatValidator extends AbstractDeckFormatValidator
         ];
     }
 
-    protected function validateFormatRules(array $deckCards, array $cardsData, ?DeckCard $hero): array
+    protected function validateFormatRules(Deck $deck, array $deckCards, array $cardsData, ?DeckCard $hero): array
     {
         $errors = [];
         $groups = $this->groupByName($deckCards, $cardsData);

@@ -9,18 +9,20 @@ use App\Entity\DeckCard;
 /**
  * Generic tournament sealed format, driven entirely by altered-draft's currently
  * active sealed event (today: Set 6 / Roots of Corruption / EOLE prerelease
- * tournaments run on `altered-draft.vercel.app`/`limited.altered.re`):
+ * tournaments run on `altered-draft.altered.re`):
  * - Exactly 1 hero (base default — no format-specific override needed).
  * - Up to 3 factions.
  * - Minimum 29 cards, hero excluded (same "min/max excludes hero" convention as
  *   every other format's getMinCards()/getMaxCards() — see AbstractDeckFormatValidator::validateDeckSize()).
+ * - Banned/suspended cards are allowed: pool membership is the sole legality gate
+ *   (see below), so a card that's since been banned/suspended shouldn't block an
+ *   otherwise-legal sealed deck just because it's still sitting in the player's pool.
  * - Every card in the deck — hero included — must be in the player's own sealed pool
- *   (fetched from altered-draft and cached until the tournament event ends — see
- *   AlteredDraftSealedPoolClient). There's no special "any hero from set N is legal
- *   regardless of the player's pool" carve-out: altered-draft's pool endpoint
+ *   (see AlteredDraftSealedPoolClient). There's no special "any hero from set N is
+ *   legal regardless of the player's pool" carve-out: altered-draft's pool endpoint
  *   guarantees every hero of the tournament's set is present in the returned pool
- *   (its `heroesInPool: false` event config — see its ROADMAP.md "Set 6 preview"), so
- *   a hero is just another pool ref here, checked the exact same way as everything else.
+ *   (its `heroesInPool: false` event config), so a hero is just another pool ref
+ *   here, checked the exact same way as everything else.
  *
  * NO set restriction is hardcoded here (unlike every other format's VALID_SETS /
  * FORBIDDEN_SETS): pool membership is the sole and sufficient legality gate — a card
@@ -53,6 +55,16 @@ class SealedFormatValidator extends AbstractDeckFormatValidator
         return \PHP_INT_MAX;
     }
 
+    protected function allowBannedCards(): bool
+    {
+        return true;
+    }
+
+    protected function allowSuspendedCards(): bool
+    {
+        return true;
+    }
+
     // No set restriction — pool membership below is the sole legality gate (see class docblock).
     protected function validateAllowedSets(Deck $deck, array $cardsData): array
     {
@@ -83,22 +95,22 @@ class SealedFormatValidator extends AbstractDeckFormatValidator
         return [];
     }
 
-    protected function validateFormatRules(array $deckCards, array $cardsData, ?DeckCard $hero): array
+    protected function validateFormatRules(Deck $deck, array $deckCards, array $cardsData, ?DeckCard $hero): array
     {
-        return $this->validatePoolMembership($deckCards, $cardsData, $hero);
+        return $this->validatePoolMembership($deck, $deckCards, $cardsData, $hero);
     }
 
-    protected function computeFormatRulesDetail(array $deckCards, array $cardsData, ?DeckCard $hero): array
+    protected function computeFormatRulesDetail(Deck $deck, array $deckCards, array $cardsData, ?DeckCard $hero): array
     {
         return [
-            'pool' => [] === $this->validatePoolMembership($deckCards, $cardsData, $hero),
+            'pool' => [] === $this->validatePoolMembership($deck, $deckCards, $cardsData, $hero),
         ];
     }
 
     /** @param DeckCard[] $deckCards */
-    private function validatePoolMembership(array $deckCards, array $cardsData, ?DeckCard $hero): array
+    private function validatePoolMembership(Deck $deck, array $deckCards, array $cardsData, ?DeckCard $hero): array
     {
-        $pool = $this->poolClient->getPoolCounts();
+        $pool = $this->poolClient->getPoolCounts($deck);
         if (null === $pool) {
             return ['Could not verify your sealed pool (no active tournament, or altered-draft is unreachable) — deck cannot be validated right now.'];
         }
