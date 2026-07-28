@@ -44,40 +44,39 @@ class DeckStateProcessor implements ProcessorInterface
             $this->mergeDeckCards($data);
         }
 
-        if (!$data->getIsDraft()) {
-            $cardsData = $this->fetchCardsData($data);
-            $format = $data->getFormat()?->value;
+        $cardsData = $this->fetchCardsData($data);
+        $format = $data->getFormat()?->value;
 
-            if (null !== $cardsData) {
-                foreach ($data->getDeckCards() as $deckCard) {
-                    $cardInfo = $cardsData[$deckCard->getCardReference()] ?? null;
-                    if ($cardInfo) {
-                        $deckCard->setName($cardInfo['name'] ?? null);
-                    }
-                }
-
-                if ($format && $this->validatorFactory->supports($format)) {
-                    $validator = $this->validatorFactory->getValidator($format);
-                    $errors = $validator->validate($data, $cardsData);
-                    $detail = $validator->computeLegalityDetail($data, $cardsData);
-
-                    $data->setFormatErrors(empty($errors) ? null : $errors);
-                    $data->setLegalityDetail($detail);
-                    $data->setLegal($detail['global']);
-                } else {
-                    $data->setFormatErrors(null);
-                    $data->setLegalityDetail(null);
-                    $data->setLegal(false);
+        if (null !== $cardsData) {
+            foreach ($data->getDeckCards() as $deckCard) {
+                $cardInfo = $cardsData[$deckCard->getCardReference()] ?? null;
+                if ($cardInfo) {
+                    $deckCard->setName($cardInfo['name'] ?? null);
                 }
             }
+        }
 
-            $data->setStats($this->computeStats($data, $cardsData ?? []));
-        } else {
-            $data->setStats(null);
+        if ($data->getIsDraft()) {
             $data->setFormatErrors(null);
             $data->setLegalityDetail(null);
             $data->setLegal(false);
+        } elseif (null !== $cardsData) {
+            if ($format && $this->validatorFactory->supports($format)) {
+                $validator = $this->validatorFactory->getValidator($format);
+                $errors = $validator->validate($data, $cardsData);
+                $detail = $validator->computeLegalityDetail($data, $cardsData);
+
+                $data->setFormatErrors(empty($errors) ? null : $errors);
+                $data->setLegalityDetail($detail);
+                $data->setLegal($detail['global']);
+            } else {
+                $data->setFormatErrors(null);
+                $data->setLegalityDetail(null);
+                $data->setLegal(false);
+            }
         }
+
+        $data->setStats($this->computeStats($data, $cardsData ?? []));
 
         $this->em->persist($data);
         $this->em->flush();
@@ -117,9 +116,10 @@ class DeckStateProcessor implements ProcessorInterface
     }
 
     /**
-     * Computes deck stats from deckCards.
+     * Computes deck stats from deckCards. Runs for draft and non-draft decks alike, so the
+     * hero (and the faction derived from it downstream) is always available.
      * Rarity is parsed from the card reference (parts[5]: C, R1, R2, U).
-     * Hero is detected from cardsData when available (format validation ran), null otherwise.
+     * Hero is detected from cardsData when available, null otherwise (e.g. card fetch failed).
      *
      * @param array<string, array> $cardsData
      */
