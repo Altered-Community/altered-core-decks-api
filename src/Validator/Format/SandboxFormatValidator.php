@@ -37,7 +37,7 @@ class SandboxFormatValidator extends AbstractDeckFormatValidator
         return true;
     }
 
-    protected function validateFaction(array $deckCards, array $cardsData): array
+    protected function validateFaction(array $deckCards, array $cardsData, ?DeckCard $hero = null): array
     {
         return [];
     }
