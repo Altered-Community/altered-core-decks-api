@@ -4,25 +4,30 @@ namespace App\Controller;
 
 use App\Client\CardDataProviderFactory;
 use App\Entity\Deck;
+use App\Entity\DeckCard;
 use App\Entity\User;
+use App\Enum\DeckFormat;
 use App\Repository\DeckRepository;
 use App\Serializer\BgaDeckSerializer;
+use App\Validator\Format\DeckFormatValidatorFactory;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
 class BgaDeckController extends AbstractController
 {
-    private const BGA_VALID_FORMATS = ['standard', 'nuc', 'singleton_nuc', 'sandbox', 'test', 'frontier'];
+    private const BGA_VALID_FORMATS = ['standard', 'nuc', 'singleton_nuc', 'sandbox', 'test', 'frontier', 'sealed'];
 
     public function __construct(
         private readonly DeckRepository $deckRepository,
         private readonly Security $security,
         private readonly BgaDeckSerializer $bgaDeckSerializer,
         private readonly CardDataProviderFactory $cardDataProviderFactory,
+        private readonly DeckFormatValidatorFactory $validatorFactory,
     ) {
     }
 
@@ -45,6 +50,7 @@ class BgaDeckController extends AbstractController
             'SINGLETON_NUC' => 'singleton_nuc',
             'TEST' => 'test',
             'FRONTIER' => 'frontier',
+            'SEALED' => 'sealed',
             default => '',
         };
 
@@ -111,6 +117,22 @@ class BgaDeckController extends AbstractController
 
         if (!$deck) {
             throw new NotFoundHttpException();
+        }
+
+        // The actual enforcement moment for tournament sealed decks (see altered-draft's
+        // ROADMAP.md "Set 6 preview"): BGA fetches deck CONTENT here right before using
+        // it in a real game, so this is where an out-of-pool deck must be rejected
+        // outright — not just flagged.
+        if (DeckFormat::Sealed === $deck->getFormat()) {
+            $references = array_map(
+                fn (DeckCard $dc) => $dc->getCardReference(),
+                $deck->getDeckCards()->toArray()
+            );
+            $cardsData = $this->cardDataProviderFactory->getProvider()->getCardsByReferences($references);
+            $errors = $this->validatorFactory->getValidator('sealed')->validate($deck, $cardsData);
+            if (!empty($errors)) {
+                throw new UnprocessableEntityHttpException(implode(' ', $errors));
+            }
         }
 
         return $this->json($this->bgaDeckSerializer->normalizeItem($deck));

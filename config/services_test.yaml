@@ -24,3 +24,13 @@ services:
         arguments:
             $providers: !tagged_iterator app.card_data_provider
             $activeProvider: '%env(CARD_DATA_PROVIDER)%'
+
+    altered_draft.mock_http_client:
+        class: Symfony\Component\HttpClient\MockHttpClient
+        public: true
+
+    App\Client\AlteredDraftSealedPoolClient:
+        autowire: true
+        arguments:
+            $httpClient: '@altered_draft.mock_http_client'
+            $alteredDraftUrl: '%env(ALTERED_DRAFT_URL)%'

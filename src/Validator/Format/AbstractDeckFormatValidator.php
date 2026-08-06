@@ -39,7 +39,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
         $errors = array_merge($errors, $this->validateDeckSize($deckCards));
         $errors = array_merge($errors, $this->validateFaction($deckCards, $cardsData, $hero));
         $errors = array_merge($errors, $this->validateNoSuspendedOrBanned($deck, $cardsData));
-        $errors = array_merge($errors, $this->validateFormatRules($deckCards, $cardsData, $hero));
+        $errors = array_merge($errors, $this->validateFormatRules($deck, $deckCards, $cardsData, $hero));
 
         return $errors;
     }
@@ -47,7 +47,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
     /**
      * Format-specific rules (rarity limits, unique limits, etc.).
      */
-    abstract protected function validateFormatRules(array $deckCards, array $cardsData, ?DeckCard $hero): array;
+    abstract protected function validateFormatRules(Deck $deck, array $deckCards, array $cardsData, ?DeckCard $hero): array;
 
     abstract protected function getMinCards(): int;
 
@@ -59,7 +59,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
      *
      * @return array<string, bool>
      */
-    abstract protected function computeFormatRulesDetail(array $deckCards, array $cardsData, ?DeckCard $hero): array;
+    abstract protected function computeFormatRulesDetail(Deck $deck, array $deckCards, array $cardsData, ?DeckCard $hero): array;
 
     public function validateSets(Deck $deck): array
     {
@@ -86,7 +86,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
             'suspendedCards' => $this->allowSuspendedCards() || [] === $this->validateNoSuspended($deck, $cardsData),
         ];
 
-        $detail = array_merge($detail, $this->computeFormatRulesDetail($deckCards, $cardsData, $hero));
+        $detail = array_merge($detail, $this->computeFormatRulesDetail($deck, $deckCards, $cardsData, $hero));
 
         $detail['global'] = !in_array(false, $detail, true);
 
