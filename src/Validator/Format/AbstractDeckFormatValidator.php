@@ -37,7 +37,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
         $errors = array_merge($errors, $this->validateAllowedSets($deck, $cardsData));
         $errors = array_merge($errors, $this->validateHero($hero));
         $errors = array_merge($errors, $this->validateDeckSize($deckCards));
-        $errors = array_merge($errors, $this->validateFaction($deckCards, $cardsData));
+        $errors = array_merge($errors, $this->validateFaction($deckCards, $cardsData, $hero));
         $errors = array_merge($errors, $this->validateNoSuspendedOrBanned($deck, $cardsData));
         $errors = array_merge($errors, $this->validateFormatRules($deckCards, $cardsData, $hero));
 
@@ -80,7 +80,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
         $detail = [
             'hero' => [] === $this->validateHero($hero),
             'deckSize' => [] === $this->validateDeckSize($deckCards),
-            'faction' => [] === $this->validateFaction($deckCards, $cardsData),
+            'faction' => [] === $this->validateFaction($deckCards, $cardsData, $hero),
             'sets' => [] === $this->validateAllowedSets($deck, $cardsData),
             'bannedCards' => $this->allowBannedCards() || [] === $this->validateNoBanned($deck, $cardsData),
             'suspendedCards' => $this->allowSuspendedCards() || [] === $this->validateNoSuspended($deck, $cardsData),
@@ -209,7 +209,7 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
     }
 
     /** @param DeckCard[] $deckCards */
-    protected function validateFaction(array $deckCards, array $cardsData): array
+    protected function validateFaction(array $deckCards, array $cardsData, ?DeckCard $hero = null): array
     {
         $factions = [];
         foreach ($deckCards as $deckCard) {
@@ -217,6 +217,14 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
             $code = $data['faction']['code'] ?? null;
             if ($code && 'NE' !== $code) {
                 $factions[$code] = true;
+            }
+        }
+
+        if ($hero) {
+            $heroData = $cardsData[$hero->getCardReference()] ?? [];
+            $heroCode = $heroData['faction']['code'] ?? null;
+            if ($heroCode && 'NE' !== $heroCode) {
+                $factions[$heroCode] = true;
             }
         }
 

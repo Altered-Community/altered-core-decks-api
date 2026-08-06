@@ -161,6 +161,18 @@ class StandardFormatValidatorTest extends TestCase
         self::assertNotEmpty(array_filter($errors, fn ($e) => str_contains($e, 'multiple factions')));
     }
 
+    public function testHeroFactionDifferentFromDeckReturnsError(): void
+    {
+        // Body is uniformly AX, but hero is BR.
+        [$cardsData, $deckCards] = $this->buildMinimalValidDeck('AX');
+        $heroRef = 'ALT_CORE_B_AX_0_C';
+        $cardsData[$heroRef] = $this->data($heroRef, 'HERO_MAIN', 'BR');
+
+        $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
+
+        self::assertNotEmpty(array_filter($errors, fn ($e) => str_contains($e, 'multiple factions')));
+    }
+
     // ── Sets ──────────────────────────────────────────────────────────────────
 
     public function testForbiddenSetFugueReturnsError(): void
