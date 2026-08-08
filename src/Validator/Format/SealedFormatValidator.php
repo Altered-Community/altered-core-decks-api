@@ -72,7 +72,7 @@ class SealedFormatValidator extends AbstractDeckFormatValidator
     }
 
     // Base allows only 1 faction; this format allows up to 3.
-    protected function validateFaction(array $deckCards, array $cardsData): array
+    protected function validateFaction(array $deckCards, array $cardsData, ?DeckCard $hero = null): array
     {
         $factions = [];
         foreach ($deckCards as $deckCard) {
@@ -80,6 +80,14 @@ class SealedFormatValidator extends AbstractDeckFormatValidator
             $code = $data['faction']['code'] ?? null;
             if ($code && 'NE' !== $code) {
                 $factions[$code] = true;
+            }
+        }
+
+        if ($hero) {
+            $heroData = $cardsData[$hero->getCardReference()] ?? [];
+            $heroCode = $heroData['faction']['code'] ?? null;
+            if ($heroCode && 'NE' !== $heroCode) {
+                $factions[$heroCode] = true;
             }
         }
 
