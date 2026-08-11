@@ -263,6 +263,38 @@ class DeckTest extends WebTestCase
         $this->assertResponseStatusCodeSame(422);
     }
 
+    public function testChangingFormatAwayFromSealedReturns422(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $deck = $this->post($sub, ['name' => 'Sealed Deck', 'isDraft' => true, 'format' => 'sealed']);
+        $this->assertResponseStatusCodeSame(201);
+
+        $this->patch($sub, $deck['id'], ['format' => 'standard']);
+        $this->assertResponseStatusCodeSame(422);
+    }
+
+    public function testPatchingSealedDeckWithoutChangingFormatSucceeds(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $deck = $this->post($sub, ['name' => 'Sealed Deck', 'isDraft' => true, 'format' => 'sealed']);
+        $this->assertResponseStatusCodeSame(201);
+
+        $updated = $this->patch($sub, $deck['id'], ['name' => 'Renamed Sealed Deck']);
+        $this->assertResponseIsSuccessful();
+        $this->assertSame('Renamed Sealed Deck', $updated['name']);
+        $this->assertSame('sealed', $updated['format']);
+    }
+
+    public function testChangingFormatToSealedReturns422(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $deck = $this->post($sub, ['name' => 'Standard Deck', 'isDraft' => true, 'format' => 'standard']);
+        $this->assertResponseStatusCodeSame(201);
+
+        $this->patch($sub, $deck['id'], ['format' => 'sealed']);
+        $this->assertResponseStatusCodeSame(422);
+    }
+
     /**
      * A non-draft deck with a format saves even when format rules are broken.
      * Errors go to formatErrors, not a 422.
