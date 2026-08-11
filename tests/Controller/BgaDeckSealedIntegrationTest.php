@@ -98,11 +98,18 @@ class BgaDeckSealedIntegrationTest extends WebTestCase
             static fn (array $row) => [
                 'reference' => $row[0],
                 'cardType' => ['reference' => $row[2]],
+                'cardSubTypes' => [],
                 'faction' => ['code' => $row[3]],
                 'rarity' => ['reference' => $row[4]],
                 'name' => $row[0],
                 'isBanned' => false,
                 'isSuspended' => false,
+                'artists' => [],
+                'mainCost' => 1,
+                'recallCost' => 1,
+                'forestPower' => 1,
+                'mountainPower' => 1,
+                'oceanPower' => 1,
             ],
             self::ROWS,
         );
