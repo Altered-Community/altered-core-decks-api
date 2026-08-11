@@ -8,7 +8,6 @@ use App\Client\CardDataProviderFactory;
 use App\Entity\Deck;
 use App\Entity\DeckCard;
 use App\Entity\User;
-use App\Enum\DeckFormat;
 use App\Validator\Format\DeckFormatValidatorFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -42,7 +41,6 @@ class DeckStateProcessor implements ProcessorInterface
             $data->setUser($user);
         } else {
             $data->setUpdatedAt(new \DateTimeImmutable());
-            $this->assertSealedFormatIsImmutable($data);
             $this->mergeDeckCards($data);
         }
 
@@ -185,24 +183,6 @@ class DeckStateProcessor implements ProcessorInterface
             'E', 'EXALT' => 'E',
             default => 'C',
         };
-    }
-
-    /**
-     * Sealed is permanent in both directions: altered-draft's pool-membership check keys
-     * off this deck being sealed for as long as it lives, so switching it away would
-     * silently dodge that check instead of ever failing it. Switching a deck INTO sealed
-     * after the fact is blocked too — sealed decks are only ever created as sealed (by
-     * altered-draft's own sync flow), so a later switch would masquerade as one without
-     * ever having gone through pool binding.
-     */
-    private function assertSealedFormatIsImmutable(Deck $deck): void
-    {
-        $originalFormat = $this->em->getUnitOfWork()->getOriginalEntityData($deck)['format'] ?? null;
-        $newFormat = $deck->getFormat();
-
-        if ($originalFormat !== $newFormat && (DeckFormat::Sealed === $originalFormat || DeckFormat::Sealed === $newFormat)) {
-            throw new UnprocessableEntityHttpException('Cannot change the format of a sealed deck.');
-        }
     }
 
     private function mergeDeckCards(Deck $deck): void
