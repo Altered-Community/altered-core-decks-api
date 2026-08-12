@@ -188,7 +188,7 @@ class StandardFormatValidatorTest extends TestCase
         self::assertNotEmpty(array_filter($errors, fn ($e) => str_contains($e, 'FUGUE') && str_contains($e, 'forbidden')));
     }
 
-    public function testForbiddenSetEoleReturnsError(): void
+    public function testEoleSetIsAllowed(): void
     {
         [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
 
@@ -198,7 +198,7 @@ class StandardFormatValidatorTest extends TestCase
 
         $errors = $this->validator->validate($this->deck(...$deckCards), $cardsData);
 
-        self::assertNotEmpty(array_filter($errors, fn ($e) => str_contains($e, 'EOLE') && str_contains($e, 'forbidden')));
+        self::assertEmpty(array_filter($errors, fn ($e) => str_contains($e, 'EOLE')));
     }
 
     public function testUnknownSetReturnsError(): void
