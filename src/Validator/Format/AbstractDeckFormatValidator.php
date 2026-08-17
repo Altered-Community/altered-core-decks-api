@@ -24,9 +24,10 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
         'JUDGE',
         'WCF25',
         'MUSUBI',
+        'EOLE',
     ];
 
-    public const FORBIDDEN_SETS = ['FUGUE', 'EOLE'];
+    public const FORBIDDEN_SETS = ['FUGUE'];
 
     public function validate(Deck $deck, array $cardsData): array
     {

@@ -4,11 +4,11 @@ namespace App\Validator\Format;
 
 /**
  * Test format rules:
- * Same as Sandbox but without set restrictions on sets 6 and 7 (FUGUE, EOLE):
+ * Same as Sandbox but without the set 7 (FUGUE) restriction:
  * - 4 to 100 cards (excluding hero) + 1 hero
  * - No faction restriction
  * - Suspended and banned cards allowed
- * - Forbidden sets (FUGUE, EOLE) are allowed
+ * - Forbidden set (FUGUE) is allowed
  */
 final class TestFormatValidator extends SandboxFormatValidator
 {
