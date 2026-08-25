@@ -97,18 +97,19 @@ class DeckRepository extends ServiceEntityRepository
         return $query->getResult();
     }
 
-    public function findPublic(int $page, int $itemsPerPage, ?string $hero = null, ?string $cardName = null, string $orderBy = 'created_at', ?string $faction = null, ?string $name = null, ?string $format = null, ?string $cardRef = null): array
+    public function findPublic(int $page, int $itemsPerPage, ?string $hero = null, ?string $cardName = null, string $orderBy = 'created_at', ?string $faction = null, ?string $name = null, ?string $format = null, ?string $cardRef = null, string $orderDir = 'DESC'): array
     {
         [$join, $where, $params] = $this->buildPublicFilters($hero, $cardName, $faction, $name, $format, $cardRef);
 
-        $allowedOrderBy = ['created_at', 'upvote_count', 'view_count'];
+        $allowedOrderBy = ['created_at', 'updated_at', 'name', 'upvote_count', 'view_count'];
         $col = in_array($orderBy, $allowedOrderBy, true) ? $orderBy : 'created_at';
+        $dir = 'ASC' === strtoupper($orderDir) ? 'ASC' : 'DESC';
 
         $params['limit'] = $itemsPerPage;
         $params['offset'] = ($page - 1) * $itemsPerPage;
 
         return $this->fetchDecks(
-            "{$join} WHERE {$where} ORDER BY d.{$col} DESC LIMIT :limit OFFSET :offset",
+            "{$join} WHERE {$where} ORDER BY d.{$col} {$dir} LIMIT :limit OFFSET :offset",
             $params,
         );
     }
