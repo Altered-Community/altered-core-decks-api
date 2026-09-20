@@ -25,6 +25,8 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
         'WCF25',
         'MUSUBI',
         'EOLE',
+        'EOLETOP',
+        'EOLEOP',
     ];
 
     public const FORBIDDEN_SETS = ['FUGUE'];
