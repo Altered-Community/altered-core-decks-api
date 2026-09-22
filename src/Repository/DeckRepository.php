@@ -87,9 +87,10 @@ class DeckRepository extends ServiceEntityRepository
         $rsm->addRootEntityFromClassMetadata(Deck::class, 'd');
 
         $query = $this->getEntityManager()->createNativeQuery(
-            "SELECT {$rsm->generateSelectClause(['d' => 'd'])} FROM deck d {$sqlTail}",
+            "SELECT DISTINCT {$rsm->generateSelectClause(['d' => 'd'])} FROM deck d {$sqlTail}",
             $rsm,
         );
+
         foreach ($params as $key => $value) {
             $query->setParameter($key, $value);
         }
