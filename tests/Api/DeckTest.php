@@ -509,15 +509,26 @@ class DeckTest extends WebTestCase
         $this->assertFalse($found[0]['hasUpvoted']);
     }
 
-    public function testPublicDecksSortByParam(): void
+    public function testPublicDecksOrderParam(): void
     {
         $sub = 'user-'.__FUNCTION__;
         $deck = $this->post($sub, ['name' => 'Deck '.__FUNCTION__, 'isDraft' => false]);
         $this->assertResponseStatusCodeSame(201);
         $this->patch($sub, $deck['id'], ['isPublic' => true]);
 
-        foreach (['recent', 'upvotes', 'views'] as $sortBy) {
-            $data = $this->getPublic(['sortBy' => $sortBy]);
+        foreach (['name', 'createdAt', 'updatedAt', 'upvoteCount', 'viewCount'] as $field) {
+            foreach (['asc', 'desc'] as $dir) {
+                $data = $this->getPublic(['order' => [$field => $dir]]);
+                $this->assertResponseIsSuccessful();
+                $this->assertArrayHasKey('member', $data);
+            }
+        }
+    }
+
+    public function testPublicDecksMalformedOrderParamFallsBackToDefault(): void
+    {
+        foreach (['asc', ['name' => ['asc']], ['unknown' => 'asc']] as $order) {
+            $data = $this->getPublic(['order' => $order]);
             $this->assertResponseIsSuccessful();
             $this->assertArrayHasKey('member', $data);
         }

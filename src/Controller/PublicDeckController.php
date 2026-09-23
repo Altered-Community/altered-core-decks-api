@@ -40,13 +40,30 @@ class PublicDeckController extends AbstractController
         $faction = $request->query->get('faction') ?: null;
         $format = $request->query->get('format') ?: null;
 
-        $orderBy = match ($request->query->get('sortBy', 'recent')) {
-            'upvotes' => 'upvote_count',
-            'views' => 'view_count',
-            default => 'created_at',
-        };
+        // API Platform-style `order[field]=asc|desc`, matching the authenticated /api/decks
+        // resource's OrderFilter. No `order` given -> most recently created first.
+        $orderFieldMap = [
+            'name' => 'name',
+            'createdAt' => 'created_at',
+            'updatedAt' => 'updated_at',
+            'upvoteCount' => 'upvote_count',
+            'viewCount' => 'view_count',
+        ];
+        // Read raw: `->all('order')` throws a 400 when `order` is a scalar (e.g. `?order=asc`).
+        $order = $request->query->all()['order'] ?? null;
+        $orderBy = 'created_at';
+        $orderDir = 'DESC';
 
-        $decks = $this->deckRepository->findPublic($page, $itemsPerPage, $hero, $cardName, $orderBy, $faction, $name, $format, $cardRef);
+        if (is_array($order) && [] !== $order) {
+            $field = array_key_first($order);
+            $dir = $order[$field];
+            if (isset($orderFieldMap[$field]) && is_string($dir)) {
+                $orderBy = $orderFieldMap[$field];
+                $orderDir = 'asc' === strtolower($dir) ? 'ASC' : 'DESC';
+            }
+        }
+
+        $decks = $this->deckRepository->findPublic($page, $itemsPerPage, $hero, $cardName, $orderBy, $faction, $name, $format, $cardRef, $orderDir);
         $total = $this->deckRepository->countPublic($hero, $cardName, $faction, $name, $format, $cardRef);
 
         /** @var array<int, array<string, mixed>> $data */
