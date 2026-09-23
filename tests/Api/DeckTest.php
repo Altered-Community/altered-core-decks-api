@@ -525,6 +525,15 @@ class DeckTest extends WebTestCase
         }
     }
 
+    public function testPublicDecksMalformedOrderParamFallsBackToDefault(): void
+    {
+        foreach (['asc', ['name' => ['asc']], ['unknown' => 'asc']] as $order) {
+            $data = $this->getPublic(['order' => $order]);
+            $this->assertResponseIsSuccessful();
+            $this->assertArrayHasKey('member', $data);
+        }
+    }
+
     // ── Card name search ──────────────────────────────────────────────────────
 
     public function testCardNamePopulatedFromAlteredCore(): void

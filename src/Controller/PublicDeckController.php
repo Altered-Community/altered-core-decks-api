@@ -49,14 +49,18 @@ class PublicDeckController extends AbstractController
             'upvoteCount' => 'upvote_count',
             'viewCount' => 'view_count',
         ];
-        $order = $request->query->all('order');
+        // Read raw: `->all('order')` throws a 400 when `order` is a scalar (e.g. `?order=asc`).
+        $order = $request->query->all()['order'] ?? null;
         $orderBy = 'created_at';
         $orderDir = 'DESC';
 
-        if ([] !== $order) {
+        if (is_array($order) && [] !== $order) {
             $field = array_key_first($order);
-            $orderBy = $orderFieldMap[$field] ?? 'created_at';
-            $orderDir = 'asc' === strtolower((string) $order[$field]) ? 'ASC' : 'DESC';
+            $dir = $order[$field];
+            if (isset($orderFieldMap[$field]) && is_string($dir)) {
+                $orderBy = $orderFieldMap[$field];
+                $orderDir = 'asc' === strtolower($dir) ? 'ASC' : 'DESC';
+            }
         }
 
         $decks = $this->deckRepository->findPublic($page, $itemsPerPage, $hero, $cardName, $orderBy, $faction, $name, $format, $cardRef, $orderDir);
