@@ -2,7 +2,7 @@
 
 namespace App\Tests\Controller;
 
-use Firebase\JWT\JWT;
+use App\Tests\Support\ApiTestTrait;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -26,8 +26,9 @@ use Symfony\Component\HttpClient\Response\MockResponse;
  */
 class BgaDeckSealedIntegrationTest extends WebTestCase
 {
+    use ApiTestTrait;
+
     private KernelBrowser $client;
-    private MockHttpClient $alteredCoreMock;
     private MockHttpClient $alteredDraftMock;
 
     /** [reference, quantity, cardType, real faction.code, rarity] */
@@ -66,28 +67,7 @@ class BgaDeckSealedIntegrationTest extends WebTestCase
     {
         $this->client = static::createClient();
         $this->client->disableReboot();
-        $this->alteredCoreMock = static::getContainer()->get('altered_core.mock_http_client');
         $this->alteredDraftMock = static::getContainer()->get('altered_draft.mock_http_client');
-    }
-
-    private function makeToken(string $sub): string
-    {
-        return JWT::encode([
-            'sub' => $sub,
-            'preferred_username' => 'testuser',
-            'email' => 'test@test.com',
-            'iss' => 'dev',
-            'iat' => time(),
-            'exp' => time() + 3600,
-        ], '$ecretf0rt3st_extended_for_hs256_tests', 'HS256');
-    }
-
-    private function authHeaders(string $sub): array
-    {
-        return [
-            'HTTP_AUTHORIZATION' => 'Bearer '.$this->makeToken($sub),
-            'CONTENT_TYPE' => 'application/json',
-        ];
     }
 
     private function mockCardBatch(): void
@@ -113,11 +93,7 @@ class BgaDeckSealedIntegrationTest extends WebTestCase
             ],
             self::ROWS,
         );
-        $json = json_encode($cards);
-
-        $this->alteredCoreMock->setResponseFactory(
-            static fn (): MockResponse => new MockResponse($json, ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
-        );
+        self::mockAlteredCoreResponse(json_encode($cards));
     }
 
     private function createSealedDeck(string $sub): array
@@ -132,7 +108,7 @@ class BgaDeckSealedIntegrationTest extends WebTestCase
             '/api/decks',
             [],
             [],
-            $this->authHeaders($sub),
+            self::authHeaders($sub),
             json_encode([
                 'name' => 'User Sealed Deck',
                 'isDraft' => false,
@@ -168,7 +144,7 @@ class BgaDeckSealedIntegrationTest extends WebTestCase
             static fn (): MockResponse => new MockResponse('', ['http_code' => 404])
         );
 
-        $this->client->request('GET', '/api/bga/decks/'.$deck['id'], [], [], $this->authHeaders('bga-'.__FUNCTION__));
+        $this->client->request('GET', '/api/bga/decks/'.$deck['id'], [], [], self::authHeaders('bga-'.__FUNCTION__));
 
         $this->assertResponseStatusCodeSame(422);
         self::assertStringContainsString('Could not verify your sealed pool', $this->client->getResponse()->getContent());
@@ -189,13 +165,10 @@ class BgaDeckSealedIntegrationTest extends WebTestCase
             $pool[$ref] = $qty;
         }
         $this->alteredDraftMock->setResponseFactory(
-            static fn (): MockResponse => new MockResponse(
-                json_encode(['cards' => $pool]),
-                ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']],
-            )
+            static fn (): MockResponse => self::jsonResponse(json_encode(['cards' => $pool]))
         );
 
-        $this->client->request('GET', '/api/bga/decks/'.$deck['id'], [], [], $this->authHeaders('bga-'.__FUNCTION__));
+        $this->client->request('GET', '/api/bga/decks/'.$deck['id'], [], [], self::authHeaders('bga-'.__FUNCTION__));
 
         $this->assertResponseIsSuccessful();
     }
@@ -215,13 +188,10 @@ class BgaDeckSealedIntegrationTest extends WebTestCase
         }
         unset($pool['ALT_EOLE_B_LY_117_E']);
         $this->alteredDraftMock->setResponseFactory(
-            static fn (): MockResponse => new MockResponse(
-                json_encode(['cards' => $pool]),
-                ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']],
-            )
+            static fn (): MockResponse => self::jsonResponse(json_encode(['cards' => $pool]))
         );
 
-        $this->client->request('GET', '/api/bga/decks/'.$deck['id'], [], [], $this->authHeaders('bga-'.__FUNCTION__));
+        $this->client->request('GET', '/api/bga/decks/'.$deck['id'], [], [], self::authHeaders('bga-'.__FUNCTION__));
 
         $this->assertResponseStatusCodeSame(422);
         self::assertStringContainsString('not in your sealed pool', $this->client->getResponse()->getContent());

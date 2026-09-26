@@ -2,7 +2,7 @@
 
 namespace App\Tests\Security;
 
-use Firebase\JWT\JWT;
+use App\Tests\Support\ApiTestTrait;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -15,7 +15,7 @@ use Symfony\Component\HttpClient\Response\MockResponse;
  */
 class InvalidTokenTest extends WebTestCase
 {
-    private const SECRET = '$ecretf0rt3st_extended_for_hs256_tests';
+    use ApiTestTrait;
 
     /** Public RSA key set served as Keycloak's JWKS, so non-dev tokens go through real signature checks. */
     private const JWKS = '{"keys":[{"kty":"RSA","kid":"test","use":"sig","alg":"RS256","n":"0wDIF_uzYxlRmF-mp3mDnCUqAwoA8rhyJ4Z02b7Wg6WGC4mDpGjSEUD6uFQhHYCkc6IJKf4aX-UmrbVyeIZJBdTR1whnaxzX6xpwhvlj7veM0xuaSvpFX38NLaTF05WoGE83YJBVcln1QyFNqgD1Hzks86jKo7v2J2MmVWPKelHNg7nvYslk2xrHII6rV5u3EKtAB-OyXoVejMd1OodCVGNZEOFW1P_hsUAcO5Pt0SNruDF0imD0i2zBK-NTG6XeIXCQE6uO1_RX5WAKKphUq6KKTG--yg0dMpdRClsviFZAfKU_H2oqT-Ia8d5FgPIUDpS0megvorsKzpsJc9WyhQ","e":"AQAB"}]}';
@@ -26,33 +26,14 @@ class InvalidTokenTest extends WebTestCase
     {
         $this->client = static::createClient();
         $this->client->disableReboot();
-        $json = static fn (string $body): MockResponse => new MockResponse($body, ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']]);
-
-        /** @var MockHttpClient $alteredCoreMock */
-        $alteredCoreMock = static::getContainer()->get('altered_core.mock_http_client');
-        $alteredCoreMock->setResponseFactory(static fn (): MockResponse => $json('[]'));
+        self::mockAlteredCoreResponse();
 
         /** @var MockHttpClient $keycloakMock */
         $keycloakMock = static::getContainer()->get('keycloak.mock_http_client');
-        $keycloakMock->setResponseFactory(static fn (): MockResponse => $json(self::JWKS));
+        $keycloakMock->setResponseFactory(static fn (): MockResponse => self::jsonResponse(self::JWKS));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
-
-    /**
-     * @param array<string, mixed> $overrides
-     */
-    private static function bearer(string $sub, array $overrides = [], string $secret = self::SECRET): string
-    {
-        return 'Bearer '.JWT::encode(array_merge([
-            'sub' => $sub,
-            'preferred_username' => 'testuser',
-            'email' => 'test@example.com',
-            'iss' => 'dev',
-            'iat' => time(),
-            'exp' => time() + 3600,
-        ], $overrides), $secret, 'HS256');
-    }
 
     private static function expiredBearer(string $sub): string
     {
