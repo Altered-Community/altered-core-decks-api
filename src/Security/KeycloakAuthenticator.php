@@ -7,11 +7,14 @@ use App\Repository\UserRepository;
 use App\Service\KeycloakJwtDecoder;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+use Symfony\Component\Security\Core\Authorization\Voter\AuthenticatedVoter;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
+use Symfony\Component\Security\Http\AccessMapInterface;
 use Symfony\Component\Security\Http\Authenticator\AbstractAuthenticator;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
@@ -24,6 +27,8 @@ class KeycloakAuthenticator extends AbstractAuthenticator
         private readonly EntityManagerInterface $em,
         private readonly KeycloakJwtDecoder $jwtDecoder,
         private readonly LoggerInterface $auditLogger,
+        #[Autowire(service: 'security.access_map')]
+        private readonly AccessMapInterface $accessMap,
     ) {
     }
 
@@ -60,15 +65,35 @@ class KeycloakAuthenticator extends AbstractAuthenticator
         return null;
     }
 
-    public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
+    /**
+     * On a PUBLIC_ACCESS route (per access_control), an invalid token (expired, bad
+     * signature, malformed, missing sub) is dropped and the request continues as
+     * anonymous: returning null leaves the token storage empty. Every other route
+     * still answers 401.
+     */
+    public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
     {
+        $isPublicRoute = $this->isPublicRoute($request);
+
         $this->auditLogger->warning('auth.failure', [
             'ip' => $request->getClientIp(),
             'path' => $request->getPathInfo(),
             'reason' => $exception->getMessageKey(),
+            'continued_as_anonymous' => $isPublicRoute,
         ]);
 
+        if ($isPublicRoute) {
+            return null;
+        }
+
         return new JsonResponse(['error' => $exception->getMessageKey()], Response::HTTP_UNAUTHORIZED);
+    }
+
+    private function isPublicRoute(Request $request): bool
+    {
+        [$attributes] = $this->accessMap->getPatterns($request);
+
+        return [AuthenticatedVoter::PUBLIC_ACCESS] === $attributes;
     }
 
     private function findOrCreateUser(string $keycloakId, object $decoded): User
