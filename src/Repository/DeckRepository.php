@@ -76,18 +76,27 @@ class DeckRepository extends ServiceEntityRepository
     /**
      * Runs a native SELECT over the deck table, hydrated into Deck entities.
      * $sqlTail is everything after "SELECT <cols> FROM deck d " — joins, WHERE, ORDER, LIMIT.
+     * $withAuthor also hydrates Deck::$user in the same query, for listings that serialize the author.
      *
      * @param array<string, mixed> $params
      *
      * @return Deck[]
      */
-    private function fetchDecks(string $sqlTail, array $params): array
+    private function fetchDecks(string $sqlTail, array $params, bool $withAuthor = false): array
     {
-        $rsm = new ResultSetMappingBuilder($this->getEntityManager());
+        $rsm = new ResultSetMappingBuilder($this->getEntityManager(), ResultSetMappingBuilder::COLUMN_RENAMING_INCREMENT);
         $rsm->addRootEntityFromClassMetadata(Deck::class, 'd');
+        $aliases = ['d' => 'd'];
+        $join = '';
+
+        if ($withAuthor) {
+            $rsm->addJoinedEntityFromClassMetadata(User::class, 'author', 'd', 'user');
+            $aliases['author'] = 'author';
+            $join = 'JOIN "user" author ON author.id = d.user_id ';
+        }
 
         $query = $this->getEntityManager()->createNativeQuery(
-            "SELECT {$rsm->generateSelectClause(['d' => 'd'])} FROM deck d {$sqlTail}",
+            "SELECT {$rsm->generateSelectClause($aliases)} FROM deck d {$join}{$sqlTail}",
             $rsm,
         );
 
@@ -112,6 +121,7 @@ class DeckRepository extends ServiceEntityRepository
         return $this->fetchDecks(
             "WHERE {$where} ORDER BY d.{$col} {$dir} LIMIT :limit OFFSET :offset",
             $params,
+            withAuthor: true,
         );
     }
 

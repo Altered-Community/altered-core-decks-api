@@ -2,7 +2,10 @@
 
 namespace App\Tests\Api;
 
+use App\Entity\Deck;
+use App\Repository\DeckRepository;
 use Doctrine\DBAL\Schema\Schema;
+use Doctrine\ORM\EntityManagerInterface;
 use DoctrineMigrations\Version20260926000000;
 use Firebase\JWT\JWT;
 use Psr\Log\NullLogger;
@@ -208,6 +211,23 @@ class DeckAuthorTest extends WebTestCase
         foreach ([$this->fetchFromPublicList($id), $this->fetchDetail($id)] as [$deck, $body]) {
             $this->assertNoUsername($deck['user']);
             $this->assertNoEmail($body);
+        }
+    }
+
+    public function testPublicListLoadsAuthorsInTheSameQuery(): void
+    {
+        $first = $this->createPublicDeck('author-'.__FUNCTION__.'-1', ['pseudo' => 'PremierAuteur']);
+        $second = $this->createPublicDeck('author-'.__FUNCTION__.'-2', ['pseudo' => 'SecondAuteur']);
+
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $em->clear();
+        $decks = static::getContainer()->get(DeckRepository::class)->findPublic(1, 1000);
+
+        $mine = array_filter($decks, fn (Deck $d) => in_array((string) $d->getId(), [$first, $second], true));
+        self::assertCount(2, $mine);
+        foreach ($decks as $deck) {
+            // A lazy author would cost one query per deck when the list is serialized.
+            self::assertFalse($em->isUninitializedObject($deck->getUser()), 'Authors must be hydrated with the decks');
         }
     }
 
