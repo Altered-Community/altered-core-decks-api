@@ -6,7 +6,7 @@ use App\Entity\Deck;
 use App\Repository\DeckRepository;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\ORM\EntityManagerInterface;
-use DoctrineMigrations\Version20260926000000;
+use DoctrineMigrations\Version20260926105848;
 use Firebase\JWT\JWT;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -26,7 +26,7 @@ class DeckAuthorTest extends WebTestCase
         $this->client = static::createClient();
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────
 
     /**
      * @param array<string, string> $claims
@@ -112,7 +112,7 @@ class DeckAuthorTest extends WebTestCase
         self::assertNull($user['username'] ?? null);
     }
 
-    // ── Pseudo is exposed ─────────────────────────────────────────────────────
+    // ── Pseudo is exposed ────────────────────────────────────────────────
 
     public function testPublicListExposesAuthorPseudo(): void
     {
@@ -142,7 +142,7 @@ class DeckAuthorTest extends WebTestCase
         $this->assertNoEmail($body);
     }
 
-    // ── Email is never exposed ────────────────────────────────────────────────
+    // ── Email is never exposed ───────────────────────────────────────────
 
     public function testNoEmailWhenPseudoMissingAndPreferredUsernameIsEmail(): void
     {
@@ -201,8 +201,8 @@ class DeckAuthorTest extends WebTestCase
             ['username' => 'legacy@example.com', 'sub' => $sub],
         );
 
-        require_once dirname(__DIR__, 2).'/migrations/Version20260926000000.php';
-        $migration = new Version20260926000000($connection, new NullLogger());
+        require_once dirname(__DIR__, 2).'/migrations/Version20260926105848.php';
+        $migration = new Version20260926105848($connection, new NullLogger());
         $migration->up(new Schema());
         foreach ($migration->getSql() as $query) {
             $connection->executeStatement($query->getStatement());
@@ -231,7 +231,7 @@ class DeckAuthorTest extends WebTestCase
         }
     }
 
-    // ── OpenAPI ───────────────────────────────────────────────────────────────
+    // ── OpenAPI ───────────────────────────────────────────────────────
 
     public function testOpenApiDeckAuthorSchemaExposesOnlyUsername(): void
     {
