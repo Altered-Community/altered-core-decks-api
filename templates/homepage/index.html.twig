@@ -97,16 +97,23 @@
                 Returns a paginated list of decks. Results are scoped to the authenticated user. Supports filtering by
                 <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">format</code> and
                 <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">isPublic</code>,
-                and ordering by <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">createdAt</code>,
-                <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">updatedAt</code>,
-                <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">name</code>.
+                and ordering with <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">order[lastModifiedAt]=asc|desc</code>
+                (ties broken by <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">id</code>). Without it, decks come most recently edited first
+                (<code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">updatedAt</code> desc, never-edited decks first).
+            </p>
+            <p class="text-gray-400 mb-4">
+                Every deck carries <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">lastModifiedAt</code>: the date of the last edit, or
+                <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">createdAt</code> if the deck was never edited. It is never null, unlike
+                <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">updatedAt</code> (null until the first edit). Upvotes and views change neither.
+                The public listing <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">GET /api/decks/public</code> accepts the same
+                <code class="text-violet-300 bg-gray-800 px-1.5 py-0.5 rounded text-sm">order[lastModifiedAt]=asc|desc</code>.
             </p>
 
             <!-- Filter examples -->
             <div class="mb-6 bg-gray-900 border border-gray-800 rounded-xl p-5">
                 <div class="text-xs text-gray-500 mb-3 uppercase tracking-wider">Filter &amp; sort examples</div>
                 <div class="flex flex-wrap gap-2">
-                    {% for param in ['format=standard', 'format=nuc', 'isPublic=true', 'isDraft=true', 'order[createdAt]=desc', 'order[name]=asc', 'itemsPerPage=50'] %}
+                    {% for param in ['format=standard', 'format=nuc', 'isPublic=true', 'isDraft=true', 'order[lastModifiedAt]=desc', 'order[lastModifiedAt]=asc', 'itemsPerPage=50'] %}
                     <span class="font-mono text-xs bg-gray-800 text-gray-300 px-2.5 py-1 rounded border border-gray-700">?{{ param }}</span>
                     {% endfor %}
                 </div>
@@ -122,7 +129,7 @@
                 </div>
                 <pre class="bg-gray-900 p-5 text-sm text-gray-300 overflow-x-auto font-mono leading-relaxed"><span class="text-violet-400">curl</span> <span class="text-green-400">-H</span> <span class="text-yellow-300">"Authorization: Bearer &lt;token&gt;"</span> \
   <span class="text-green-400">-H</span> <span class="text-yellow-300">"Accept: application/json"</span> \
-  <span class="text-yellow-300">"http://localhost/api/decks?format=standard&amp;order[createdAt]=desc"</span></pre>
+  <span class="text-yellow-300">"http://localhost/api/decks?format=standard&amp;order[lastModifiedAt]=desc"</span></pre>
             </div>
 
             <!-- response -->
@@ -151,7 +158,8 @@
     <span class="text-violet-300">"byRarity"</span>: { <span class="text-violet-300">"C"</span>: <span class="text-emerald-400">24</span>, <span class="text-violet-300">"R"</span>: <span class="text-emerald-400">12</span>, <span class="text-violet-300">"U"</span>: <span class="text-emerald-400">3</span>, <span class="text-violet-300">"E"</span>: <span class="text-emerald-400">0</span> }
   },
   <span class="text-violet-300">"createdAt"</span>:  <span class="text-yellow-300">"2024-11-01T10:00:00+00:00"</span>,
-  <span class="text-violet-300">"updatedAt"</span>:  <span class="text-yellow-300">"2024-11-10T14:30:00+00:00"</span>
+  <span class="text-violet-300">"updatedAt"</span>:  <span class="text-yellow-300">"2024-11-10T14:30:00+00:00"</span>,
+  <span class="text-violet-300">"lastModifiedAt"</span>: <span class="text-yellow-300">"2024-11-10T14:30:00+00:00"</span>
 }
   ],
   <span class="text-violet-300">"totalItems"</span>: <span class="text-emerald-400">1</span>
@@ -213,7 +221,8 @@
     <span class="text-violet-300">"byRarity"</span>: { <span class="text-violet-300">"C"</span>: <span class="text-emerald-400">24</span>, <span class="text-violet-300">"R"</span>: <span class="text-emerald-400">12</span>, <span class="text-violet-300">"U"</span>: <span class="text-emerald-400">3</span>, <span class="text-violet-300">"E"</span>: <span class="text-emerald-400">0</span> }
   },
   <span class="text-violet-300">"createdAt"</span>: <span class="text-yellow-300">"2024-11-01T10:00:00+00:00"</span>,
-  <span class="text-violet-300">"updatedAt"</span>: <span class="text-yellow-300">"2024-11-10T14:30:00+00:00"</span>
+  <span class="text-violet-300">"updatedAt"</span>: <span class="text-yellow-300">"2024-11-10T14:30:00+00:00"</span>,
+  <span class="text-violet-300">"lastModifiedAt"</span>: <span class="text-yellow-300">"2024-11-10T14:30:00+00:00"</span>
 }</pre>
             </div>
         </section>
@@ -315,7 +324,8 @@
     <span class="text-violet-300">"byRarity"</span>: { <span class="text-violet-300">"C"</span>: <span class="text-emerald-400">3</span>, <span class="text-violet-300">"R"</span>: <span class="text-emerald-400">2</span>, <span class="text-violet-300">"U"</span>: <span class="text-emerald-400">1</span>, <span class="text-violet-300">"E"</span>: <span class="text-emerald-400">0</span> }
   },
   <span class="text-violet-300">"createdAt"</span>: <span class="text-yellow-300">"2024-11-01T10:00:00+00:00"</span>,
-  <span class="text-violet-300">"updatedAt"</span>:  <span class="text-emerald-400">null</span>
+  <span class="text-violet-300">"updatedAt"</span>:  <span class="text-emerald-400">null</span>,
+  <span class="text-violet-300">"lastModifiedAt"</span>: <span class="text-yellow-300">"2024-11-01T10:00:00+00:00"</span>
 }</pre>
             </div>
         </section>
@@ -401,7 +411,8 @@
     <span class="text-violet-300">"hero"</span>: <span class="text-emerald-400">null</span>,
     <span class="text-violet-300">"byRarity"</span>: { <span class="text-violet-300">"C"</span>: <span class="text-emerald-400">3</span>, <span class="text-violet-300">"R"</span>: <span class="text-emerald-400">1</span>, <span class="text-violet-300">"U"</span>: <span class="text-emerald-400">0</span>, <span class="text-violet-300">"E"</span>: <span class="text-emerald-400">1</span> }
   },
-  <span class="text-violet-300">"updatedAt"</span>: <span class="text-yellow-300">"2024-11-10T15:00:00+00:00"</span>
+  <span class="text-violet-300">"updatedAt"</span>: <span class="text-yellow-300">"2024-11-10T15:00:00+00:00"</span>,
+  <span class="text-violet-300">"lastModifiedAt"</span>: <span class="text-yellow-300">"2024-11-10T15:00:00+00:00"</span>
 }</pre>
             </div>
         </section>

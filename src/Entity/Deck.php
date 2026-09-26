@@ -5,6 +5,7 @@ namespace App\Entity;
 use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -68,7 +69,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     'alteredId' => 'exact',
     'name' => 'exact',
 ])]
-#[ApiFilter(OrderFilter::class, properties: ['createdAt', 'updatedAt', 'name', 'viewCount', 'upvoteCount'])]
+#[ApiFilter(OrderFilter::class, properties: ['createdAt', 'updatedAt', 'lastModifiedAt', 'name', 'viewCount', 'upvoteCount'])]
 class Deck
 {
     #[ORM\Id]
@@ -118,7 +119,14 @@ class Deck
 
     #[ORM\Column(nullable: true)]
     #[Groups(['deck:read'])]
+    #[ApiProperty(description: 'Date of the last edit through the API. Null until the deck is edited for the first time.')]
     private ?\DateTimeImmutable $updatedAt = null;
+
+    /** Always updatedAt ?? createdAt (see markModified()). The DB default only serves rows inserted during a deploy by code unaware of the column. */
+    #[ORM\Column(options: ['default' => 'CURRENT_TIMESTAMP'])]
+    #[Groups(['deck:read'])]
+    #[ApiProperty(description: 'Date of the last edit, or the creation date if the deck was never edited. Never null. Sortable with order[lastModifiedAt].')]
+    private \DateTimeImmutable $lastModifiedAt;
 
     #[ORM\Column(type: 'json', nullable: true)]
     #[Groups(['deck:read', 'deck:read:detail'])]
@@ -151,6 +159,7 @@ class Deck
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
+        $this->lastModifiedAt = $this->createdAt;
         $this->deckCards = new ArrayCollection();
     }
 
@@ -263,9 +272,16 @@ class Deck
         return $this->updatedAt;
     }
 
-    public function setUpdatedAt(?\DateTimeImmutable $updatedAt): self
+    public function getLastModifiedAt(): \DateTimeImmutable
     {
-        $this->updatedAt = $updatedAt;
+        return $this->lastModifiedAt;
+    }
+
+    /** Records an edit. Counters (views, upvotes) must not call it. */
+    public function markModified(\DateTimeImmutable $at = new \DateTimeImmutable()): self
+    {
+        $this->updatedAt = $at;
+        $this->lastModifiedAt = $at;
 
         return $this;
     }
