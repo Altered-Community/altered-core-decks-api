@@ -46,6 +46,7 @@ class PublicDeckController extends AbstractController
             'name' => 'name',
             'createdAt' => 'created_at',
             'updatedAt' => 'updated_at',
+            'lastModifiedAt' => 'last_modified_at',
             'upvoteCount' => 'upvote_count',
             'viewCount' => 'view_count',
         ];

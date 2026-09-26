@@ -30,7 +30,29 @@ final readonly class DeckCollectionProvider implements ProviderInterface
             $currentUser,
             faction: $this->stringFilter($filters, 'faction'),
             hero: $this->stringFilter($filters, 'hero'),
+            lastModifiedDir: $this->lastModifiedOrder($filters),
         );
+    }
+
+    /**
+     * This provider bypasses API Platform's Doctrine extensions, so the declared OrderFilter
+     * never runs here. Only order[lastModifiedAt]=asc|desc is honoured; any other order key
+     * keeps the historical default ordering (updated_at DESC) to leave existing clients as-is.
+     *
+     * @param array<string, mixed> $filters
+     *
+     * @return 'ASC'|'DESC'|null
+     */
+    private function lastModifiedOrder(array $filters): ?string
+    {
+        $order = $filters['order'] ?? null;
+        $dir = is_array($order) ? ($order['lastModifiedAt'] ?? null) : null;
+
+        return match (is_string($dir) ? strtolower($dir) : null) {
+            'asc' => 'ASC',
+            'desc' => 'DESC',
+            default => null,
+        };
     }
 
     /**

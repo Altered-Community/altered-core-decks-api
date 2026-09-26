@@ -41,7 +41,7 @@ class DeckStateProcessor implements ProcessorInterface
             $user = $this->em->getReference(User::class, $currentUser->getId());
             $data->setUser($user);
         } else {
-            $data->setUpdatedAt(new \DateTimeImmutable());
+            $data->markModified();
             $this->assertSealedFormatIsImmutable($data);
             $this->mergeDeckCards($data);
         }

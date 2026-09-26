@@ -325,6 +325,17 @@ has to block validation rather than silently pass.
 
 ---
 
+## Deck dates — `lastModifiedAt`
+
+`Deck::$lastModifiedAt` is never null and always equals `updatedAt ?? createdAt`. Record an edit with
+`Deck::markModified()` (moves both dates; there is no `setUpdatedAt()`). Counters (`viewCount`,
+`upvoteCount`) and system recomputations (legality command) must not call it. Sort by
+`order[lastModifiedAt]` rather than `order[updatedAt]` (NULLs first in DESC). Every paginated
+`ORDER BY` in `DeckRepository` ends with `d.id` in the same direction so pages are stable.
+See `docs/deck-dates-and-sorting.md`.
+
+---
+
 ## Response shape reference
 
 ```

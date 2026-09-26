@@ -19,6 +19,7 @@
 
     <testsuites>
         <testsuite name="Unit">
+            <directory>tests/Entity</directory>
             <directory>tests/Serializer</directory>
             <directory>tests/State</directory>
             <directory>tests/Validator</directory>
@@ -26,6 +27,7 @@
         <testsuite name="Integration">
             <directory>tests/Api</directory>
             <directory>tests/Controller</directory>
+            <directory>tests/Migrations</directory>
         </testsuite>
     </testsuites>
 

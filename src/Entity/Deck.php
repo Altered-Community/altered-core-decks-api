@@ -5,6 +5,7 @@ namespace App\Entity;
 use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -68,7 +69,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     'alteredId' => 'exact',
     'name' => 'exact',
 ])]
-#[ApiFilter(OrderFilter::class, properties: ['createdAt', 'updatedAt', 'name', 'viewCount', 'upvoteCount'])]
+#[ApiFilter(OrderFilter::class, properties: ['createdAt', 'updatedAt', 'lastModifiedAt', 'name', 'viewCount', 'upvoteCount'])]
 class Deck
 {
     #[ORM\Id]
@@ -118,7 +119,20 @@ class Deck
 
     #[ORM\Column(nullable: true)]
     #[Groups(['deck:read'])]
+    #[ApiProperty(description: 'Date of the last edit through the API. Null until the deck is edited for the first time.')]
     private ?\DateTimeImmutable $updatedAt = null;
+
+    /**
+     * Always equal to COALESCE(updatedAt, createdAt): set to createdAt on creation and moved
+     * forward together with updatedAt on every edit. Upvotes and views never touch it.
+     * Unlike updatedAt it is never null, so it sorts without NULLs landing on the first page.
+     * The DB default only covers rows inserted by code that doesn't know the column yet
+     * (rolling deploy); Doctrine always writes the value explicitly.
+     */
+    #[ORM\Column(options: ['default' => 'CURRENT_TIMESTAMP'])]
+    #[Groups(['deck:read'])]
+    #[ApiProperty(description: 'Date of the last edit, or the creation date if the deck was never edited. Never null. Sortable with order[lastModifiedAt].')]
+    private \DateTimeImmutable $lastModifiedAt;
 
     #[ORM\Column(type: 'json', nullable: true)]
     #[Groups(['deck:read', 'deck:read:detail'])]
@@ -151,6 +165,7 @@ class Deck
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
+        $this->lastModifiedAt = $this->createdAt;
         $this->deckCards = new ArrayCollection();
     }
 
@@ -263,9 +278,18 @@ class Deck
         return $this->updatedAt;
     }
 
-    public function setUpdatedAt(?\DateTimeImmutable $updatedAt): self
+    public function getLastModifiedAt(): \DateTimeImmutable
     {
-        $this->updatedAt = $updatedAt;
+        return $this->lastModifiedAt;
+    }
+
+    /**
+     * Records an edit: moves updatedAt and lastModifiedAt together so they never diverge.
+     */
+    public function markModified(\DateTimeImmutable $at = new \DateTimeImmutable()): self
+    {
+        $this->updatedAt = $at;
+        $this->lastModifiedAt = $at;
 
         return $this;
     }
