@@ -39,6 +39,7 @@ class PublicDeckController extends AbstractController
         $name = $request->query->get('name') ?: null;
         $faction = $request->query->get('faction') ?: null;
         $format = $request->query->get('format') ?: null;
+        $legal = $this->parseLegal($request);
 
         // API Platform-style `order[field]=asc|desc`, matching the authenticated /api/decks
         // resource's OrderFilter. No `order` given -> most recently created first.
@@ -63,8 +64,8 @@ class PublicDeckController extends AbstractController
             }
         }
 
-        $decks = $this->deckRepository->findPublic($page, $itemsPerPage, $hero, $cardName, $orderBy, $faction, $name, $format, $cardRef, $orderDir);
-        $total = $this->deckRepository->countPublic($hero, $cardName, $faction, $name, $format, $cardRef);
+        $decks = $this->deckRepository->findPublic($page, $itemsPerPage, $hero, $cardName, $orderBy, $faction, $name, $format, $cardRef, $orderDir, $legal);
+        $total = $this->deckRepository->countPublic($hero, $cardName, $faction, $name, $format, $cardRef, $legal);
 
         /** @var array<int, array<string, mixed>> $data */
         $data = $this->serializer->normalize($decks, 'json', ['groups' => ['deck:read']]) ?? [];
@@ -90,5 +91,21 @@ class PublicDeckController extends AbstractController
             'nextPage' => $page < $lastPage ? $page + 1 : null,
             'previousPage' => $page > 1 ? $page - 1 : null,
         ]);
+    }
+
+    /**
+     * `legal=true|1` keeps only legal decks, `legal=false|0` only illegal ones. Absent, empty or any
+     * other value (including `legal[]=...`) returns null: no filter, the pre-existing behaviour.
+     */
+    private function parseLegal(Request $request): ?bool
+    {
+        // Read raw: `->get('legal')` throws a 400 when `legal` is an array.
+        $legal = $request->query->all()['legal'] ?? null;
+
+        return match (is_string($legal) ? strtolower($legal) : null) {
+            'true', '1' => true,
+            'false', '0' => false,
+            default => null,
+        };
     }
 }
