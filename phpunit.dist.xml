@@ -25,6 +25,7 @@
         </testsuite>
         <testsuite name="Integration">
             <directory>tests/Api</directory>
+            <directory>tests/Command</directory>
             <directory>tests/Controller</directory>
         </testsuite>
     </testsuites>
