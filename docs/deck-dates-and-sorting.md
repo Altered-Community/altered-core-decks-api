@@ -44,7 +44,7 @@ on `/api/decks`).
 ## Storage
 
 `deck.last_modified_at TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP`, added by
-`Version20260926000000` and backfilled with `COALESCE(updated_at, created_at)`. The
+`Version20260926155541` and backfilled with `COALESCE(updated_at, created_at)`. The
 public listing sort uses `idx_deck_public_last_modified (is_public, is_draft,
 last_modified_at DESC, id DESC)`, which PostgreSQL scans forward for `desc` and
 backward for `asc`. The same migration adds `id DESC` to `idx_deck_public_created`,
