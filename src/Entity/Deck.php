@@ -136,6 +136,16 @@ class Deck
     #[Groups(['deck:read'])]
     private ?array $legalityDetail = null;
 
+    /**
+     * Id of the FrontierPool that legal / legalityDetail were computed against. Always null
+     * outside the Frontier format, for drafts, and for Frontier decks not yet validated
+     * against a known pool. A value different from the current pool means the stored
+     * legality is stale until app:frontier:sync-pool revalidates the deck.
+     */
+    #[ORM\Column(length: 64, nullable: true)]
+    #[Groups(['deck:read'])]
+    private ?string $frontierPool = null;
+
     #[ORM\Column(length: 255, nullable: true, unique: true)]
     #[Groups(['deck:read', 'deck:write'])]
     private ?string $alteredId = null;
@@ -314,6 +324,18 @@ class Deck
     public function setLegalityDetail(?array $legalityDetail): self
     {
         $this->legalityDetail = $legalityDetail;
+
+        return $this;
+    }
+
+    public function getFrontierPool(): ?string
+    {
+        return $this->frontierPool;
+    }
+
+    public function setFrontierPool(?string $frontierPool): self
+    {
+        $this->frontierPool = $frontierPool;
 
         return $this;
     }

@@ -135,6 +135,21 @@ class FrontierFormatValidatorTest extends TestCase
         self::assertFalse($detail['global']);
     }
 
+    public function testSameDeckFlipsWhenItsUniqueLeavesThePool(): void
+    {
+        [$cardsData, $deckCards] = $this->buildMinimalValidDeck();
+        $uniqueRef = 'ALT_CORE_B_AX_1_U';
+        $deckCards[] = $this->card($uniqueRef, 1);
+        $deck = $this->deck(...$deckCards);
+
+        // gameplayFormat as cards-api serves it (upper case) before and after a pool switch
+        $poolA = $cardsData + [$uniqueRef => $this->data($uniqueRef, 'PERMANENT', 'AX', 'UNIQUE', 'Rotating Unique', ['STANDARD', 'FRONTIER'])];
+        $poolB = $cardsData + [$uniqueRef => $this->data($uniqueRef, 'PERMANENT', 'AX', 'UNIQUE', 'Rotating Unique', ['STANDARD'])];
+
+        self::assertTrue($this->validator->computeLegalityDetail($deck, $poolA)['global']);
+        self::assertFalse($this->validator->computeLegalityDetail($deck, $poolB)['global']);
+    }
+
     // ── Inherited Standard rules still apply ─────────────────────────────────
 
     public function testInheritsStandardMaxUniqueLimit(): void

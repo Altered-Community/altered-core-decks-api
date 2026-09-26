@@ -2,15 +2,18 @@
 
 namespace App\Client;
 
-use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
+use Symfony\Contracts\Cache\TagAwareCacheInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class AlteredCoreClient implements CardDataProviderInterface
 {
+    private const string CARD_CACHE_TAG = 'altered_core_card';
+    private const int CARD_GROUP_PAGE_SIZE = 1000;
+
     public function __construct(
         private readonly HttpClientInterface $httpClient,
-        private readonly CacheInterface $cache,
+        private readonly TagAwareCacheInterface $cache,
         private readonly string $alteredCoreUrl,
     ) {
     }
@@ -83,6 +86,7 @@ class AlteredCoreClient implements CardDataProviderInterface
             $this->cache->delete($cacheKey);
             $this->cache->get($cacheKey, function (ItemInterface $item) use ($card) {
                 $item->expiresAfter(3600);
+                $item->tag(self::CARD_CACHE_TAG);
 
                 return $card;
             });
@@ -118,10 +122,51 @@ class AlteredCoreClient implements CardDataProviderInterface
         $this->cache->delete($cacheKey);
         $this->cache->get($cacheKey, function (ItemInterface $item) use ($card) {
             $item->expiresAfter(3600);
+            $item->tag(self::CARD_CACHE_TAG);
 
             return $card;
         });
 
         return $card;
+    }
+
+    /**
+     * Drops every cached card payload, so the next reads see fresh data (e.g. new
+     * gameplayFormat tags after a Frontier pool change).
+     */
+    public function invalidateCardCache(): void
+    {
+        $this->cache->invalidateTags([self::CARD_CACHE_TAG]);
+    }
+
+    /**
+     * Slugs of every CardGroup tagged with $gameplayFormat on altered-core, read from
+     * PostgreSQL (CardGroup collection, not the Meilisearch-backed card search), walking the
+     * collection with the afterId keyset cursor. Not cached: callers want the live allowlist.
+     *
+     * @return string[]
+     */
+    public function getCardGroupSlugsByGameplayFormat(string $gameplayFormat): array
+    {
+        $slugs = [];
+        $afterId = 0;
+
+        do {
+            $query = ['gameplayFormat' => $gameplayFormat, 'itemsPerPage' => self::CARD_GROUP_PAGE_SIZE, 'page' => 1];
+            if ($afterId > 0) {
+                $query['afterId'] = $afterId;
+            }
+
+            $members = $this->httpClient->request('GET', $this->alteredCoreUrl.'/api/card_groups', ['query' => $query])
+                ->toArray()['member'] ?? [];
+
+            $previousAfterId = $afterId;
+            foreach ($members as $cardGroup) {
+                $slugs[] = (string) $cardGroup['slug'];
+                $afterId = max($afterId, (int) $cardGroup['id']);
+            }
+        } while (self::CARD_GROUP_PAGE_SIZE === count($members) && $afterId > $previousAfterId);
+
+        return $slugs;
     }
 }

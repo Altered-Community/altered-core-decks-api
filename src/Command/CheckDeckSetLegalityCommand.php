@@ -5,7 +5,9 @@ namespace App\Command;
 use App\Client\CardDataProviderFactory;
 use App\Entity\Deck;
 use App\Entity\DeckCard;
+use App\Enum\DeckFormat;
 use App\Repository\DeckRepository;
+use App\Repository\FrontierPoolRepository;
 use App\Validator\Format\DeckFormatValidatorFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -30,6 +32,7 @@ final class CheckDeckSetLegalityCommand extends Command
     public function __construct(
         private readonly DeckRepository $deckRepository,
         private readonly DeckFormatValidatorFactory $validatorFactory,
+        private readonly FrontierPoolRepository $frontierPoolRepository,
         private readonly CardDataProviderFactory $cardDataProviderFactory,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
@@ -68,6 +71,8 @@ final class CheckDeckSetLegalityCommand extends Command
         $updated = 0;
         $unchanged = 0;
         $skipped = 0;
+        $failed = 0;
+        $currentFrontierPoolId = $this->frontierPoolRepository->findCurrent()?->getId();
 
         while (true) {
             $decks = $this->deckRepository->findBatchWithCards($offset, self::BATCH_SIZE);
@@ -85,15 +90,23 @@ final class CheckDeckSetLegalityCommand extends Command
                     continue;
                 }
 
-                $validator = $this->validatorFactory->getValidator($format);
                 $cardsData = $this->fetchCardsData($deck);
+                if (null === $cardsData) {
+                    ++$failed;
+                    $progress->advance();
+                    continue;
+                }
+
+                $validator = $this->validatorFactory->getValidator($format);
                 $detail = $validator->computeLegalityDetail($deck, $cardsData);
                 $legal = $detail['global'];
+                $frontierPool = DeckFormat::Frontier === $deck->getFormat() ? $currentFrontierPoolId : null;
 
-                if ($deck->isLegal() !== $legal || $deck->getLegalityDetail() !== $detail) {
+                if ($deck->isLegal() !== $legal || $deck->getLegalityDetail() !== $detail || $deck->getFrontierPool() !== $frontierPool) {
                     if (!$dryRun) {
                         $deck->setLegal($legal);
                         $deck->setLegalityDetail($detail);
+                        $deck->setFrontierPool($frontierPool);
                     }
                     ++$updated;
                 } else {
@@ -120,6 +133,7 @@ final class CheckDeckSetLegalityCommand extends Command
                 [$dryRun ? 'Would update' : 'Updated', $updated],
                 ['Already correct',                      $unchanged],
                 ['Skipped (no format)',                  $skipped],
+                ['Skipped (card fetch failed)',          $failed],
             ]
         );
 
@@ -158,12 +172,19 @@ final class CheckDeckSetLegalityCommand extends Command
             return Command::SUCCESS;
         }
 
-        $validator = $this->validatorFactory->getValidator($format);
         $cardsData = $this->fetchCardsData($deck);
+        if (null === $cardsData) {
+            $io->error(sprintf('Could not fetch the cards of deck "%s" — legality left unchanged.', $uid));
+
+            return Command::FAILURE;
+        }
+
+        $validator = $this->validatorFactory->getValidator($format);
         $detail = $validator->computeLegalityDetail($deck, $cardsData);
         $legal = $detail['global'];
+        $frontierPool = DeckFormat::Frontier === $deck->getFormat() ? $this->frontierPoolRepository->findCurrent()?->getId() : null;
 
-        $changed = $deck->isLegal() !== $legal || $deck->getLegalityDetail() !== $detail;
+        $changed = $deck->isLegal() !== $legal || $deck->getLegalityDetail() !== $detail || $deck->getFrontierPool() !== $frontierPool;
 
         $io->writeln(sprintf('Deck:   <info>%s</info>', $uid));
         $io->writeln(sprintf('Format: <info>%s</info>', $format));
@@ -173,6 +194,7 @@ final class CheckDeckSetLegalityCommand extends Command
             if (!$dryRun) {
                 $deck->setLegal($legal);
                 $deck->setLegalityDetail($detail);
+                $deck->setFrontierPool($frontierPool);
                 $this->em->flush();
                 $io->success('Deck legality updated.');
             } else {
@@ -185,8 +207,13 @@ final class CheckDeckSetLegalityCommand extends Command
         return Command::SUCCESS;
     }
 
-    /** @return array<string, array> */
-    private function fetchCardsData(Deck $deck): array
+    /**
+     * Returns null when the card API call fails, so the deck is skipped instead of being
+     * validated against no card data (which would mark it illegal).
+     *
+     * @return array<string, array>|null
+     */
+    private function fetchCardsData(Deck $deck): ?array
     {
         $references = array_map(
             fn (DeckCard $dc) => $dc->getCardReference(),
@@ -205,7 +232,7 @@ final class CheckDeckSetLegalityCommand extends Command
                 'error' => $e->getMessage(),
             ]);
 
-            return [];
+            return null;
         }
     }
 }

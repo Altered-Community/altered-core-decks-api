@@ -276,6 +276,30 @@ $isFrontierLegal = in_array('frontier', $gameplayFormats, true);
 
 This replaces the previous design that called a sibling `uniques-search-api` service for a live allowlist lookup (`UniquesSearchApiClient` / `UNIQUES_SEARCH_API_URL` — both removed). No fail-closed handling is needed anymore: if `AlteredCoreClient` can't fetch card data at all, validation already fails upstream for unrelated reasons.
 
+### Frontier pool — which allowlist a deck's legality was computed against
+
+`legal` / `legalityDetail` are computed on save, so a Frontier deck's legality goes stale when the Frontier
+pool rotates. The pool is tracked explicitly:
+
+- **Pool id** — `FrontierPool::fingerprint()`: the first 16 hex chars of a SHA-256 over the sorted slugs of
+  every CardGroup tagged `FRONTIER` on altered-core-cards-api (`GET /api/card_groups?gameplayFormat=FRONTIER`,
+  PostgreSQL-backed, walked with the `afterId` cursor). The Altered Reunion manifest has a `version`, but
+  cards-api drops it on import, and the tags are what the validator checks, so the fingerprint changes exactly
+  when Frontier legality can change.
+- **`frontier_pool` table** — every pool seen; the row with the highest `revision` is current (not
+  `activatedAt`: second precision). `GET /api/formats` exposes it on the `frontier` entry as
+  `pool: {id, cardCount, activatedAt}` (null before the first sync).
+- **`deck.frontier_pool`** (`frontierPool` in `deck:read`) — the pool the deck's legality was computed
+  against. Set by `DeckLegalityChecker` on every save and revalidation; always null for non-Frontier formats
+  and drafts. `deck.frontierPool !== formats.frontier.pool.id` means the stored legality is stale. Null
+  fields are omitted from responses (`skip_null_values`).
+- **`app:frontier:sync-pool`** — run on a schedule (e.g. `*/15 * * * * php bin/console app:frontier:sync-pool`).
+  Reads the allowlist, records a new current pool when the fingerprint changes (and drops the cached card
+  payloads, tag `altered_core_card`), then revalidates every non-draft Frontier deck whose `frontier_pool`
+  differs from the current pool, in keyset batches of 100. Idempotent and self-healing: decks it could not
+  revalidate (card fetch failed) and decks saved mid-switch are picked up by the next run. It refuses an
+  empty allowlist and changes nothing when cards-api is unreachable.
+
 ### Sealed format — live pool-membership check against altered-draft, no hardcoded set
 
 `SealedFormatValidator` (`src/Validator/Format/SealedFormatValidator.php`, format code `sealed`) validates

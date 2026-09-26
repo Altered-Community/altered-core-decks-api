@@ -9,7 +9,8 @@ use App\Entity\Deck;
 use App\Entity\DeckCard;
 use App\Entity\User;
 use App\Enum\DeckFormat;
-use App\Validator\Format\DeckFormatValidatorFactory;
+use App\Repository\FrontierPoolRepository;
+use App\Service\DeckLegalityChecker;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -22,7 +23,8 @@ class DeckStateProcessor implements ProcessorInterface
         private readonly EntityManagerInterface $em,
         private readonly Security $security,
         private readonly CardDataProviderFactory $cardDataProviderFactory,
-        private readonly DeckFormatValidatorFactory $validatorFactory,
+        private readonly DeckLegalityChecker $legalityChecker,
+        private readonly FrontierPoolRepository $frontierPoolRepository,
         private readonly RequestStack $requestStack,
         private readonly LoggerInterface $logger,
     ) {
@@ -47,7 +49,6 @@ class DeckStateProcessor implements ProcessorInterface
         }
 
         $cardsData = $this->fetchCardsData($data);
-        $format = $data->getFormat()?->value;
 
         if (null !== $cardsData) {
             foreach ($data->getDeckCards() as $deckCard) {
@@ -58,24 +59,17 @@ class DeckStateProcessor implements ProcessorInterface
             }
         }
 
-        if ($data->getIsDraft()) {
-            $data->setFormatErrors(null);
-            $data->setLegalityDetail(null);
-            $data->setLegal(false);
-        } elseif (null !== $cardsData) {
-            if ($format && $this->validatorFactory->supports($format)) {
-                $validator = $this->validatorFactory->getValidator($format);
-                $errors = $validator->validate($data, $cardsData);
-                $detail = $validator->computeLegalityDetail($data, $cardsData);
+        // Only Frontier decks carry a pool, even when legality can't be recomputed below.
+        if (DeckFormat::Frontier !== $data->getFormat()) {
+            $data->setFrontierPool(null);
+        }
 
-                $data->setFormatErrors(empty($errors) ? null : $errors);
-                $data->setLegalityDetail($detail);
-                $data->setLegal($detail['global']);
-            } else {
-                $data->setFormatErrors(null);
-                $data->setLegalityDetail(null);
-                $data->setLegal(false);
-            }
+        // A failed card fetch keeps the previous legality (and the pool it was computed against).
+        if ($data->getIsDraft() || null !== $cardsData) {
+            $frontierPoolId = DeckFormat::Frontier === $data->getFormat()
+                ? $this->frontierPoolRepository->findCurrent()?->getId()
+                : null;
+            $this->legalityChecker->check($data, $cardsData ?? [], $frontierPoolId);
         }
 
         $data->setStats($this->computeStats($data, $cardsData ?? []));

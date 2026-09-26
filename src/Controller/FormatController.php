@@ -2,6 +2,8 @@
 
 namespace App\Controller;
 
+use App\Entity\FrontierPool;
+use App\Repository\FrontierPoolRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -9,6 +11,11 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class FormatController extends AbstractController
 {
+    public function __construct(
+        private readonly FrontierPoolRepository $frontierPoolRepository,
+    ) {
+    }
+
     #[Route('/api/formats', name: 'api_formats', methods: ['GET'])]
     public function __invoke(Request $request): JsonResponse
     {
@@ -90,6 +97,7 @@ class FormatController extends AbstractController
                     'maxCopiesPerName' => 3,
                     'maxCopiesPerRarity' => null,
                 ],
+                'pool' => $this->describeFrontierPool($this->frontierPoolRepository->findCurrent()),
             ],
             [
                 'code' => 'singleton',
@@ -148,5 +156,24 @@ class FormatController extends AbstractController
         }
 
         return $this->json($formats);
+    }
+
+    /**
+     * Current Frontier pool, compared by clients against a deck's frontierPool to tell
+     * whether its legality is stale. Null until app:frontier:sync-pool has run once.
+     *
+     * @return array{id: string, cardCount: int, activatedAt: string}|null
+     */
+    private function describeFrontierPool(?FrontierPool $pool): ?array
+    {
+        if (null === $pool) {
+            return null;
+        }
+
+        return [
+            'id' => $pool->getId(),
+            'cardCount' => $pool->getCardCount(),
+            'activatedAt' => $pool->getActivatedAt()->format(\DATE_ATOM),
+        ];
     }
 }

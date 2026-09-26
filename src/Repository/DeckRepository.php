@@ -4,9 +4,12 @@ namespace App\Repository;
 
 use App\Entity\Deck;
 use App\Entity\User;
+use App\Enum\DeckFormat;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\Query\ResultSetMappingBuilder;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Uuid;
 
 class DeckRepository extends ServiceEntityRepository
 {
@@ -71,6 +74,57 @@ class DeckRepository extends ServiceEntityRepository
             ->setParameter('ids', $ids)
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * Non-draft Frontier decks whose legality was not computed against $frontierPoolId
+     * (other pool, or none), with their deckCards, in id order after $afterId (keyset cursor).
+     *
+     * @return Deck[]
+     */
+    public function findFrontierDecksNotOnPool(string $frontierPoolId, ?Uuid $afterId, int $limit): array
+    {
+        $qb = $this->createFrontierDecksNotOnPoolQueryBuilder($frontierPoolId)
+            ->select('d.id')
+            ->orderBy('d.id')
+            ->setMaxResults($limit);
+
+        if (null !== $afterId) {
+            $qb->andWhere('d.id > :afterId')->setParameter('afterId', $afterId, 'uuid');
+        }
+
+        $ids = $qb->getQuery()->getSingleColumnResult();
+
+        if (empty($ids)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('d')
+            ->leftJoin('d.deckCards', 'dc')
+            ->addSelect('dc')
+            ->where('d.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->orderBy('d.id')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countFrontierDecksNotOnPool(string $frontierPoolId): int
+    {
+        return (int) $this->createFrontierDecksNotOnPoolQueryBuilder($frontierPoolId)
+            ->select('COUNT(d.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    private function createFrontierDecksNotOnPoolQueryBuilder(string $frontierPoolId): QueryBuilder
+    {
+        return $this->createQueryBuilder('d')
+            ->where('d.format = :format')
+            ->andWhere('d.isDraft = false')
+            ->andWhere('(d.frontierPool IS NULL OR d.frontierPool <> :frontierPool)')
+            ->setParameter('format', DeckFormat::Frontier)
+            ->setParameter('frontierPool', $frontierPoolId);
     }
 
     /**

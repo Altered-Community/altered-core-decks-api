@@ -19,12 +19,16 @@
 
     <testsuites>
         <testsuite name="Unit">
+            <directory>tests/Client</directory>
+            <directory>tests/Entity</directory>
             <directory>tests/Serializer</directory>
+            <directory>tests/Service</directory>
             <directory>tests/State</directory>
             <directory>tests/Validator</directory>
         </testsuite>
         <testsuite name="Integration">
             <directory>tests/Api</directory>
+            <directory>tests/Command</directory>
             <directory>tests/Controller</directory>
         </testsuite>
     </testsuites>
