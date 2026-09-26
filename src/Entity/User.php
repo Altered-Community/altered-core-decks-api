@@ -3,10 +3,13 @@
 namespace App\Entity;
 
 use App\Repository\UserRepository;
+use App\Security\SafeUsername;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
@@ -23,9 +26,12 @@ class User implements UserInterface
     private string $keycloakId;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Ignore]
     private ?string $email = null;
 
+    /** Public deck author name (Keycloak `pseudo`). Never an email: see SafeUsername. */
     #[ORM\Column(length: 100, nullable: true)]
+    #[Groups(['deck:read'])]
     private ?string $username = null;
 
     #[ORM\Column(length: 10, nullable: true)]
@@ -81,12 +87,12 @@ class User implements UserInterface
 
     public function getUsername(): ?string
     {
-        return $this->username;
+        return SafeUsername::sanitize($this->username);
     }
 
     public function setUsername(?string $username): self
     {
-        $this->username = $username;
+        $this->username = SafeUsername::sanitize($username);
 
         return $this;
     }
