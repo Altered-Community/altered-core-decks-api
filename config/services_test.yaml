@@ -34,3 +34,12 @@ services:
         arguments:
             $httpClient: '@altered_draft.mock_http_client'
             $alteredDraftUrl: '%env(ALTERED_DRAFT_URL)%'
+
+    keycloak_admin.mock_http_client:
+        class: Symfony\Component\HttpClient\MockHttpClient
+        public: true
+
+    App\Client\KeycloakAdminClient:
+        autowire: true
+        arguments:
+            $httpClient: '@keycloak_admin.mock_http_client'

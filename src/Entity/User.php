@@ -3,7 +3,6 @@
 namespace App\Entity;
 
 use App\Repository\UserRepository;
-use App\Security\SafeUsername;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -29,7 +28,7 @@ class User implements UserInterface
     #[Ignore]
     private ?string $email = null;
 
-    /** Public deck author name (Keycloak `pseudo`). Never an email: see SafeUsername. */
+    /** Public deck author name: the Keycloak `pseudo` claim, never `preferred_username` (the email). */
     #[ORM\Column(length: 100, nullable: true)]
     #[Groups(['deck:read'])]
     private ?string $username = null;
@@ -87,12 +86,12 @@ class User implements UserInterface
 
     public function getUsername(): ?string
     {
-        return SafeUsername::sanitize($this->username);
+        return $this->username;
     }
 
     public function setUsername(?string $username): self
     {
-        $this->username = SafeUsername::sanitize($username);
+        $this->username = $username;
 
         return $this;
     }
