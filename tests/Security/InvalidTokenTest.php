@@ -17,17 +17,24 @@ class InvalidTokenTest extends WebTestCase
 {
     private const SECRET = '$ecretf0rt3st_extended_for_hs256_tests';
 
+    /** Public RSA key set served as Keycloak's JWKS, so non-dev tokens go through real signature checks. */
+    private const JWKS = '{"keys":[{"kty":"RSA","kid":"test","use":"sig","alg":"RS256","n":"0wDIF_uzYxlRmF-mp3mDnCUqAwoA8rhyJ4Z02b7Wg6WGC4mDpGjSEUD6uFQhHYCkc6IJKf4aX-UmrbVyeIZJBdTR1whnaxzX6xpwhvlj7veM0xuaSvpFX38NLaTF05WoGE83YJBVcln1QyFNqgD1Hzks86jKo7v2J2MmVWPKelHNg7nvYslk2xrHII6rV5u3EKtAB-OyXoVejMd1OodCVGNZEOFW1P_hsUAcO5Pt0SNruDF0imD0i2zBK-NTG6XeIXCQE6uO1_RX5WAKKphUq6KKTG--yg0dMpdRClsviFZAfKU_H2oqT-Ia8d5FgPIUDpS0megvorsKzpsJc9WyhQ","e":"AQAB"}]}';
+
     private KernelBrowser $client;
 
     protected function setUp(): void
     {
         $this->client = static::createClient();
         $this->client->disableReboot();
+        $json = static fn (string $body): MockResponse => new MockResponse($body, ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']]);
+
         /** @var MockHttpClient $alteredCoreMock */
         $alteredCoreMock = static::getContainer()->get('altered_core.mock_http_client');
-        $alteredCoreMock->setResponseFactory(
-            static fn (): MockResponse => new MockResponse('[]', ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
-        );
+        $alteredCoreMock->setResponseFactory(static fn (): MockResponse => $json('[]'));
+
+        /** @var MockHttpClient $keycloakMock */
+        $keycloakMock = static::getContainer()->get('keycloak.mock_http_client');
+        $keycloakMock->setResponseFactory(static fn (): MockResponse => $json(self::JWKS));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -35,9 +42,9 @@ class InvalidTokenTest extends WebTestCase
     /**
      * @param array<string, mixed> $overrides
      */
-    private static function makeToken(string $sub, array $overrides = [], string $secret = self::SECRET): string
+    private static function bearer(string $sub, array $overrides = [], string $secret = self::SECRET): string
     {
-        return JWT::encode(array_merge([
+        return 'Bearer '.JWT::encode(array_merge([
             'sub' => $sub,
             'preferred_username' => 'testuser',
             'email' => 'test@example.com',
@@ -45,6 +52,11 @@ class InvalidTokenTest extends WebTestCase
             'iat' => time(),
             'exp' => time() + 3600,
         ], $overrides), $secret, 'HS256');
+    }
+
+    private static function expiredBearer(string $sub): string
+    {
+        return self::bearer($sub, ['iat' => time() - 7200, 'exp' => time() - 3600]);
     }
 
     /**
@@ -55,13 +67,13 @@ class InvalidTokenTest extends WebTestCase
      */
     public static function invalidAuthorizationHeaders(): iterable
     {
-        yield 'expired token' => ['Bearer '.self::makeToken('invalid-expired', ['iat' => time() - 7200, 'exp' => time() - 3600])];
-        yield 'bad signature' => ['Bearer '.self::makeToken('invalid-signature', [], 'another_secret_long_enough_for_hs256_signing')];
-        yield 'token without sub claim' => ['Bearer '.self::makeToken('', ['sub' => null])];
+        yield 'expired token' => [self::expiredBearer('invalid-expired')];
+        yield 'bad signature' => [self::bearer('invalid-signature', [], 'another_secret_long_enough_for_hs256_signing')];
+        yield 'token without sub claim' => [self::bearer('', ['sub' => null])];
         yield 'malformed token (production repro)' => ['Bearer abc.def.ghi'];
         yield 'malformed dev token' => ['Bearer eyJhbGciOiJIUzI1NiJ9.'.rtrim(strtr(base64_encode('{"iss":"dev","sub":"x"}'), '+/', '-_'), '=').'.not-a-signature'];
         yield 'empty bearer token' => ['Bearer '];
-        yield 'valid token without Bearer prefix' => [self::makeToken('invalid-no-prefix')];
+        yield 'valid token without Bearer prefix' => [substr(self::bearer('invalid-no-prefix'), 7)];
         yield 'other scheme' => ['Basic dXNlcjpwYXNz'];
     }
 
@@ -85,11 +97,11 @@ class InvalidTokenTest extends WebTestCase
      */
     private function createDeck(string $owner, bool $isPublic): string
     {
-        $deck = $this->request('POST', '/api/decks', 'Bearer '.self::makeToken($owner), (string) json_encode(['name' => 'Deck of '.$owner, 'isDraft' => false]));
+        $deck = $this->request('POST', '/api/decks', self::bearer($owner), (string) json_encode(['name' => 'Deck of '.$owner, 'isDraft' => false]));
         self::assertResponseStatusCodeSame(201);
 
         if ($isPublic) {
-            $this->request('PATCH', '/api/decks/'.$deck['id'], 'Bearer '.self::makeToken($owner), (string) json_encode(['isPublic' => true]), 'application/merge-patch+json');
+            $this->request('PATCH', '/api/decks/'.$deck['id'], self::bearer($owner), (string) json_encode(['isPublic' => true]), 'application/merge-patch+json');
             self::assertResponseIsSuccessful();
         }
 
@@ -102,7 +114,7 @@ class InvalidTokenTest extends WebTestCase
     private function createDeckUpvotedBy(string $voter): string
     {
         $id = $this->createDeck('owner-'.$voter, true);
-        $result = $this->request('POST', '/api/decks/'.$id.'/upvote', 'Bearer '.self::makeToken($voter));
+        $result = $this->request('POST', '/api/decks/'.$id.'/upvote', self::bearer($voter));
         self::assertResponseIsSuccessful();
         self::assertTrue($result['hasUpvoted']);
 
@@ -110,28 +122,27 @@ class InvalidTokenTest extends WebTestCase
     }
 
     /**
-     * @return array<string, mixed>
+     * Returns the public list as `deck id => hasUpvoted`, after asserting a 200.
+     *
+     * @return array<string, bool>
      */
-    private function findInPublicList(string $deckId, ?string $authorization): array
+    private function publicListHasUpvoted(?string $authorization): array
     {
         $data = $this->request('GET', '/api/decks/public?itemsPerPage=1000', $authorization);
         self::assertResponseStatusCodeSame(200);
 
-        foreach ($data['member'] as $deck) {
-            if ($deck['id'] === $deckId) {
-                return $deck;
-            }
-        }
-        self::fail(sprintf('Deck "%s" not found in the public list.', $deckId));
+        return array_column($data['member'], 'hasUpvoted', 'id');
     }
 
     // ── GET /api/decks/public ─────────────────────────────────────────────────
+
+    // Control cases: same scenarios as DeckTest, kept here so the token matrix is complete.
 
     public function testPublicListWithoutTokenReturnsHasUpvotedFalse(): void
     {
         $id = $this->createDeckUpvotedBy('voter-'.__FUNCTION__);
 
-        self::assertFalse($this->findInPublicList($id, null)['hasUpvoted']);
+        self::assertFalse($this->publicListHasUpvoted(null)[$id]);
     }
 
     public function testPublicListWithValidTokenReturnsCallerHasUpvoted(): void
@@ -139,7 +150,7 @@ class InvalidTokenTest extends WebTestCase
         $voter = 'voter-'.__FUNCTION__;
         $id = $this->createDeckUpvotedBy($voter);
 
-        self::assertTrue($this->findInPublicList($id, 'Bearer '.self::makeToken($voter))['hasUpvoted']);
+        self::assertTrue($this->publicListHasUpvoted(self::bearer($voter))[$id]);
     }
 
     #[DataProvider('invalidAuthorizationHeaders')]
@@ -147,14 +158,10 @@ class InvalidTokenTest extends WebTestCase
     {
         $id = $this->createDeckUpvotedBy('voter-'.__FUNCTION__.'-'.md5($authorization));
 
-        $data = $this->request('GET', '/api/decks/public?itemsPerPage=1000', $authorization);
+        $hasUpvoted = $this->publicListHasUpvoted($authorization);
 
-        self::assertResponseStatusCodeSame(200);
-        self::assertNotEmpty($data['member']);
-        foreach ($data['member'] as $deck) {
-            self::assertFalse($deck['hasUpvoted'], sprintf('Deck "%s" must not be marked upvoted for an anonymous caller.', $deck['id']));
-        }
-        self::assertContains($id, array_column($data['member'], 'id'));
+        self::assertArrayHasKey($id, $hasUpvoted);
+        self::assertNotContains(true, $hasUpvoted, 'No deck may be marked upvoted for an anonymous caller.');
     }
 
     /**
@@ -166,9 +173,7 @@ class InvalidTokenTest extends WebTestCase
         $voter = 'voter-'.__FUNCTION__;
         $id = $this->createDeckUpvotedBy($voter);
 
-        $expired = 'Bearer '.self::makeToken($voter, ['iat' => time() - 7200, 'exp' => time() - 3600]);
-
-        self::assertFalse($this->findInPublicList($id, $expired)['hasUpvoted']);
+        self::assertFalse($this->publicListHasUpvoted(self::expiredBearer($voter))[$id]);
     }
 
     // ── Other public routes ───────────────────────────────────────────────────
@@ -197,10 +202,10 @@ class InvalidTokenTest extends WebTestCase
         $owner = 'owner-'.__FUNCTION__;
         $privateDeckId = $this->createDeck($owner, false);
 
-        $this->request('GET', '/api/decks/'.$privateDeckId, 'Bearer '.self::makeToken($owner, ['iat' => time() - 7200, 'exp' => time() - 3600]));
+        $this->request('GET', '/api/decks/'.$privateDeckId, self::expiredBearer($owner));
         self::assertResponseStatusCodeSame(401);
 
-        $this->request('GET', '/api/decks/'.$privateDeckId, 'Bearer '.self::makeToken($owner));
+        $this->request('GET', '/api/decks/'.$privateDeckId, self::bearer($owner));
         self::assertResponseStatusCodeSame(200);
     }
 
@@ -213,18 +218,19 @@ class InvalidTokenTest extends WebTestCase
         $publicDeckId = $this->createDeck($owner, true);
 
         $routes = [
-            ['GET', '/api/decks', null, 'application/json'],
-            ['POST', '/api/decks', (string) json_encode(['name' => 'Nope']), 'application/json'],
+            ['GET', '/api/decks'],
+            ['POST', '/api/decks', (string) json_encode(['name' => 'Nope'])],
             ['PATCH', '/api/decks/'.$publicDeckId, (string) json_encode(['name' => 'Hijacked']), 'application/merge-patch+json'],
-            ['DELETE', '/api/decks/'.$publicDeckId, null, 'application/json'],
-            ['POST', '/api/decks/'.$publicDeckId.'/upvote', null, 'application/json'],
-            ['GET', '/api/me', null, 'application/json'],
-            ['GET', '/api/bga/decks', null, 'application/json'],
-            ['GET', '/api/admin/stats', null, 'application/json'],
+            ['DELETE', '/api/decks/'.$publicDeckId],
+            ['POST', '/api/decks/'.$publicDeckId.'/upvote'],
+            ['GET', '/api/me'],
+            ['GET', '/api/bga/decks'],
+            ['GET', '/api/admin/stats'],
         ];
 
-        foreach ($routes as [$method, $uri, $body, $contentType]) {
-            $this->request($method, $uri, $authorization, $body, $contentType);
+        foreach ($routes as $route) {
+            [$method, $uri] = $route;
+            $this->request($method, $uri, $authorization, $route[2] ?? null, $route[3] ?? 'application/json');
             self::assertResponseStatusCodeSame(401, sprintf('%s %s must answer 401 with an invalid token.', $method, $uri));
         }
 
