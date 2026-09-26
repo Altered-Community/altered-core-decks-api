@@ -325,6 +325,16 @@ has to block validation rather than silently pass.
 
 ---
 
+## Authentication — invalid token on public routes
+
+`KeycloakAuthenticator::onAuthenticationFailure()` looks up the request in the `access_control`
+map (`security.access_map`). When the matching rule is `PUBLIC_ACCESS`, an invalid token (expired,
+bad signature, malformed, missing `sub`) is dropped and the request continues as anonymous
+(`getUser()` returns null, so e.g. `hasUpvoted` is false everywhere). Every other route still
+answers 401. A route becomes lenient only by being declared `PUBLIC_ACCESS` in `security.yaml`.
+
+---
+
 ## Response shape reference
 
 ```

@@ -2,51 +2,27 @@
 
 namespace App\Tests\Controller;
 
-use Firebase\JWT\JWT;
+use App\Tests\Support\ApiTestTrait;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\HttpClient\MockHttpClient;
-use Symfony\Component\HttpClient\Response\MockResponse;
 
 class PublicDeckControllerTest extends WebTestCase
 {
+    use ApiTestTrait;
+
     private KernelBrowser $client;
-    private MockHttpClient $alteredCoreMock;
 
     protected function setUp(): void
     {
         $this->client = static::createClient();
-        $this->alteredCoreMock = static::getContainer()->get('altered_core.mock_http_client');
-        $this->alteredCoreMock->setResponseFactory(
-            static fn (): MockResponse => new MockResponse('[]', ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
-        );
+        self::mockAlteredCoreResponse();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private function makeToken(string $sub): string
-    {
-        return JWT::encode([
-            'sub' => $sub,
-            'preferred_username' => 'testuser',
-            'email' => 'test@example.com',
-            'iss' => 'dev',
-            'iat' => time(),
-            'exp' => time() + 3600,
-        ], '$ecretf0rt3st_extended_for_hs256_tests', 'HS256');
-    }
-
-    private function authHeaders(string $sub): array
-    {
-        return [
-            'HTTP_AUTHORIZATION' => 'Bearer '.$this->makeToken($sub),
-            'CONTENT_TYPE' => 'application/json',
-        ];
-    }
-
     private function createDeck(string $sub, array $body): array
     {
-        $this->client->request('POST', '/api/decks', [], [], $this->authHeaders($sub), json_encode($body));
+        $this->client->request('POST', '/api/decks', [], [], self::authHeaders($sub), json_encode($body));
 
         return json_decode($this->client->getResponse()->getContent(), true) ?? [];
     }
@@ -64,10 +40,7 @@ class PublicDeckControllerTest extends WebTestCase
             'imagePath' => '/img/hero.jpg',
             'faction' => ['code' => 'AX'],
         ];
-        $json = json_encode([$card]);
-        $this->alteredCoreMock->setResponseFactory(
-            static fn (): MockResponse => new MockResponse($json, ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
-        );
+        self::mockAlteredCoreResponse(json_encode([$card]));
     }
 
     /**

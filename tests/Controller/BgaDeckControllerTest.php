@@ -2,61 +2,34 @@
 
 namespace App\Tests\Controller;
 
-use Firebase\JWT\JWT;
+use App\Tests\Support\ApiTestTrait;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\HttpClient\MockHttpClient;
-use Symfony\Component\HttpClient\Response\MockResponse;
 
 class BgaDeckControllerTest extends WebTestCase
 {
+    use ApiTestTrait;
+
     private KernelBrowser $client;
-    private MockHttpClient $alteredCoreMock;
 
     protected function setUp(): void
     {
         $this->client = static::createClient();
-        $this->alteredCoreMock = static::getContainer()->get('altered_core.mock_http_client');
-        $this->alteredCoreMock->setResponseFactory(
-            static fn (): MockResponse => new MockResponse('[]', ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
-        );
+        self::mockAlteredCoreResponse();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private function makeToken(string $sub): string
-    {
-        return JWT::encode([
-            'sub' => $sub,
-            'preferred_username' => 'bgauser',
-            'email' => 'bga@test.com',
-            'iss' => 'dev',
-            'iat' => time(),
-            'exp' => time() + 3600,
-        ], '$ecretf0rt3st_extended_for_hs256_tests', 'HS256');
-    }
-
-    private function authHeaders(string $sub): array
-    {
-        return [
-            'HTTP_AUTHORIZATION' => 'Bearer '.$this->makeToken($sub),
-            'CONTENT_TYPE' => 'application/json',
-        ];
-    }
-
     private function createDeck(string $sub, array $body): array
     {
-        $this->client->request('POST', '/api/decks', [], [], $this->authHeaders($sub), json_encode($body));
+        $this->client->request('POST', '/api/decks', [], [], self::authHeaders($sub), json_encode($body));
 
         return json_decode($this->client->getResponse()->getContent(), true) ?? [];
     }
 
     private function mockCards(array ...$cards): void
     {
-        $json = json_encode(array_values($cards));
-        $this->alteredCoreMock->setResponseFactory(
-            static fn (): MockResponse => new MockResponse($json, ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
-        );
+        self::mockAlteredCoreResponse(json_encode(array_values($cards)));
     }
 
     private function heroCard(string $ref = 'ALT_CORE_B_AX_1_C'): array
@@ -107,7 +80,7 @@ class BgaDeckControllerTest extends WebTestCase
     public function testCollectionReturns200(): void
     {
         $sub = 'bga-'.__FUNCTION__;
-        $this->client->request('GET', '/api/bga/decks', [], [], $this->authHeaders($sub));
+        $this->client->request('GET', '/api/bga/decks', [], [], self::authHeaders($sub));
 
         $this->assertResponseIsSuccessful();
     }
@@ -115,7 +88,7 @@ class BgaDeckControllerTest extends WebTestCase
     public function testCollectionResponseHasMemberAndView(): void
     {
         $sub = 'bga-'.__FUNCTION__;
-        $this->client->request('GET', '/api/bga/decks', [], [], $this->authHeaders($sub));
+        $this->client->request('GET', '/api/bga/decks', [], [], self::authHeaders($sub));
         $data = json_decode($this->client->getResponse()->getContent(), true);
 
         self::assertArrayHasKey('hydra:member', $data);
@@ -125,7 +98,7 @@ class BgaDeckControllerTest extends WebTestCase
     public function testCollectionMemberIsArray(): void
     {
         $sub = 'bga-'.__FUNCTION__;
-        $this->client->request('GET', '/api/bga/decks', [], [], $this->authHeaders($sub));
+        $this->client->request('GET', '/api/bga/decks', [], [], self::authHeaders($sub));
         $data = json_decode($this->client->getResponse()->getContent(), true);
 
         self::assertIsArray($data['hydra:member']);
@@ -134,7 +107,7 @@ class BgaDeckControllerTest extends WebTestCase
     public function testCollectionHydraViewShape(): void
     {
         $sub = 'bga-'.__FUNCTION__;
-        $this->client->request('GET', '/api/bga/decks', [], [], $this->authHeaders($sub));
+        $this->client->request('GET', '/api/bga/decks', [], [], self::authHeaders($sub));
         $view = json_decode($this->client->getResponse()->getContent(), true)['hydra:view'];
 
         self::assertArrayHasKey('@id', $view);
@@ -160,7 +133,7 @@ class BgaDeckControllerTest extends WebTestCase
         ]);
         self::assertNotEmpty($deck['id']);
 
-        $this->client->request('GET', '/api/bga/decks', [], [], $this->authHeaders($sub));
+        $this->client->request('GET', '/api/bga/decks', [], [], self::authHeaders($sub));
         $data = json_decode($this->client->getResponse()->getContent(), true);
 
         // Collection is currently empty due to debug code — assert the member array is well-formed.
@@ -206,9 +179,7 @@ class BgaDeckControllerTest extends WebTestCase
 
     public function testCardReturns404WhenCoreReturnsEmpty(): void
     {
-        $this->alteredCoreMock->setResponseFactory(
-            new MockResponse('{}', ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
-        );
+        self::mockAlteredCoreResponse('{}');
 
         $this->client->request('GET', '/api/bga/cards/ALT_CORE_B_AX_1_C');
 
@@ -219,9 +190,7 @@ class BgaDeckControllerTest extends WebTestCase
     {
         $ref = 'ALT_CORE_B_AX_2_C';
         $card = $this->characterCard($ref);
-        $this->alteredCoreMock->setResponseFactory(
-            new MockResponse(json_encode($card), ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
-        );
+        self::mockAlteredCoreResponse(json_encode($card));
 
         $this->client->request('GET', '/api/bga/cards/'.$ref);
         $data = json_decode($this->client->getResponse()->getContent(), true);
@@ -241,9 +210,7 @@ class BgaDeckControllerTest extends WebTestCase
     {
         $ref = 'ALT_CORE_B_AX_2_C';
         $card = $this->characterCard($ref);
-        $this->alteredCoreMock->setResponseFactory(
-            new MockResponse(json_encode($card), ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
-        );
+        self::mockAlteredCoreResponse(json_encode($card));
 
         $this->client->request('GET', '/api/bga/cards/'.$ref);
         $data = json_decode($this->client->getResponse()->getContent(), true);
@@ -258,9 +225,7 @@ class BgaDeckControllerTest extends WebTestCase
     {
         $ref = 'ALT_CORE_B_AX_2_C';
         $card = $this->characterCard($ref);
-        $this->alteredCoreMock->setResponseFactory(
-            new MockResponse(json_encode($card), ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
-        );
+        self::mockAlteredCoreResponse(json_encode($card));
 
         $this->client->request('GET', '/api/bga/cards/'.$ref);
         $data = json_decode($this->client->getResponse()->getContent(), true);
@@ -286,9 +251,7 @@ class BgaDeckControllerTest extends WebTestCase
                 'abilityEffect' => ['alteredId' => 'effect-id', 'text' => ['fr' => 'Alors']],
             ],
         ]);
-        $this->alteredCoreMock->setResponseFactory(
-            new MockResponse(json_encode($card), ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
-        );
+        self::mockAlteredCoreResponse(json_encode($card));
 
         $this->client->request('GET', '/api/bga/cards/'.$ref);
         $data = json_decode($this->client->getResponse()->getContent(), true);
@@ -336,9 +299,7 @@ class BgaDeckControllerTest extends WebTestCase
                 'abilityEffect' => ['alteredId' => 'e2', 'text' => 'E2'],
             ],
         ]);
-        $this->alteredCoreMock->setResponseFactory(
-            new MockResponse(json_encode($card), ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
-        );
+        self::mockAlteredCoreResponse(json_encode($card));
 
         $this->client->request('GET', '/api/bga/cards/'.$ref);
         $data = json_decode($this->client->getResponse()->getContent(), true);

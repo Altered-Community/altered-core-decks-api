@@ -34,3 +34,18 @@ services:
         arguments:
             $httpClient: '@altered_draft.mock_http_client'
             $alteredDraftUrl: '%env(ALTERED_DRAFT_URL)%'
+
+    # Keycloak JWKS endpoint: tests never reach the network. Without a response factory
+    # the fetch fails and every non-dev token is rejected.
+    keycloak.mock_http_client:
+        class: Symfony\Component\HttpClient\MockHttpClient
+        public: true
+
+    App\Service\KeycloakJwtDecoder:
+        autowire: true
+        arguments:
+            $httpClient: '@keycloak.mock_http_client'
+            $keycloakBaseUrl: '%keycloak_base_url%'
+            $keycloakRealm: '%keycloak_realm%'
+            $appSecret: '%env(APP_SECRET)%'
+            $devAuthEnabled: '%env(bool:DEV_AUTH_ENABLED)%'

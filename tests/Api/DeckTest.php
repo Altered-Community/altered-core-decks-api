@@ -2,7 +2,7 @@
 
 namespace App\Tests\Api;
 
-use Firebase\JWT\JWT;
+use App\Tests\Support\ApiTestTrait;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -10,6 +10,8 @@ use Symfony\Component\HttpClient\Response\MockResponse;
 
 class DeckTest extends WebTestCase
 {
+    use ApiTestTrait;
+
     private KernelBrowser $client;
     private MockHttpClient $alteredCoreMock;
 
@@ -19,35 +21,12 @@ class DeckTest extends WebTestCase
         // Keep a single kernel/container across requests so mocks reconfigured between
         // successive requests (e.g. several POSTs each needing different card data) stick.
         $this->client->disableReboot();
-        $this->alteredCoreMock = static::getContainer()->get('altered_core.mock_http_client');
         // Default: return empty card list (deck with no cards never triggers HTTP call,
         // but this prevents MockHttpClient from throwing if called unexpectedly)
-        $this->alteredCoreMock->setResponseFactory(
-            static fn (): MockResponse => new MockResponse('[]', ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
-        );
+        $this->alteredCoreMock = self::mockAlteredCoreResponse();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
-
-    private function makeToken(string $sub): string
-    {
-        return JWT::encode([
-            'sub' => $sub,
-            'preferred_username' => 'testuser',
-            'email' => 'test@test.com',
-            'iss' => 'dev',
-            'iat' => time(),
-            'exp' => time() + 3600,
-        ], '$ecretf0rt3st_extended_for_hs256_tests', 'HS256');
-    }
-
-    private function authHeaders(string $sub): array
-    {
-        return [
-            'HTTP_AUTHORIZATION' => 'Bearer '.$this->makeToken($sub),
-            'CONTENT_TYPE' => 'application/json',
-        ];
-    }
 
     private function post(string $sub, array $body): array
     {
@@ -56,7 +35,7 @@ class DeckTest extends WebTestCase
             '/api/decks',
             [],
             [],
-            $this->authHeaders($sub),
+            self::authHeaders($sub),
             json_encode($body),
         );
 
@@ -65,15 +44,12 @@ class DeckTest extends WebTestCase
 
     private function patch(string $sub, string $id, array $body): array
     {
-        $headers = $this->authHeaders($sub);
-        $headers['CONTENT_TYPE'] = 'application/merge-patch+json';
-
         $this->client->request(
             'PATCH',
             '/api/decks/'.$id,
             [],
             [],
-            $headers,
+            self::authHeaders($sub, 'application/merge-patch+json'),
             json_encode($body),
         );
 
@@ -87,7 +63,7 @@ class DeckTest extends WebTestCase
             '/api/decks/'.$id,
             [],
             [],
-            $this->authHeaders($sub),
+            self::authHeaders($sub),
         );
     }
 
@@ -98,10 +74,7 @@ class DeckTest extends WebTestCase
         // test, so clear it here to guarantee a re-mock of the same reference takes effect.
         static::getContainer()->get('cache.app')->clear();
 
-        $json = json_encode($cards);
-        $this->alteredCoreMock->setResponseFactory(
-            static fn (): MockResponse => new MockResponse($json, ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
-        );
+        self::mockAlteredCoreResponse(json_encode($cards));
     }
 
     private function upvote(string $sub, string $id): array
@@ -111,7 +84,7 @@ class DeckTest extends WebTestCase
             '/api/decks/'.$id.'/upvote',
             [],
             [],
-            $this->authHeaders($sub),
+            self::authHeaders($sub),
         );
 
         return json_decode($this->client->getResponse()->getContent(), true) ?? [];
@@ -121,7 +94,7 @@ class DeckTest extends WebTestCase
     {
         $headers = ['CONTENT_TYPE' => 'application/json'];
         if (null !== $sub) {
-            $headers['HTTP_AUTHORIZATION'] = 'Bearer '.$this->makeToken($sub);
+            $headers['HTTP_AUTHORIZATION'] = self::bearer($sub);
         }
 
         $this->client->request('GET', '/api/decks/public', $params, [], $headers);
@@ -157,7 +130,7 @@ class DeckTest extends WebTestCase
         $this->assertResponseStatusCodeSame(204);
 
         // Verify it's gone
-        $this->client->request('GET', '/api/decks/'.$deck['id'], [], [], $this->authHeaders($sub));
+        $this->client->request('GET', '/api/decks/'.$deck['id'], [], [], self::authHeaders($sub));
         $this->assertResponseStatusCodeSame(404);
     }
 
@@ -584,9 +557,7 @@ class DeckTest extends WebTestCase
         $this->patch($sub, $deckWith['id'], ['isPublic' => true]);
 
         // reset mock — second deck has no cards, altered-core won't be called
-        $this->alteredCoreMock->setResponseFactory(
-            static fn (): MockResponse => new MockResponse('[]', ['http_code' => 200, 'response_headers' => ['Content-Type: application/json']])
-        );
+        self::mockAlteredCoreResponse();
 
         $deckWithout = $this->post($sub, ['name' => 'Deck Without Morgane '.__FUNCTION__, 'isDraft' => false]);
         $this->assertResponseStatusCodeSame(201);
@@ -662,7 +633,7 @@ class DeckTest extends WebTestCase
 
     private function getMyRaw(string $sub, array $params = []): string
     {
-        $this->client->request('GET', '/api/decks', $params, [], $this->authHeaders($sub));
+        $this->client->request('GET', '/api/decks', $params, [], self::authHeaders($sub));
 
         return (string) $this->client->getResponse()->getContent();
     }
