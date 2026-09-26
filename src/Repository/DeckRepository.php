@@ -98,9 +98,9 @@ class DeckRepository extends ServiceEntityRepository
         return $query->getResult();
     }
 
-    public function findPublic(int $page, int $itemsPerPage, ?string $hero = null, ?string $cardName = null, string $orderBy = 'created_at', ?string $faction = null, ?string $name = null, ?string $format = null, ?string $cardRef = null, string $orderDir = 'DESC'): array
+    public function findPublic(int $page, int $itemsPerPage, ?string $hero = null, ?string $cardName = null, string $orderBy = 'created_at', ?string $faction = null, ?string $name = null, ?string $format = null, ?string $cardRef = null, string $orderDir = 'DESC', ?bool $legal = null): array
     {
-        [$where, $params] = $this->buildPublicFilters($hero, $cardName, $faction, $name, $format, $cardRef);
+        [$where, $params] = $this->buildPublicFilters($hero, $cardName, $faction, $name, $format, $cardRef, $legal);
 
         $allowedOrderBy = ['created_at', 'updated_at', 'name', 'upvote_count', 'view_count'];
         $col = in_array($orderBy, $allowedOrderBy, true) ? $orderBy : 'created_at';
@@ -115,9 +115,9 @@ class DeckRepository extends ServiceEntityRepository
         );
     }
 
-    public function countPublic(?string $hero = null, ?string $cardName = null, ?string $faction = null, ?string $name = null, ?string $format = null, ?string $cardRef = null): int
+    public function countPublic(?string $hero = null, ?string $cardName = null, ?string $faction = null, ?string $name = null, ?string $format = null, ?string $cardRef = null, ?bool $legal = null): int
     {
-        [$where, $params] = $this->buildPublicFilters($hero, $cardName, $faction, $name, $format, $cardRef);
+        [$where, $params] = $this->buildPublicFilters($hero, $cardName, $faction, $name, $format, $cardRef, $legal);
 
         return (int) $this->getEntityManager()->getConnection()->fetchOne(
             "SELECT COUNT(d.id) FROM deck d WHERE {$where}",
@@ -126,9 +126,12 @@ class DeckRepository extends ServiceEntityRepository
     }
 
     /**
+     * Shared by findPublic and countPublic so the page and totalItems always apply the same filters.
+     * A null filter adds nothing to the WHERE clause.
+     *
      * @return array{0: string, 1: array<string, mixed>}
      */
-    private function buildPublicFilters(?string $hero, ?string $cardName, ?string $faction = null, ?string $name = null, ?string $format = null, ?string $cardRef = null): array
+    private function buildPublicFilters(?string $hero, ?string $cardName, ?string $faction = null, ?string $name = null, ?string $format = null, ?string $cardRef = null, ?bool $legal = null): array
     {
         $where = 'd.is_public = true AND d.is_draft = false';
         $params = [];
@@ -155,6 +158,10 @@ class DeckRepository extends ServiceEntityRepository
         if (null !== $format) {
             $where .= ' AND d.format = :format';
             $params['format'] = $format;
+        }
+
+        if (null !== $legal) {
+            $where .= $legal ? ' AND d.legal = true' : ' AND d.legal = false';
         }
 
         return [$where, $params];

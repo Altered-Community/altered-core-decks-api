@@ -751,4 +751,247 @@ class DeckTest extends WebTestCase
         $this->assertStringContainsString($mine['id'], $body);
         $this->assertStringNotContainsString($theirs['id'], $body, "Another user's deck must not appear");
     }
+
+    // ── Public decks: legal filter ─────────────────────────────────────────────
+
+    /**
+     * Creates a public, non-draft deck (unless $body overrides it) and forces its stored legality (and optionally its
+     * hero and creation date) via DBAL. `legal` is computed server-side from the format
+     * rules, so writing it directly is the only way to get both states without building
+     * full format-valid decks.
+     *
+     * @param array<string, mixed> $body extra POST body fields (format, deckCards, ...)
+     *
+     * @return array<string, mixed>
+     */
+    private function postPublicDeck(string $sub, string $name, bool $legal, array $body = [], ?string $heroRef = null, ?string $createdAt = null): array
+    {
+        $deck = $this->post($sub, $body + ['name' => $name, 'isDraft' => false, 'isPublic' => true]);
+        $this->assertResponseStatusCodeSame(201);
+
+        $connection = static::getContainer()->get('doctrine')->getConnection();
+        $connection->executeStatement(
+            'UPDATE deck SET legal = :legal WHERE id = :id',
+            ['legal' => $legal ? 'true' : 'false', 'id' => $deck['id']],
+        );
+        if (null !== $heroRef) {
+            $connection->executeStatement(
+                "UPDATE deck SET stats = jsonb_set(COALESCE(stats::jsonb, '{}'::jsonb), '{hero}', :hero::jsonb)::json WHERE id = :id",
+                ['hero' => json_encode(['reference' => $heroRef, 'name' => 'Hero', 'imagePath' => '/img/hero.jpg']), 'id' => $deck['id']],
+            );
+        }
+        if (null !== $createdAt) {
+            $connection->executeStatement(
+                'UPDATE deck SET created_at = :createdAt WHERE id = :id',
+                ['createdAt' => $createdAt, 'id' => $deck['id']],
+            );
+        }
+
+        return $deck;
+    }
+
+    /**
+     * Three public decks sharing a unique name token: two legal, one illegal. Filtering on
+     * `name` isolates them from decks left in the shared test database by other tests.
+     *
+     * @return array{token: string, legal: list<string>, illegal: list<string>}
+     */
+    private function seedLegalAndIllegalDecks(string $sub): array
+    {
+        $token = 'legaltok'.substr(md5($sub), 0, 10);
+        $a = $this->postPublicDeck($sub, $token.' A', true, createdAt: '2026-01-01 10:00:00');
+        $b = $this->postPublicDeck($sub, $token.' B', false, createdAt: '2026-01-02 10:00:00');
+        $c = $this->postPublicDeck($sub, $token.' C', true, createdAt: '2026-01-03 10:00:00');
+
+        return ['token' => $token, 'legal' => [$a['id'], $c['id']], 'illegal' => [$b['id']]];
+    }
+
+    public function testPublicDecksLegalFilter(): void
+    {
+        $seed = $this->seedLegalAndIllegalDecks('user-'.__FUNCTION__);
+
+        foreach (['true', '1', 'TRUE', 'True'] as $value) {
+            $data = $this->getPublic(['name' => $seed['token'], 'legal' => $value]);
+            $this->assertResponseIsSuccessful();
+            $this->assertSame(2, $data['totalItems'], "legal={$value}");
+            $this->assertEqualsCanonicalizing($seed['legal'], array_column($data['member'], 'id'), "legal={$value}");
+            $this->assertNotContains(false, array_column($data['member'], 'legal'));
+        }
+
+        foreach (['false', '0', 'FALSE'] as $value) {
+            $data = $this->getPublic(['name' => $seed['token'], 'legal' => $value]);
+            $this->assertResponseIsSuccessful();
+            $this->assertSame(1, $data['totalItems'], "legal={$value}");
+            $this->assertSame($seed['illegal'], array_column($data['member'], 'id'), "legal={$value}");
+            $this->assertNotContains(true, array_column($data['member'], 'legal'));
+        }
+
+        // No `legal` param: legal and illegal decks alike, as before the filter existed.
+        $data = $this->getPublic(['name' => $seed['token']]);
+        $this->assertResponseIsSuccessful();
+        $this->assertSame(3, $data['totalItems']);
+        $this->assertEqualsCanonicalizing([...$seed['legal'], ...$seed['illegal']], array_column($data['member'], 'id'));
+    }
+
+    public function testPublicDecksInvalidLegalValueIsIgnored(): void
+    {
+        $seed = $this->seedLegalAndIllegalDecks('user-'.__FUNCTION__);
+
+        $this->client->request('GET', '/api/decks/public', ['name' => $seed['token']]);
+        $baseline = (string) $this->client->getResponse()->getContent();
+
+        // Unrecognised values fall back to "no filter": same response, byte for byte, as omitting the param.
+        foreach (['', 'yes', 'no', 'on', 'maybe', '2', '-1', 'truee', ' true', ['true'], ['x' => '1']] as $value) {
+            $this->client->request('GET', '/api/decks/public', ['name' => $seed['token'], 'legal' => $value]);
+            $this->assertResponseIsSuccessful();
+            $this->assertSame($baseline, (string) $this->client->getResponse()->getContent(), 'legal='.json_encode($value));
+        }
+
+        $this->assertSame(3, json_decode($baseline, true)['totalItems']);
+    }
+
+    public function testPublicDecksLegalFilterPaginationAndTotals(): void
+    {
+        $seed = $this->seedLegalAndIllegalDecks('user-'.__FUNCTION__);
+
+        // Default order (createdAt DESC) is C (legal), B (illegal), A (legal). Without the filter
+        // page 2 holds the illegal deck; with it, every page is full and the totals exclude it.
+        $unfiltered = $this->getPublic(['name' => $seed['token'], 'itemsPerPage' => 1, 'page' => 2]);
+        $this->assertSame($seed['illegal'], array_column($unfiltered['member'], 'id'));
+        $this->assertSame(3, $unfiltered['totalItems']);
+        $this->assertSame(3, $unfiltered['lastPage']);
+
+        $page1 = $this->getPublic(['name' => $seed['token'], 'legal' => 'true', 'itemsPerPage' => 1, 'page' => 1]);
+        $this->assertResponseIsSuccessful();
+        $this->assertSame([$seed['legal'][1]], array_column($page1['member'], 'id'));
+        $this->assertSame(2, $page1['totalItems']);
+        $this->assertSame(1, $page1['currentPage']);
+        $this->assertSame(2, $page1['lastPage']);
+        $this->assertSame(2, $page1['nextPage']);
+        $this->assertNull($page1['previousPage']);
+
+        $page2 = $this->getPublic(['name' => $seed['token'], 'legal' => 'true', 'itemsPerPage' => 1, 'page' => 2]);
+        $this->assertSame([$seed['legal'][0]], array_column($page2['member'], 'id'));
+        $this->assertSame(2, $page2['lastPage']);
+        $this->assertNull($page2['nextPage']);
+        $this->assertSame(1, $page2['previousPage']);
+
+        // Past the last page: empty member, totals unchanged.
+        $page3 = $this->getPublic(['name' => $seed['token'], 'legal' => 'true', 'itemsPerPage' => 1, 'page' => 3]);
+        $this->assertSame([], $page3['member']);
+        $this->assertSame(2, $page3['totalItems']);
+
+        $illegalOnly = $this->getPublic(['name' => $seed['token'], 'legal' => 'false', 'itemsPerPage' => 1]);
+        $this->assertSame(1, $illegalOnly['totalItems']);
+        $this->assertSame(1, $illegalOnly['lastPage']);
+        $this->assertNull($illegalOnly['nextPage']);
+    }
+
+    public function testPublicDecksLegalFilterWithEveryOrder(): void
+    {
+        $seed = $this->seedLegalAndIllegalDecks('user-'.__FUNCTION__);
+
+        foreach (['name', 'createdAt', 'updatedAt', 'upvoteCount', 'viewCount'] as $field) {
+            foreach (['asc', 'desc'] as $dir) {
+                $label = "order[{$field}]={$dir}";
+
+                $legal = $this->getPublic(['name' => $seed['token'], 'legal' => 'true', 'order' => [$field => $dir]]);
+                $this->assertResponseIsSuccessful();
+                $this->assertSame(2, $legal['totalItems'], $label);
+                $this->assertEqualsCanonicalizing($seed['legal'], array_column($legal['member'], 'id'), $label);
+
+                $illegal = $this->getPublic(['name' => $seed['token'], 'legal' => 'false', 'order' => [$field => $dir]]);
+                $this->assertSame(1, $illegal['totalItems'], $label);
+                $this->assertSame($seed['illegal'], array_column($illegal['member'], 'id'), $label);
+            }
+        }
+
+        // Order is still applied on the filtered set.
+        $byName = $this->getPublic(['name' => $seed['token'], 'legal' => 'true', 'order' => ['name' => 'desc']]);
+        $this->assertSame([$seed['legal'][1], $seed['legal'][0]], array_column($byName['member'], 'id'));
+        $byName = $this->getPublic(['name' => $seed['token'], 'legal' => 'true', 'order' => ['name' => 'asc']]);
+        $this->assertSame($seed['legal'], array_column($byName['member'], 'id'));
+    }
+
+    public function testPublicDecksLegalFilterCombinesWithFormatHeroAndFaction(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $token = 'legalcombo'.substr(md5($sub), 0, 10);
+
+        $axLegal = $this->postPublicDeck($sub, $token.' AX legal', true, ['format' => 'standard'], 'ALT_CORE_B_AX_1_C');
+        $axIllegal = $this->postPublicDeck($sub, $token.' AX illegal', false, ['format' => 'standard'], 'ALT_BISE_B_AX_1_C');
+        $lyLegal = $this->postPublicDeck($sub, $token.' LY legal', true, ['format' => 'standard'], 'ALT_CORE_B_LY_1_C');
+        $lyIllegalNoFormat = $this->postPublicDeck($sub, $token.' LY illegal', false, [], 'ALT_CORE_B_LY_1_C');
+
+        $cases = [
+            'format' => [['format' => 'standard'], [$axLegal, $lyLegal], [$axIllegal]],
+            'faction' => [['faction' => 'AX'], [$axLegal], [$axIllegal]],
+            'hero' => [['hero' => 'ALT_CORE_B_AX_1_C'], [$axLegal], [$axIllegal]],
+            'faction+hero' => [['faction' => 'LY', 'hero' => 'ALT_CORE_B_LY_1_C'], [$lyLegal], [$lyIllegalNoFormat]],
+            'format+faction' => [['format' => 'standard', 'faction' => 'LY'], [$lyLegal], []],
+        ];
+
+        foreach ($cases as $label => [$filters, $expectedLegal, $expectedIllegal]) {
+            $legal = $this->getPublic(['name' => $token, 'legal' => 'true'] + $filters);
+            $this->assertResponseIsSuccessful();
+            $this->assertEqualsCanonicalizing(array_column($expectedLegal, 'id'), array_column($legal['member'], 'id'), "{$label} legal=true");
+            $this->assertSame(count($expectedLegal), $legal['totalItems'], "{$label} legal=true");
+
+            $illegal = $this->getPublic(['name' => $token, 'legal' => 'false'] + $filters);
+            $this->assertEqualsCanonicalizing(array_column($expectedIllegal, 'id'), array_column($illegal['member'], 'id'), "{$label} legal=false");
+            $this->assertSame(count($expectedIllegal), $illegal['totalItems'], "{$label} legal=false");
+
+            $all = $this->getPublic(['name' => $token] + $filters);
+            $this->assertSame(count($expectedLegal) + count($expectedIllegal), $all['totalItems'], "{$label} no legal");
+        }
+    }
+
+    public function testPublicDecksLegalFilterCombinesWithCardFilters(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $token = 'legalcard'.substr(md5($sub), 0, 10);
+        $cardRef = 'ALT_CORE_B_AX_4_C';
+
+        $this->mockAlteredCore([[
+            'reference' => $cardRef,
+            'name' => 'Legalitycheckcard',
+            'cardType' => ['reference' => 'PERMANENT'],
+            'faction' => ['code' => 'AX'],
+            'cardRarity' => ['reference' => 'CORAX_C'],
+        ]]);
+
+        $withCardLegal = $this->postPublicDeck($sub, $token.' with legal', true, ['deckCards' => [['cardReference' => $cardRef, 'quantity' => 1]]]);
+        $withCardIllegal = $this->postPublicDeck($sub, $token.' with illegal', false, ['deckCards' => [['cardReference' => $cardRef, 'quantity' => 2]]]);
+        $withoutCard = $this->postPublicDeck($sub, $token.' without legal', true);
+
+        foreach (['cardName' => 'legalitycheck', 'cardReference' => $cardRef] as $param => $value) {
+            $legal = $this->getPublic(['name' => $token, $param => $value, 'legal' => 'true']);
+            $this->assertResponseIsSuccessful();
+            $this->assertSame([$withCardLegal['id']], array_column($legal['member'], 'id'), "{$param} legal=true");
+            $this->assertSame(1, $legal['totalItems'], "{$param} legal=true");
+
+            $illegal = $this->getPublic(['name' => $token, $param => $value, 'legal' => 'false']);
+            $this->assertSame([$withCardIllegal['id']], array_column($illegal['member'], 'id'), "{$param} legal=false");
+            $this->assertSame(1, $illegal['totalItems'], "{$param} legal=false");
+
+            $all = $this->getPublic(['name' => $token, $param => $value]);
+            $this->assertSame(2, $all['totalItems'], "{$param} no legal");
+            $this->assertNotContains($withoutCard['id'], array_column($all['member'], 'id'));
+        }
+    }
+
+    public function testPublicDecksLegalFilterExcludesPrivateAndDraftDecks(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $token = 'legalvis'.substr(md5($sub), 0, 10);
+
+        $public = $this->postPublicDeck($sub, $token.' public', true);
+        $this->postPublicDeck($sub, $token.' private', true, ['isPublic' => false]);
+        $this->postPublicDeck($sub, $token.' draft', true, ['isDraft' => true]);
+
+        // A legal deck still needs to be public and non-draft to be listed.
+        $data = $this->getPublic(['name' => $token, 'legal' => 'true']);
+        $this->assertSame([$public['id']], array_column($data['member'], 'id'));
+        $this->assertSame(1, $data['totalItems']);
+    }
 }
