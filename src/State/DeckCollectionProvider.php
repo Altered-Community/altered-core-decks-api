@@ -10,6 +10,9 @@ use Symfony\Bundle\SecurityBundle\Security;
 
 final readonly class DeckCollectionProvider implements ProviderInterface
 {
+    /** order[...] keys honoured on GET /api/decks => deck column. */
+    private const ORDER_FIELDS = ['lastModifiedAt' => 'last_modified_at'];
+
     public function __construct(
         private DeckRepository $deckRepository,
         private Security $security,
@@ -25,34 +28,42 @@ final readonly class DeckCollectionProvider implements ProviderInterface
         }
 
         $filters = $context['filters'] ?? [];
+        [$orderBy, $orderDir] = $this->order($filters) ?? [null, null];
 
         return $this->deckRepository->findByUser(
             $currentUser,
             faction: $this->stringFilter($filters, 'faction'),
             hero: $this->stringFilter($filters, 'hero'),
-            lastModifiedDir: $this->lastModifiedOrder($filters),
+            orderBy: $orderBy,
+            orderDir: $orderDir ?? 'DESC',
         );
     }
 
     /**
      * This provider bypasses API Platform's Doctrine extensions, so the declared OrderFilter
-     * never runs here. Only order[lastModifiedAt]=asc|desc is honoured; any other order key
-     * keeps the historical default ordering (updated_at DESC) to leave existing clients as-is.
+     * never runs here. Only the keys in ORDER_FIELDS are honoured; any other key keeps the
+     * historical default ordering (updated_at DESC) to leave existing clients as-is.
      *
      * @param array<string, mixed> $filters
      *
-     * @return 'ASC'|'DESC'|null
+     * @return array{0: string, 1: 'ASC'|'DESC'}|null [column, direction]
      */
-    private function lastModifiedOrder(array $filters): ?string
+    private function order(array $filters): ?array
     {
         $order = $filters['order'] ?? null;
-        $dir = is_array($order) ? ($order['lastModifiedAt'] ?? null) : null;
+        if (!is_array($order)) {
+            return null;
+        }
 
-        return match (is_string($dir) ? strtolower($dir) : null) {
-            'asc' => 'ASC',
-            'desc' => 'DESC',
-            default => null,
-        };
+        foreach (self::ORDER_FIELDS as $field => $column) {
+            $dir = $order[$field] ?? null;
+            $dir = is_string($dir) ? strtoupper($dir) : null;
+            if ('ASC' === $dir || 'DESC' === $dir) {
+                return [$column, $dir];
+            }
+        }
+
+        return null;
     }
 
     /**

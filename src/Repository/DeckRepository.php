@@ -109,10 +109,7 @@ class DeckRepository extends ServiceEntityRepository
         $params['limit'] = $itemsPerPage;
         $params['offset'] = ($page - 1) * $itemsPerPage;
 
-        // d.id breaks ties (same date, same count, same name) so LIMIT/OFFSET pages are
-        // deterministic: without it Postgres may return tied rows in a different order on
-        // each query, skipping or repeating decks across pages. Same direction as the main
-        // key so the (…, col DESC, id DESC) indexes can be scanned either way.
+        // d.id tie-break keeps LIMIT/OFFSET pages deterministic (no skipped or repeated deck).
         return $this->fetchDecks(
             "WHERE {$where} ORDER BY d.{$col} {$dir}, d.id {$dir} LIMIT :limit OFFSET :offset",
             $params,
@@ -197,26 +194,21 @@ class DeckRepository extends ServiceEntityRepository
     /**
      * All decks owned by $user, optionally narrowed by faction and/or hero.
      * Faction/hero use the same jsonb matching as the public listing (see
-     * buildHeroFactionWhere). Default ordering (updated_at DESC, never-edited decks
-     * first since NULLs sort first) matches the client's default sort; the client
-     * re-sorts on demand. $lastModifiedDir ('ASC'|'DESC') switches to last_modified_at,
-     * which is never null. d.id breaks ties in both cases.
+     * buildHeroFactionWhere). Without $orderBy, ordering matches the client's default
+     * sort (updated_at DESC, never-edited decks first); the client re-sorts on demand.
      *
      * @return Deck[]
      */
-    public function findByUser(User $user, ?string $faction = null, ?string $hero = null, ?string $lastModifiedDir = null): array
+    public function findByUser(User $user, ?string $faction = null, ?string $hero = null, ?string $orderBy = null, string $orderDir = 'DESC'): array
     {
         [$heroFactionWhere, $params] = $this->buildHeroFactionWhere($hero, $faction);
         $params['userId'] = (string) $user->getId();
 
-        $orderBy = match ($lastModifiedDir) {
-            'ASC' => 'd.last_modified_at ASC, d.id ASC',
-            'DESC' => 'd.last_modified_at DESC, d.id DESC',
-            default => 'd.updated_at DESC, d.id DESC',
-        };
+        $col = in_array($orderBy, ['last_modified_at'], true) ? $orderBy : 'updated_at';
+        $dir = null !== $orderBy && 'ASC' === strtoupper($orderDir) ? 'ASC' : 'DESC';
 
         return $this->fetchDecks(
-            "WHERE d.user_id = :userId{$heroFactionWhere} ORDER BY {$orderBy}",
+            "WHERE d.user_id = :userId{$heroFactionWhere} ORDER BY d.{$col} {$dir}, d.id {$dir}",
             $params,
         );
     }

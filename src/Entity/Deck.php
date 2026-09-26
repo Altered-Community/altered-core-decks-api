@@ -122,13 +122,7 @@ class Deck
     #[ApiProperty(description: 'Date of the last edit through the API. Null until the deck is edited for the first time.')]
     private ?\DateTimeImmutable $updatedAt = null;
 
-    /**
-     * Always equal to COALESCE(updatedAt, createdAt): set to createdAt on creation and moved
-     * forward together with updatedAt on every edit. Upvotes and views never touch it.
-     * Unlike updatedAt it is never null, so it sorts without NULLs landing on the first page.
-     * The DB default only covers rows inserted by code that doesn't know the column yet
-     * (rolling deploy); Doctrine always writes the value explicitly.
-     */
+    /** Always updatedAt ?? createdAt (see markModified()). The DB default only serves rows inserted during a deploy by code unaware of the column. */
     #[ORM\Column(options: ['default' => 'CURRENT_TIMESTAMP'])]
     #[Groups(['deck:read'])]
     #[ApiProperty(description: 'Date of the last edit, or the creation date if the deck was never edited. Never null. Sortable with order[lastModifiedAt].')]
@@ -283,9 +277,7 @@ class Deck
         return $this->lastModifiedAt;
     }
 
-    /**
-     * Records an edit: moves updatedAt and lastModifiedAt together so they never diverge.
-     */
+    /** Records an edit. Counters (views, upvotes) must not call it. */
     public function markModified(\DateTimeImmutable $at = new \DateTimeImmutable()): self
     {
         $this->updatedAt = $at;

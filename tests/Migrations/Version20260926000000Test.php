@@ -50,6 +50,17 @@ class Version20260926000000Test extends KernelTestCase
         $tester->assertCommandIsSuccessful($tester->getDisplay());
     }
 
+    private function insertUser(): string
+    {
+        $userId = Uuid::v4()->toRfc4122();
+        $this->connection->executeStatement(
+            'INSERT INTO "user" (id, keycloak_id, created_at, is_admin) VALUES (:id, :kc, NOW(), false)',
+            ['id' => $userId, 'kc' => 'migration-test-'.$userId],
+        );
+
+        return $userId;
+    }
+
     private function insertLegacyDeck(string $userId, string $createdAt, ?string $updatedAt): string
     {
         $id = Uuid::v4()->toRfc4122();
@@ -67,11 +78,7 @@ class Version20260926000000Test extends KernelTestCase
         $this->migrate('down');
         $this->assertFalse($this->columnExists(), 'down() drops the column');
 
-        $userId = Uuid::v4()->toRfc4122();
-        $this->connection->executeStatement(
-            'INSERT INTO "user" (id, keycloak_id, created_at, is_admin) VALUES (:id, :kc, NOW(), false)',
-            ['id' => $userId, 'kc' => 'migration-test-'.$userId],
-        );
+        $userId = $this->insertUser();
         $neverEdited = $this->insertLegacyDeck($userId, '2025-01-01 10:00:00', null);
         $edited = $this->insertLegacyDeck($userId, '2025-01-01 10:00:00', '2026-03-04 05:06:07');
 
@@ -99,18 +106,21 @@ class Version20260926000000Test extends KernelTestCase
         $this->assertSame('NO', $column['is_nullable']);
         $this->assertStringContainsStringIgnoringCase('CURRENT_TIMESTAMP', (string) $column['column_default']);
 
-        $indexDef = $this->connection->fetchOne("SELECT indexdef FROM pg_indexes WHERE indexname = 'idx_deck_public_last_modified'");
-        $this->assertStringContainsString('(is_public, is_draft, last_modified_at DESC, id DESC)', (string) $indexDef);
+        foreach ([
+            'idx_deck_public_last_modified' => 'last_modified_at',
+            'idx_deck_public_created' => 'created_at',
+            'idx_deck_public_upvote' => 'upvote_count',
+            'idx_deck_public_view' => 'view_count',
+        ] as $index => $column) {
+            $indexDef = $this->connection->fetchOne('SELECT indexdef FROM pg_indexes WHERE indexname = :i', ['i' => $index]);
+            $this->assertStringContainsString("(is_public, is_draft, {$column} DESC, id DESC)", (string) $indexDef);
+        }
     }
 
     public function testRowsInsertedWithoutTheColumnGetADefault(): void
     {
         // Simulates code from before this change inserting during a rolling deploy.
-        $userId = Uuid::v4()->toRfc4122();
-        $this->connection->executeStatement(
-            'INSERT INTO "user" (id, keycloak_id, created_at, is_admin) VALUES (:id, :kc, NOW(), false)',
-            ['id' => $userId, 'kc' => 'migration-test-'.$userId],
-        );
+        $userId = $this->insertUser();
         $id = $this->insertLegacyDeck($userId, '2026-01-01 00:00:00', null);
 
         $this->assertNotNull($this->connection->fetchOne('SELECT last_modified_at FROM deck WHERE id = :id', ['id' => $id]));

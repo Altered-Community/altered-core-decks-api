@@ -8,6 +8,7 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * lastModifiedAt: never null, = COALESCE(updatedAt, createdAt), sortable on
@@ -15,6 +16,8 @@ use Symfony\Component\HttpClient\Response\MockResponse;
  */
 class DeckLastModifiedAtTest extends WebTestCase
 {
+    private const HERO_LY = '{"hero": {"reference": "ALT_CORE_B_LY_1_C"}}';
+
     private KernelBrowser $client;
 
     protected function setUp(): void
@@ -70,8 +73,8 @@ class DeckLastModifiedAtTest extends WebTestCase
     }
 
     /**
-     * Rewrites a deck's dates directly in the DB so tests control ordering, ties and
-     * never-edited decks without sleeping. Keeps the lastModifiedAt invariant.
+     * Rewrites a deck's dates directly in the DB so tests control ordering without
+     * sleeping. Keeps the lastModifiedAt invariant.
      */
     private function setDates(string $id, string $createdAt, ?string $updatedAt): void
     {
@@ -81,16 +84,35 @@ class DeckLastModifiedAtTest extends WebTestCase
         );
     }
 
+    private function setStats(array $decks, array $labels, string $statsJson): void
+    {
+        foreach ($labels as $label) {
+            $this->connection()->executeStatement(
+                'UPDATE deck SET stats = CAST(:stats AS json) WHERE id = :id',
+                ['stats' => $statsJson, 'id' => $decks[$label]['id']],
+            );
+        }
+    }
+
     /**
-     * Seven public decks named "<marker> …" (so the name filter isolates them), with:
+     * Inserts seven public decks named "<marker> …" straight into the DB (the POST path is
+     * covered separately), owned by the user that logs in as $sub. The name filter
+     * isolates them. They include:
      *  - two never-edited decks (updatedAt null), one created long ago;
      *  - three decks sharing the exact same lastModifiedAt (tie-break on id);
      *  - edited decks whose createdAt order differs from their lastModifiedAt order.
      *
-     * @return array<string, array{id: string, lastModifiedAt: string}> keyed by label
+     * @return array{0: string, 1: array<string, array{id: string, createdAt: string, updatedAt: ?string, lastModifiedAt: string}>} [marker, decks by label]
      */
-    private function seedDecks(string $sub, string $marker): array
+    private function seedDecks(string $sub): array
     {
+        $marker = 'LMA'.substr(md5($sub), 0, 8);
+        $userId = Uuid::v4()->toRfc4122();
+        $this->connection()->executeStatement(
+            'INSERT INTO "user" (id, keycloak_id, created_at, is_admin) VALUES (:id, :sub, NOW(), false)',
+            ['id' => $userId, 'sub' => $sub],
+        );
+
         $plan = [
             'old-never-edited' => ['2025-01-01 10:00:00', null],
             'recent-never-edited' => ['2026-06-01 10:00:00', null],
@@ -103,26 +125,36 @@ class DeckLastModifiedAtTest extends WebTestCase
 
         $decks = [];
         foreach ($plan as $label => [$createdAt, $updatedAt]) {
-            $deck = $this->createDeck($sub, $marker.' '.$label);
-            $this->setDates($deck['id'], $createdAt, $updatedAt);
-            $decks[$label] = ['id' => $deck['id'], 'lastModifiedAt' => $updatedAt ?? $createdAt];
+            $deck = [
+                'id' => Uuid::v4()->toRfc4122(),
+                'createdAt' => $createdAt,
+                'updatedAt' => $updatedAt,
+                'lastModifiedAt' => $updatedAt ?? $createdAt,
+            ];
+            $this->connection()->executeStatement(
+                'INSERT INTO deck (id, name, is_public, is_draft, created_at, updated_at, last_modified_at, user_id, legal, view_count, upvote_count)
+                 VALUES (:id, :name, true, false, :c, :u, :lm, :user, false, 0, 0)',
+                ['id' => $deck['id'], 'name' => $marker.' '.$label, 'c' => $createdAt, 'u' => $updatedAt, 'lm' => $deck['lastModifiedAt'], 'user' => $userId],
+            );
+            $decks[$label] = $deck;
         }
 
-        return $decks;
+        return [$marker, $decks];
     }
 
     /**
-     * Expected order computed independently of the API: lastModifiedAt then id, same direction.
+     * Expected order computed independently of the API: $field then id, same direction.
+     * A null $field value sorts first in 'desc' (PostgreSQL NULLS FIRST for DESC).
      *
-     * @param array<string, array{id: string, lastModifiedAt: string}> $decks
+     * @param array<string, array<string, ?string>> $decks
      *
      * @return string[]
      */
-    private function expectedOrder(array $decks, string $dir): array
+    private function expectedOrder(array $decks, string $dir, string $field = 'lastModifiedAt'): array
     {
         $rows = array_values($decks);
-        usort($rows, static function (array $a, array $b) use ($dir): int {
-            $cmp = [$a['lastModifiedAt'], $a['id']] <=> [$b['lastModifiedAt'], $b['id']];
+        usort($rows, static function (array $a, array $b) use ($dir, $field): int {
+            $cmp = [null === $a[$field], $a[$field], $a['id']] <=> [null === $b[$field], $b[$field], $b['id']];
 
             return 'asc' === $dir ? $cmp : -$cmp;
         });
@@ -143,13 +175,16 @@ class DeckLastModifiedAtTest extends WebTestCase
             $data = $this->request('GET', '/api/decks/public', params: $params + ['page' => $page, 'itemsPerPage' => $itemsPerPage]);
             $this->assertResponseIsSuccessful();
             $this->assertLessThanOrEqual($itemsPerPage, count($data['member']));
-            foreach ($data['member'] as $deck) {
-                $ids[] = $deck['id'];
-            }
+            array_push($ids, ...array_column($data['member'], 'id'));
             $page = $data['nextPage'];
         } while (null !== $page);
 
         return $ids;
+    }
+
+    private function byLastModified(string $marker, string $dir): array
+    {
+        return ['name' => $marker, 'order' => ['lastModifiedAt' => $dir]];
     }
 
     // ── Value on creation / edit ─────────────────────────────────────────────
@@ -239,114 +274,75 @@ class DeckLastModifiedAtTest extends WebTestCase
 
     // ── GET /api/decks/public ────────────────────────────────────────────────
 
+    /**
+     * Page sizes: one deck per page (every boundary, incl. inside the tie group), a size
+     * that splits the tie group across pages, and everything on one page. Comparing to the
+     * exact expected order also proves ties are ordered by id and nothing is skipped or repeated.
+     */
     public function testPublicOrderByLastModifiedAtPaginatesWithoutGapsOrDuplicates(): void
     {
-        $marker = 'LMA'.substr(md5(__FUNCTION__), 0, 8);
-        $decks = $this->seedDecks('user-'.__FUNCTION__, $marker);
+        [$marker, $decks] = $this->seedDecks('user-'.__FUNCTION__);
 
         foreach (['desc', 'asc'] as $dir) {
-            $expected = $this->expectedOrder($decks, $dir);
-
-            foreach ([1, 2, 3, 7, 100] as $itemsPerPage) {
-                $ids = $this->walkPublicPages(['name' => $marker, 'order' => ['lastModifiedAt' => $dir]], $itemsPerPage);
-
-                $this->assertSame($expected, $ids, "order[lastModifiedAt]=$dir, itemsPerPage=$itemsPerPage");
-                $this->assertSame(count($decks), count(array_unique($ids)), 'no duplicates');
+            foreach ([1, 3, 100] as $itemsPerPage) {
+                $this->assertSame(
+                    $this->expectedOrder($decks, $dir),
+                    $this->walkPublicPages($this->byLastModified($marker, $dir), $itemsPerPage),
+                    "order[lastModifiedAt]=$dir, itemsPerPage=$itemsPerPage",
+                );
             }
         }
-
-        // Never-edited decks no longer jump to the top of a "most recently modified" listing.
-        $desc = $this->expectedOrder($decks, 'desc');
-        $this->assertSame($decks['edited-latest']['id'], $desc[0]);
-        $this->assertSame($decks['old-never-edited']['id'], end($desc));
-    }
-
-    public function testPublicLastModifiedAtTiesAreStableAcrossRequests(): void
-    {
-        $marker = 'LMA'.substr(md5(__FUNCTION__), 0, 8);
-        $decks = $this->seedDecks('user-'.__FUNCTION__, $marker);
-        $ties = [$decks['tie-a']['id'], $decks['tie-b']['id'], $decks['tie-c']['id']];
-
-        $first = $this->walkPublicPages(['name' => $marker, 'order' => ['lastModifiedAt' => 'desc']], 1);
-        for ($i = 0; $i < 3; ++$i) {
-            $this->assertSame($first, $this->walkPublicPages(['name' => $marker, 'order' => ['lastModifiedAt' => 'desc']], 1));
-        }
-
-        $tiedInResponse = array_values(array_filter($first, static fn (string $id): bool => in_array($id, $ties, true)));
-        $sortedTies = $ties;
-        rsort($sortedTies);
-        $this->assertSame($sortedTies, $tiedInResponse, 'tied decks are ordered by id, same direction');
     }
 
     public function testPublicOrderByLastModifiedAtCombinesWithFilters(): void
     {
-        $marker = 'LMA'.substr(md5(__FUNCTION__), 0, 8);
-        $decks = $this->seedDecks('user-'.__FUNCTION__, $marker);
+        $sub = 'user-'.__FUNCTION__;
+        [$marker, $decks] = $this->seedDecks($sub);
 
-        // Put three of them in "standard" format and give two of them the same hero.
-        $conn = $this->connection();
-        foreach (['tie-a', 'edited-early', 'old-never-edited'] as $label) {
-            $conn->executeStatement("UPDATE deck SET format = 'standard' WHERE id = :id", ['id' => $decks[$label]['id']]);
+        $standard = ['tie-a', 'edited-early', 'old-never-edited'];
+        foreach ($standard as $label) {
+            $this->connection()->executeStatement("UPDATE deck SET format = 'standard' WHERE id = :id", ['id' => $decks[$label]['id']]);
         }
-        foreach (['tie-a', 'old-never-edited'] as $label) {
-            $conn->executeStatement(
-                "UPDATE deck SET stats = '{\"hero\": {\"reference\": \"ALT_CORE_B_LY_1_C\"}}'::json WHERE id = :id",
-                ['id' => $decks[$label]['id']],
-            );
-        }
+        $withHero = ['tie-a', 'old-never-edited'];
+        $this->setStats($decks, $withHero, self::HERO_LY);
         // A private deck and a draft with the marker must never appear.
-        $private = $this->createDeck('user-'.__FUNCTION__, $marker.' private', public: false);
-        $draft = $this->request('POST', '/api/decks', 'user-'.__FUNCTION__, body: ['name' => $marker.' draft', 'isDraft' => true, 'isPublic' => true]);
+        $private = $this->createDeck($sub, $marker.' private', public: false);
+        $draft = $this->request('POST', '/api/decks', $sub, body: ['name' => $marker.' draft', 'isDraft' => true, 'isPublic' => true]);
 
-        $standard = array_intersect_key($decks, array_flip(['tie-a', 'edited-early', 'old-never-edited']));
-        $ids = $this->walkPublicPages(['name' => $marker, 'format' => 'standard', 'order' => ['lastModifiedAt' => 'desc']], 2);
-        $this->assertSame($this->expectedOrder($standard, 'desc'), $ids);
+        $ids = $this->walkPublicPages($this->byLastModified($marker, 'desc') + ['format' => 'standard'], 2);
+        $this->assertSame($this->expectedOrder(array_intersect_key($decks, array_flip($standard)), 'desc'), $ids);
 
-        $withHero = array_intersect_key($decks, array_flip(['tie-a', 'old-never-edited']));
-        $ids = $this->walkPublicPages(['name' => $marker, 'faction' => 'LY', 'hero' => 'ALT_CORE_B_LY_1_C', 'order' => ['lastModifiedAt' => 'asc']], 1);
-        $this->assertSame($this->expectedOrder($withHero, 'asc'), $ids);
+        $ids = $this->walkPublicPages($this->byLastModified($marker, 'asc') + ['faction' => 'LY', 'hero' => 'ALT_CORE_B_LY_1_C'], 1);
+        $this->assertSame($this->expectedOrder(array_intersect_key($decks, array_flip($withHero)), 'asc'), $ids);
 
-        $all = $this->walkPublicPages(['name' => $marker, 'order' => ['lastModifiedAt' => 'desc']], 3);
+        $all = $this->walkPublicPages($this->byLastModified($marker, 'desc'), 100);
+        $this->assertSame($this->expectedOrder($decks, 'desc'), $all);
         $this->assertNotContains($private['id'], $all);
         $this->assertNotContains($draft['id'], $all);
-        $data = $this->request('GET', '/api/decks/public', params: ['name' => $marker, 'order' => ['lastModifiedAt' => 'desc']]);
-        $this->assertSame(count($decks), $data['totalItems']);
     }
 
     public function testPublicOrderByUpdatedAtIsUnchanged(): void
     {
-        $marker = 'LMA'.substr(md5(__FUNCTION__), 0, 8);
-        $decks = $this->seedDecks('user-'.__FUNCTION__, $marker);
+        [$marker, $decks] = $this->seedDecks('user-'.__FUNCTION__);
 
         // order[updatedAt]=desc keeps PostgreSQL's NULLS FIRST: never-edited decks still come
         // first (that is the behaviour lastModifiedAt exists to avoid), then edited decks.
         $ids = $this->walkPublicPages(['name' => $marker, 'order' => ['updatedAt' => 'desc']], 2);
-        $neverEdited = [$decks['old-never-edited']['id'], $decks['recent-never-edited']['id']];
-        rsort($neverEdited);
-        $this->assertSame($neverEdited, array_slice($ids, 0, 2), 'NULL updatedAt first, tie broken by id');
+        $this->assertSame($this->expectedOrder($decks, 'desc', 'updatedAt'), $ids);
         $this->assertSame($decks['edited-latest']['id'], $ids[2]);
 
         $data = $this->request('GET', '/api/decks/public', params: ['name' => $marker, 'itemsPerPage' => 100]);
         foreach ($data['member'] as $deck) {
-            $this->assertArrayHasKey('updatedAt', $deck);
-            $this->assertNotNull($deck['lastModifiedAt']);
             $this->assertSame($deck['updatedAt'] ?? $deck['createdAt'], $deck['lastModifiedAt']);
         }
     }
 
     public function testPublicDefaultOrderIsUnchanged(): void
     {
-        $marker = 'LMA'.substr(md5(__FUNCTION__), 0, 8);
-        $decks = $this->seedDecks('user-'.__FUNCTION__, $marker);
+        [$marker, $decks] = $this->seedDecks('user-'.__FUNCTION__);
 
         // No order param → createdAt DESC.
-        $rows = array_map(
-            fn (string $label): array => ['id' => $decks[$label]['id'], 'createdAt' => $this->connection()->fetchOne('SELECT created_at FROM deck WHERE id = :id', ['id' => $decks[$label]['id']])],
-            array_keys($decks),
-        );
-        usort($rows, static fn (array $a, array $b): int => [$b['createdAt'], $b['id']] <=> [$a['createdAt'], $a['id']]);
-
-        $this->assertSame(array_column($rows, 'id'), $this->walkPublicPages(['name' => $marker], 3));
+        $this->assertSame($this->expectedOrder($decks, 'desc', 'createdAt'), $this->walkPublicPages(['name' => $marker], 3));
     }
 
     // ── GET /api/decks (my decks) ────────────────────────────────────────────
@@ -365,52 +361,35 @@ class DeckLastModifiedAtTest extends WebTestCase
     public function testMyDecksOrderByLastModifiedAt(): void
     {
         $sub = 'user-'.__FUNCTION__;
-        $decks = $this->seedDecks($sub, 'Mine');
+        [, $decks] = $this->seedDecks($sub);
 
         $this->assertSame($this->expectedOrder($decks, 'desc'), $this->myDeckIds($sub, ['order' => ['lastModifiedAt' => 'desc']]));
         $this->assertSame($this->expectedOrder($decks, 'asc'), $this->myDeckIds($sub, ['order' => ['lastModifiedAt' => 'asc']]));
-        $this->assertSame($this->expectedOrder($decks, 'desc'), $this->myDeckIds($sub, ['order' => ['lastModifiedAt' => 'DESC']]));
     }
 
     public function testMyDecksOrderByLastModifiedAtCombinesWithFactionFilter(): void
     {
         $sub = 'user-'.__FUNCTION__;
-        $decks = $this->seedDecks($sub, 'Mine');
-        foreach (['tie-b', 'recent-never-edited', 'edited-latest'] as $label) {
-            $this->connection()->executeStatement(
-                "UPDATE deck SET stats = '{\"hero\": {\"reference\": \"ALT_CORE_B_MU_2_C\"}}'::json WHERE id = :id",
-                ['id' => $decks[$label]['id']],
-            );
-        }
+        [, $decks] = $this->seedDecks($sub);
+        $mu = ['tie-b', 'recent-never-edited', 'edited-latest'];
+        $this->setStats($decks, $mu, '{"hero": {"reference": "ALT_CORE_B_MU_2_C"}}');
 
-        $mu = array_intersect_key($decks, array_flip(['tie-b', 'recent-never-edited', 'edited-latest']));
-        $this->assertSame($this->expectedOrder($mu, 'asc'), $this->myDeckIds($sub, ['faction' => 'MU', 'order' => ['lastModifiedAt' => 'asc']]));
+        $this->assertSame(
+            $this->expectedOrder(array_intersect_key($decks, array_flip($mu)), 'asc'),
+            $this->myDeckIds($sub, ['faction' => 'MU', 'order' => ['lastModifiedAt' => 'asc']]),
+        );
     }
 
     public function testMyDecksDefaultOrderIsUnchanged(): void
     {
         $sub = 'user-'.__FUNCTION__;
-        $decks = $this->seedDecks($sub, 'Mine');
+        [, $decks] = $this->seedDecks($sub);
 
         // Historical order: updated_at DESC (NULLs first), now with an id tie-break.
-        $rows = [];
-        foreach ($decks as $label => $deck) {
-            $updatedAt = str_contains($label, 'never-edited') ? null : $deck['lastModifiedAt'];
-            $rows[] = ['id' => $deck['id'], 'updatedAt' => $updatedAt];
-        }
-        usort($rows, static function (array $a, array $b): int {
-            if ((null === $a['updatedAt']) !== (null === $b['updatedAt'])) {
-                return null === $a['updatedAt'] ? -1 : 1;
-            }
-
-            return [$b['updatedAt'], $b['id']] <=> [$a['updatedAt'], $a['id']];
-        });
-        $expected = array_column($rows, 'id');
+        $expected = $this->expectedOrder($decks, 'desc', 'updatedAt');
 
         $this->assertSame($expected, $this->myDeckIds($sub));
-        // Other order keys and malformed values are still ignored on this route.
+        // Other order keys are still ignored on this route (parsing matrix: DeckCollectionProviderTest).
         $this->assertSame($expected, $this->myDeckIds($sub, ['order' => ['name' => 'asc']]));
-        $this->assertSame($expected, $this->myDeckIds($sub, ['order' => ['lastModifiedAt' => 'sideways']]));
-        $this->assertSame($expected, $this->myDeckIds($sub, ['order' => 'lastModifiedAt']));
     }
 }

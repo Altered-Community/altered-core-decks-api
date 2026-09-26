@@ -13,7 +13,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 class DeckCollectionProviderTest extends TestCase
 {
     /**
-     * @return iterable<string, array{0: mixed, 1: 'ASC'|'DESC'|null}>
+     * @return iterable<string, array{0: mixed, 1: 'ASC'|'DESC'|null}> [order param, expected direction on last_modified_at]
      */
     public static function orderProvider(): iterable
     {
@@ -30,7 +30,7 @@ class DeckCollectionProviderTest extends TestCase
     }
 
     #[DataProvider('orderProvider')]
-    public function testOrderLastModifiedAtIsPassedToRepository(mixed $order, ?string $expected): void
+    public function testOrderIsPassedToRepository(mixed $order, ?string $expected): void
     {
         $user = $this->createStub(User::class);
         $security = $this->createStub(Security::class);
@@ -39,7 +39,7 @@ class DeckCollectionProviderTest extends TestCase
         $repo = $this->createMock(DeckRepository::class);
         $repo->expects($this->once())
             ->method('findByUser')
-            ->with($user, 'LY', null, $expected)
+            ->with($user, 'LY', null, null === $expected ? null : 'last_modified_at', $expected ?? 'DESC')
             ->willReturn([]);
 
         $filters = ['faction' => 'LY'];
