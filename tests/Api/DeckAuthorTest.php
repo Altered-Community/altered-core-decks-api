@@ -2,7 +2,10 @@
 
 namespace App\Tests\Api;
 
+use Doctrine\DBAL\Schema\Schema;
+use DoctrineMigrations\Version20260926000000;
 use Firebase\JWT\JWT;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -93,11 +96,10 @@ class DeckAuthorTest extends WebTestCase
     private function assertSafeUserPayload(array $user): void
     {
         self::assertSame([], array_diff(array_keys($user), ['username']), 'Only `username` may be exposed for the deck author');
-        self::assertStringNotContainsString('@', (string) ($user['username'] ?? ''));
     }
 
     /**
-     * No safe pseudo: `username` is omitted (null values are skipped by the serializer).
+     * No pseudo: `username` is omitted (null values are skipped by the serializer).
      *
      * @param array<string, mixed> $user
      */
@@ -153,29 +155,55 @@ class DeckAuthorTest extends WebTestCase
         }
     }
 
-    public function testEmailLikePseudoIsNotExposed(): void
+    public function testPseudoWithAtSignIsExposedAsIs(): void
     {
         $id = $this->createPublicDeck('author-'.__FUNCTION__, [
-            'pseudo' => 'pseudo@example.com',
-            'email' => 'pseudo@example.com',
+            'pseudo' => 'Joueur@Altered',
+            'preferred_username' => 'joueur@example.com',
+            'email' => 'joueur@example.com',
         ]);
 
         foreach ([$this->fetchFromPublicList($id), $this->fetchDetail($id)] as [$deck, $body]) {
-            $this->assertNoUsername($deck['user']);
+            self::assertSame(['username' => 'Joueur@Altered'], $deck['user']);
+            self::assertStringNotContainsString('joueur@example.com', $body);
+        }
+    }
+
+    public function testTokenWithoutPseudoKeepsStoredPseudo(): void
+    {
+        $sub = 'author-'.__FUNCTION__;
+        $id = $this->createPublicDeck($sub, ['pseudo' => 'PseudoJoueur', 'email' => 'joueur@example.com']);
+
+        // A client without the `profile` scope: no pseudo, preferred_username is the email.
+        $this->client->request('GET', '/api/decks', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer '.$this->token($sub, ['preferred_username' => 'joueur@example.com', 'email' => 'joueur@example.com']),
+        ]);
+        self::assertResponseIsSuccessful();
+
+        foreach ([$this->fetchFromPublicList($id), $this->fetchDetail($id)] as [$deck, $body]) {
+            self::assertSame(['username' => 'PseudoJoueur'], $deck['user']);
             $this->assertNoEmail($body);
         }
     }
 
-    public function testEmailAlreadyStoredAsUsernameIsNotExposed(): void
+    public function testLegacyUsernameMigrationClearsStoredEmail(): void
     {
         $sub = 'author-'.__FUNCTION__;
-        $id = $this->createPublicDeck($sub, ['pseudo' => 'PseudoJoueur', 'email' => 'legacy@example.com']);
+        $id = $this->createPublicDeck($sub, ['email' => 'legacy@example.com']);
+        $connection = static::getContainer()->get('doctrine')->getConnection();
 
-        // Rows written before the fix may hold an email in `username`.
-        static::getContainer()->get('doctrine')->getConnection()->executeStatement(
+        // Before deck authors became public, username fell back to preferred_username (the email).
+        $connection->executeStatement(
             'UPDATE "user" SET username = :username WHERE keycloak_id = :sub',
             ['username' => 'legacy@example.com', 'sub' => $sub],
         );
+
+        require_once dirname(__DIR__, 2).'/migrations/Version20260926000000.php';
+        $migration = new Version20260926000000($connection, new NullLogger());
+        $migration->up(new Schema());
+        foreach ($migration->getSql() as $query) {
+            $connection->executeStatement($query->getStatement());
+        }
 
         foreach ([$this->fetchFromPublicList($id), $this->fetchDetail($id)] as [$deck, $body]) {
             $this->assertNoUsername($deck['user']);
