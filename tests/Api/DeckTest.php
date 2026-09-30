@@ -667,6 +667,14 @@ class DeckTest extends WebTestCase
         return (string) $this->client->getResponse()->getContent();
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function getMy(string $sub, array $params = []): array
+    {
+        return json_decode($this->getMyRaw($sub, $params), true) ?? [];
+    }
+
     public function testMyDecksFilterByFaction(): void
     {
         $sub = 'user-'.__FUNCTION__;
@@ -720,9 +728,10 @@ class DeckTest extends WebTestCase
         $this->postHeroDeck($sub, 'AX Deck', 'ALT_CORE_B_AX_1_C');
 
         // No deck belongs to Muna → empty result, not an error.
-        $body = $this->getMyRaw($sub, ['faction' => 'MU']);
+        $data = $this->getMy($sub, ['faction' => 'MU']);
         $this->assertResponseIsSuccessful();
-        $this->assertSame('[]', trim($body));
+        $this->assertSame([], $data['member']);
+        $this->assertSame(0, $data['totalItems']);
     }
 
     public function testMyDecksFactionFilterIsCaseSensitive(): void
@@ -750,5 +759,338 @@ class DeckTest extends WebTestCase
         $this->assertResponseIsSuccessful();
         $this->assertStringContainsString($mine['id'], $body);
         $this->assertStringNotContainsString($theirs['id'], $body, "Another user's deck must not appear");
+    }
+
+    // ── My decks: pagination / filters / ordering ─────────────────────────────
+
+    /**
+     * Creates $count draft decks named "$prefix 1" … "$prefix N" (oldest first).
+     *
+     * @return list<string> deck ids in creation order
+     */
+    private function postDrafts(string $sub, int $count, string $prefix = 'Deck'): array
+    {
+        $ids = [];
+        for ($i = 1; $i <= $count; ++$i) {
+            $deck = $this->post($sub, ['name' => $prefix.' '.$i, 'isDraft' => true]);
+            $this->assertResponseStatusCodeSame(201);
+            $ids[] = $deck['id'];
+        }
+
+        return $ids;
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     *
+     * @return list<string>
+     */
+    private function myIds(string $sub, array $params = []): array
+    {
+        $data = $this->getMy($sub, $params);
+        $this->assertResponseIsSuccessful();
+
+        return array_column($data['member'], 'id');
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     *
+     * @return list<string>
+     */
+    private function myNames(string $sub, array $params = []): array
+    {
+        $data = $this->getMy($sub, $params);
+        $this->assertResponseIsSuccessful();
+
+        return array_column($data['member'], 'name');
+    }
+
+    /**
+     * Pins a deck's timestamps. The columns keep whole seconds only, so decks created by
+     * one test usually share a timestamp; ordering tests set distinct values instead.
+     */
+    private function setTimestamps(string $id, string $createdAt, ?string $updatedAt = null): void
+    {
+        static::getContainer()->get('doctrine')->getConnection()->executeStatement(
+            'UPDATE deck SET created_at = :c, updated_at = :u WHERE id = :id',
+            ['c' => $createdAt, 'u' => $updatedAt, 'id' => $id],
+        );
+    }
+
+    public function testMyDecksDefaultsToTwentyPerPage(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $this->postDrafts($sub, 23);
+
+        $data = $this->getMy($sub);
+        $this->assertResponseIsSuccessful();
+        $this->assertCount(20, $data['member']);
+        $this->assertSame(23, $data['totalItems']);
+        $this->assertSame(20, $data['itemsPerPage']);
+        $this->assertSame(1, $data['currentPage']);
+        $this->assertSame(2, $data['lastPage']);
+        $this->assertSame(2, $data['nextPage']);
+        $this->assertNull($data['previousPage']);
+        $this->assertSame('/api/decks?page=2', $data['view']['next']);
+        $this->assertSame('/api/decks?page=2', $data['view']['last']);
+        $this->assertNull($data['view']['previous']);
+    }
+
+    public function testMyDecksPagesAreDisjointAndCoverEveryDeck(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $all = $this->postDrafts($sub, 5);
+
+        $page1 = $this->getMy($sub, ['page' => 1, 'itemsPerPage' => 2]);
+        $page2 = $this->getMy($sub, ['page' => 2, 'itemsPerPage' => 2]);
+        $page3 = $this->getMy($sub, ['page' => 3, 'itemsPerPage' => 2]);
+
+        foreach ([$page1, $page2, $page3] as $page) {
+            $this->assertSame(5, $page['totalItems']);
+            $this->assertSame(3, $page['lastPage']);
+        }
+
+        $ids1 = array_column($page1['member'], 'id');
+        $ids2 = array_column($page2['member'], 'id');
+        $ids3 = array_column($page3['member'], 'id');
+        $this->assertCount(2, $ids1);
+        $this->assertCount(2, $ids2);
+        $this->assertCount(1, $ids3);
+        $this->assertSame([], array_intersect($ids1, $ids2), 'Page 2 must not repeat page 1');
+
+        $seen = array_merge($ids1, $ids2, $ids3);
+        sort($seen);
+        sort($all);
+        $this->assertSame($all, $seen);
+
+        $this->assertSame(1, $page2['previousPage']);
+        $this->assertSame(3, $page2['nextPage']);
+        $this->assertNull($page3['nextPage']);
+        $this->assertSame('/api/decks?page=3&itemsPerPage=2', $page2['view']['next']);
+    }
+
+    public function testMyDecksPageBeyondLastIsEmptyWithTotal(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $this->postDrafts($sub, 3);
+
+        $data = $this->getMy($sub, ['page' => 5, 'itemsPerPage' => 2]);
+        $this->assertResponseIsSuccessful();
+        $this->assertSame([], $data['member']);
+        $this->assertSame(3, $data['totalItems']);
+        $this->assertSame(2, $data['lastPage']);
+    }
+
+    public function testMyDecksItemsPerPageIsCappedAtOneThousand(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $this->postDrafts($sub, 1);
+
+        $data = $this->getMy($sub, ['itemsPerPage' => 5000]);
+        $this->assertResponseIsSuccessful();
+        $this->assertSame(1000, $data['itemsPerPage']);
+        $this->assertCount(1, $data['member']);
+    }
+
+    public function testMyDecksInvalidPageReturns400(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $this->getMy($sub, ['page' => 0]);
+        $this->assertResponseStatusCodeSame(400);
+    }
+
+    public function testMyDecksPaginationRespectsFilters(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $this->postDrafts($sub, 3, 'Alpha');
+        $this->postDrafts($sub, 2, 'Beta');
+
+        $data = $this->getMy($sub, ['name' => 'alpha', 'itemsPerPage' => 2]);
+        $this->assertSame(3, $data['totalItems']);
+        $this->assertSame(2, $data['lastPage']);
+        $this->assertSame('/api/decks?name=alpha&itemsPerPage=2&page=2', $data['view']['next']);
+    }
+
+    public function testMyDecksFilterByFormat(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $standard = $this->post($sub, ['name' => 'Standard', 'isDraft' => true, 'format' => 'standard']);
+        $nuc = $this->post($sub, ['name' => 'NUC', 'isDraft' => true, 'format' => 'nuc']);
+        $none = $this->post($sub, ['name' => 'No format', 'isDraft' => true]);
+
+        $ids = $this->myIds($sub, ['format' => 'nuc']);
+        $this->assertSame([$nuc['id']], $ids);
+
+        $ids = $this->myIds($sub, ['format' => 'standard']);
+        $this->assertSame([$standard['id']], $ids);
+        $this->assertNotContains($none['id'], $ids);
+    }
+
+    public function testMyDecksFilterByIsPublic(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        [$public, $private] = $this->postDrafts($sub, 2);
+        $this->patch($sub, $public, ['isPublic' => true]);
+        $this->assertResponseIsSuccessful();
+
+        $this->assertSame([$public], $this->myIds($sub, ['isPublic' => 'true']));
+        $this->assertSame([$public], $this->myIds($sub, ['isPublic' => '1']));
+        $this->assertSame([$private], $this->myIds($sub, ['isPublic' => 'false']));
+        $this->assertSame([$private], $this->myIds($sub, ['isPublic' => '0']));
+        // Anything else is not a boolean: no filter.
+        $this->assertCount(2, $this->myIds($sub, ['isPublic' => 'maybe']));
+    }
+
+    public function testMyDecksFilterByIsDraft(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $draft = $this->post($sub, ['name' => 'Draft', 'isDraft' => true]);
+        $final = $this->post($sub, ['name' => 'Final', 'isDraft' => false]);
+        $this->assertResponseStatusCodeSame(201);
+
+        $this->assertSame([$draft['id']], $this->myIds($sub, ['isDraft' => 'true']));
+        $this->assertSame([$final['id']], $this->myIds($sub, ['isDraft' => 'false']));
+    }
+
+    public function testMyDecksFilterByNameIsCaseInsensitivePartial(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $dragon = $this->post($sub, ['name' => 'Red Dragon Aggro', 'isDraft' => true]);
+        $this->post($sub, ['name' => 'Blue Control', 'isDraft' => true]);
+
+        $this->assertSame([$dragon['id']], $this->myIds($sub, ['name' => 'dragon']));
+        $this->assertSame([$dragon['id']], $this->myIds($sub, ['name' => 'RED DRA']));
+        $this->assertSame([], $this->myIds($sub, ['name' => 'green']));
+    }
+
+    public function testMyDecksNameFilterTreatsWildcardsLiterally(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $percent = $this->post($sub, ['name' => '100% Aggro', 'isDraft' => true]);
+        $this->post($sub, ['name' => '1000 Aggro', 'isDraft' => true]);
+        $underscore = $this->post($sub, ['name' => 'a_b', 'isDraft' => true]);
+        $this->post($sub, ['name' => 'axb', 'isDraft' => true]);
+
+        $this->assertSame([$percent['id']], $this->myIds($sub, ['name' => '100%']));
+        $this->assertSame([$underscore['id']], $this->myIds($sub, ['name' => 'a_b']));
+        // A quote is just a character: no SQL error, no match.
+        $this->assertSame([], $this->myIds($sub, ['name' => "x' OR '1'='1"]));
+    }
+
+    public function testMyDecksFiltersCombine(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        $match = $this->post($sub, ['name' => 'Target', 'isDraft' => true, 'format' => 'nuc']);
+        $this->post($sub, ['name' => 'Target', 'isDraft' => true, 'format' => 'standard']);
+        $this->post($sub, ['name' => 'Other', 'isDraft' => true, 'format' => 'nuc']);
+
+        $data = $this->getMy($sub, ['name' => 'targ', 'format' => 'nuc', 'isDraft' => 'true']);
+        $this->assertSame([$match['id']], array_column($data['member'], 'id'));
+        $this->assertSame(1, $data['totalItems']);
+    }
+
+    public function testMyDecksDefaultOrderIsMostRecentlyUpdatedFirst(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        [$old, $edited, $recent] = $this->postDrafts($sub, 3);
+        $this->setTimestamps($old, '2026-01-01 10:00:00');
+        $this->setTimestamps($edited, '2026-01-02 10:00:00', '2026-01-05 10:00:00');
+        // Never edited: updatedAt falls back to createdAt.
+        $this->setTimestamps($recent, '2026-01-04 10:00:00');
+
+        $this->assertSame([$edited, $recent, $old], $this->myIds($sub));
+    }
+
+    public function testMyDecksSameSecondKeepsNewestFirst(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        [$first, $second, $third] = $this->postDrafts($sub, 3);
+        foreach ([$first, $second, $third] as $id) {
+            $this->setTimestamps($id, '2026-01-01 10:00:00');
+        }
+
+        $this->assertSame([$third, $second, $first], $this->myIds($sub));
+        $this->assertSame([$first, $second, $third], $this->myIds($sub, ['order' => ['createdAt' => 'asc']]));
+    }
+
+    public function testMyDecksOrderByName(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        foreach (['charlie', 'Alpha', 'bravo'] as $name) {
+            $this->post($sub, ['name' => $name, 'isDraft' => true]);
+        }
+
+        $this->assertSame(['Alpha', 'bravo', 'charlie'], $this->myNames($sub, ['order' => ['name' => 'asc']]));
+        $this->assertSame(['charlie', 'bravo', 'Alpha'], $this->myNames($sub, ['order' => ['name' => 'desc']]));
+    }
+
+    public function testMyDecksOrderByCreatedAt(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        [$a, $b, $c] = $this->postDrafts($sub, 3);
+        $this->setTimestamps($a, '2026-01-02 10:00:00', '2026-01-09 10:00:00');
+        $this->setTimestamps($b, '2026-01-01 10:00:00');
+        $this->setTimestamps($c, '2026-01-03 10:00:00');
+
+        $this->assertSame([$b, $a, $c], $this->myIds($sub, ['order' => ['createdAt' => 'asc']]));
+        $this->assertSame([$c, $a, $b], $this->myIds($sub, ['order' => ['createdAt' => 'desc']]));
+    }
+
+    public function testMyDecksOrderByUpdatedAtAsc(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        [$a, $b] = $this->postDrafts($sub, 2);
+        $this->setTimestamps($a, '2026-01-01 10:00:00', '2026-01-09 10:00:00');
+        $this->setTimestamps($b, '2026-01-02 10:00:00');
+
+        $this->assertSame([$b, $a], $this->myIds($sub, ['order' => ['updatedAt' => 'asc']]));
+        $this->assertSame([$a, $b], $this->myIds($sub, ['order' => ['updatedAt' => 'desc']]));
+    }
+
+    public function testMyDecksOrderByUpvoteCount(): void
+    {
+        $owner = 'owner-'.__FUNCTION__;
+        [$popular, $quiet] = $this->postDrafts($owner, 2);
+        $this->patch($owner, $popular, ['isPublic' => true, 'isDraft' => false]);
+        $this->assertResponseIsSuccessful();
+        $this->upvote('fan-'.__FUNCTION__, $popular);
+        $this->assertResponseIsSuccessful();
+
+        $this->assertSame([$popular, $quiet], $this->myIds($owner, ['order' => ['upvoteCount' => 'desc']]));
+        $this->assertSame([$quiet, $popular], $this->myIds($owner, ['order' => ['upvoteCount' => 'asc']]));
+    }
+
+    public function testMyDecksOrderPaginatesWithoutOverlap(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        // Same name everywhere: the sort value ties, the id tie-breaker keeps pages stable.
+        $all = $this->postDrafts($sub, 4, 'Same');
+        foreach ($all as $id) {
+            $this->patch($sub, $id, ['name' => 'Same']);
+        }
+
+        $params = ['order' => ['name' => 'asc'], 'itemsPerPage' => 2];
+        $ids1 = $this->myIds($sub, $params + ['page' => 1]);
+        $ids2 = $this->myIds($sub, $params + ['page' => 2]);
+
+        $seen = array_merge($ids1, $ids2);
+        sort($seen);
+        sort($all);
+        $this->assertSame($all, $seen);
+    }
+
+    public function testMyDecksUnknownOrMalformedOrderFallsBackToDefault(): void
+    {
+        $sub = 'user-'.__FUNCTION__;
+        [$older, $newer] = $this->postDrafts($sub, 2);
+        $this->setTimestamps($older, '2026-01-01 10:00:00');
+        $this->setTimestamps($newer, '2026-01-02 10:00:00');
+        $default = [$newer, $older];
+
+        $this->assertSame($default, $this->myIds($sub, ['order' => ['user_id; DROP TABLE deck' => 'asc']]));
+        $this->assertSame($default, $this->myIds($sub, ['order' => 'asc']));
+        // An unknown direction is read as desc.
+        $this->assertSame($default, $this->myIds($sub, ['order' => ['createdAt' => 'sideways']]));
     }
 }

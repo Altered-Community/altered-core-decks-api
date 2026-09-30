@@ -60,13 +60,16 @@ use Symfony\Component\Validator\Constraints as Assert;
     ],
     paginationItemsPerPage: 20,
 )]
+// GetCollection goes through DeckCollectionProvider, so Doctrine never applies these: the
+// provider handles format, isPublic, isDraft, name and order itself (plus faction and hero,
+// see DeckRepository::findByUser). user and alteredId are not applied there.
 #[ApiFilter(SearchFilter::class, properties: [
     'format' => 'exact',
     'isPublic' => 'exact',
     'isDraft' => 'exact',
     'user' => 'exact',
     'alteredId' => 'exact',
-    'name' => 'exact',
+    'name' => 'ipartial',
 ])]
 #[ApiFilter(OrderFilter::class, properties: ['createdAt', 'updatedAt', 'name', 'viewCount', 'upvoteCount'])]
 class Deck

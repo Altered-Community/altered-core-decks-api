@@ -191,22 +191,136 @@ class DeckRepository extends ServiceEntityRepository
     }
 
     /**
-     * All decks owned by $user, optionally narrowed by faction and/or hero.
-     * Faction/hero use the same jsonb matching as the public listing (see
-     * buildHeroFactionWhere). Ordering matches the client's default sort; the
-     * client re-sorts on demand.
+     * Columns the "my decks" listing may be ordered by, keyed by the API field name
+     * (the `order[field]=asc|desc` query parameter). Values are trusted SQL expressions:
+     * only these ever reach the ORDER BY clause.
+     *
+     * updatedAt falls back to created_at: a deck that was never edited has a NULL
+     * updated_at, and Postgres would otherwise sort those before every edited deck.
+     */
+    private const USER_DECK_ORDER_COLUMNS = [
+        'createdAt' => 'd.created_at',
+        'updatedAt' => 'COALESCE(d.updated_at, d.created_at)',
+        'name' => 'LOWER(d.name)',
+        'upvoteCount' => 'd.upvote_count',
+        'viewCount' => 'd.view_count',
+    ];
+
+    /**
+     * One page of the decks owned by $user, filtered and ordered.
+     *
+     * Filters combine with AND. Faction/hero use the same jsonb matching as the public
+     * listing (see buildHeroFactionWhere). $name is a case-insensitive substring match.
+     * $order maps API field names (see USER_DECK_ORDER_COLUMNS) to 'asc'|'desc'; unknown
+     * fields are ignored, and d.id is always appended so pages never overlap or skip a
+     * deck when the sort value ties. Default: most recently updated first.
+     *
+     * @param array<string, string> $order
      *
      * @return Deck[]
      */
-    public function findByUser(User $user, ?string $faction = null, ?string $hero = null): array
-    {
-        [$heroFactionWhere, $params] = $this->buildHeroFactionWhere($hero, $faction);
-        $params['userId'] = (string) $user->getId();
+    public function findByUser(
+        User $user,
+        int $offset = 0,
+        ?int $limit = null,
+        ?string $faction = null,
+        ?string $hero = null,
+        ?string $format = null,
+        ?bool $isPublic = null,
+        ?bool $isDraft = null,
+        ?string $name = null,
+        array $order = [],
+    ): array {
+        [$where, $params] = $this->buildUserFilters($user, $faction, $hero, $format, $isPublic, $isDraft, $name);
 
-        return $this->fetchDecks(
-            "WHERE d.user_id = :userId{$heroFactionWhere} ORDER BY d.updated_at DESC",
+        $orderBy = [];
+        foreach ($order as $field => $direction) {
+            if (isset(self::USER_DECK_ORDER_COLUMNS[$field])) {
+                $orderBy[] = [self::USER_DECK_ORDER_COLUMNS[$field], 'asc' === strtolower($direction) ? 'ASC' : 'DESC'];
+            }
+        }
+        if ([] === $orderBy) {
+            $orderBy[] = [self::USER_DECK_ORDER_COLUMNS['updatedAt'], 'DESC'];
+        }
+        // Tie-breaker in the primary direction. Timestamps are stored to the second and ids
+        // are time-ordered UUIDv7, so decks saved within the same second still come out in
+        // creation order (newest first for a DESC sort).
+        $orderBy[] = ['d.id', $orderBy[0][1]];
+
+        $sql = 'WHERE '.$where.' ORDER BY '.implode(', ', array_map(
+            static fn (array $term): string => $term[0].' '.$term[1],
+            $orderBy,
+        ));
+
+        if (null !== $limit) {
+            $sql .= ' LIMIT :limit';
+            $params['limit'] = $limit;
+        }
+        if ($offset > 0) {
+            $sql .= ' OFFSET :offset';
+            $params['offset'] = $offset;
+        }
+
+        return $this->fetchDecks($sql, $params);
+    }
+
+    /**
+     * Number of decks findByUser() would return without LIMIT/OFFSET.
+     */
+    public function countByUser(
+        User $user,
+        ?string $faction = null,
+        ?string $hero = null,
+        ?string $format = null,
+        ?bool $isPublic = null,
+        ?bool $isDraft = null,
+        ?string $name = null,
+    ): int {
+        [$where, $params] = $this->buildUserFilters($user, $faction, $hero, $format, $isPublic, $isDraft, $name);
+
+        return (int) $this->getEntityManager()->getConnection()->fetchOne(
+            "SELECT COUNT(d.id) FROM deck d WHERE {$where}",
             $params,
         );
+    }
+
+    /**
+     * @return array{0: string, 1: array<string, mixed>}
+     */
+    private function buildUserFilters(
+        User $user,
+        ?string $faction,
+        ?string $hero,
+        ?string $format,
+        ?bool $isPublic,
+        ?bool $isDraft,
+        ?string $name,
+    ): array {
+        [$heroFactionWhere, $params] = $this->buildHeroFactionWhere($hero, $faction);
+        $where = 'd.user_id = :userId'.$heroFactionWhere;
+        $params['userId'] = (string) $user->getId();
+
+        if (null !== $format) {
+            $where .= ' AND d.format = :format';
+            $params['format'] = $format;
+        }
+
+        // Booleans are inlined from a fixed pair, never from user input.
+        if (null !== $isPublic) {
+            $where .= ' AND d.is_public = '.($isPublic ? 'true' : 'false');
+        }
+
+        if (null !== $isDraft) {
+            $where .= ' AND d.is_draft = '.($isDraft ? 'true' : 'false');
+        }
+
+        if (null !== $name) {
+            // Escape LIKE wildcards so "100%" or "a_b" match literally.
+            $where .= ' AND d.name ILIKE :name';
+            $params['name'] = '%'.addcslashes($name, '%_\\').'%';
+        }
+
+        return [$where, $params];
     }
 
     public function findBgaDecks(?User $user, int $page, int $itemsPerPage, string $name, array $factions, string $hero, string $format, array $validFormats = []): array
