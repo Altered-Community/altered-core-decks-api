@@ -74,6 +74,8 @@ class KeycloakAuthenticator extends AbstractAuthenticator
     private function findOrCreateUser(string $keycloakId, object $decoded): User
     {
         $user = $this->userRepository->findByKeycloakId($keycloakId);
+        // `preferred_username` is the player's email (the realm uses the email as username): only `pseudo` is a public name.
+        $pseudo = is_string($decoded->pseudo ?? null) ? trim($decoded->pseudo) : '';
 
         if (!$user) {
             $user = new User();
@@ -82,13 +84,16 @@ class KeycloakAuthenticator extends AbstractAuthenticator
 
             $this->auditLogger->info('auth.new_user', [
                 'keycloak_id' => $keycloakId,
-                'username' => $decoded->preferred_username ?? $decoded->name ?? null,
+                'username' => '' !== $pseudo ? $pseudo : null,
                 'email' => $decoded->email ?? null,
             ]);
         }
 
         $user->setEmail($decoded->email ?? $decoded->preferred_username ?? null);
-        $user->setUsername($decoded->pseudo ?? $decoded->preferred_username ?? $decoded->name ?? null);
+        // Tokens from clients without the `profile` scope carry no pseudo: keep the stored one.
+        if ('' !== $pseudo) {
+            $user->setUsername(mb_substr($pseudo, 0, 100));
+        }
         $user->setLocale($decoded->locale ?? null);
         $user->setUpdatedAt(new \DateTimeImmutable());
 

@@ -34,6 +34,7 @@ class DevAuthController extends AbstractController
         $payload = [
             'sub' => $sub,
             'preferred_username' => $username,
+            'pseudo' => $username,
             'email' => $email,
             'name' => $username,
             'iss' => 'dev',
