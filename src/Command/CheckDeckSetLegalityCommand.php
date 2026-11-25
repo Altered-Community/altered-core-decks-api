@@ -68,6 +68,7 @@ final class CheckDeckSetLegalityCommand extends Command
         $updated = 0;
         $unchanged = 0;
         $skipped = 0;
+        $skippedPlayerContext = 0;
 
         while (true) {
             $decks = $this->deckRepository->findBatchWithCards($offset, self::BATCH_SIZE);
@@ -86,6 +87,13 @@ final class CheckDeckSetLegalityCommand extends Command
                 }
 
                 $validator = $this->validatorFactory->getValidator($format);
+
+                if (!$validator->supportsOfflineRevalidation()) {
+                    ++$skippedPlayerContext;
+                    $progress->advance();
+                    continue;
+                }
+
                 $cardsData = $this->fetchCardsData($deck);
                 $detail = $validator->computeLegalityDetail($deck, $cardsData);
                 $legal = $detail['global'];
@@ -120,6 +128,7 @@ final class CheckDeckSetLegalityCommand extends Command
                 [$dryRun ? 'Would update' : 'Updated', $updated],
                 ['Already correct',                      $unchanged],
                 ['Skipped (no format)',                  $skipped],
+                ['Skipped (requires player context)',    $skippedPlayerContext],
             ]
         );
 
@@ -159,6 +168,13 @@ final class CheckDeckSetLegalityCommand extends Command
         }
 
         $validator = $this->validatorFactory->getValidator($format);
+
+        if (!$validator->supportsOfflineRevalidation()) {
+            $io->warning(sprintf('Deck "%s" has format "%s", whose legality depends on the player\'s context and cannot be recomputed offline — skipped.', $uid, $format));
+
+            return Command::SUCCESS;
+        }
+
         $cardsData = $this->fetchCardsData($deck);
         $detail = $validator->computeLegalityDetail($deck, $cardsData);
         $legal = $detail['global'];

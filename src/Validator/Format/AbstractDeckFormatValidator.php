@@ -31,6 +31,11 @@ abstract class AbstractDeckFormatValidator implements DeckFormatValidatorInterfa
 
     public const FORBIDDEN_SETS = ['FUGUE'];
 
+    public function supportsOfflineRevalidation(): bool
+    {
+        return true;
+    }
+
     public function validate(Deck $deck, array $cardsData): array
     {
         $errors = [];

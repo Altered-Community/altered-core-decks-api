@@ -45,6 +45,13 @@ class SealedFormatValidator extends AbstractDeckFormatValidator
         return 'sealed';
     }
 
+    // Pool membership needs the player's own bearer token (see AlteredDraftSealedPoolClient),
+    // which a CLI run doesn't have: recomputing offline would always fail closed.
+    public function supportsOfflineRevalidation(): bool
+    {
+        return false;
+    }
+
     protected function getMinCards(): int
     {
         return 29;

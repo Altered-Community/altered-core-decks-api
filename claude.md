@@ -320,6 +320,11 @@ On no linked pool / an unreachable altered-draft, `getPoolCounts()` returns null
 closed** (deck invalid) — there's no way to make this format work without the external call, so a failure
 has to block validation rather than silently pass.
 
+Because it needs the player's token, a sealed deck's legality can't be recomputed offline:
+`SealedFormatValidator::supportsOfflineRevalidation()` returns `false`, and the
+`app:deck:check-set-legality` batch command (run on every new Frontier pool) skips such decks instead of
+failing them closed. Any future format depending on caller context must do the same.
+
 `sealed` is registered like every other format in `BgaDeckController::BGA_VALID_FORMATS` and its
 `eventFormat` allowlist.
 

@@ -38,4 +38,14 @@ interface DeckFormatValidatorInterface
      * @return array<string, bool>
      */
     public function computeLegalityDetail(Deck $deck, array $cardsData): array;
+
+    /**
+     * Whether this format's legality can be recomputed outside of a player's HTTP request
+     * (e.g. by the app:deck:check-set-legality batch command).
+     *
+     * Formats whose rules depend on the calling player's context (bearer token forwarded
+     * to an external service) must return false: recomputing them from the CLI would
+     * always fail closed and wrongly flag every such deck as illegal.
+     */
+    public function supportsOfflineRevalidation(): bool;
 }
